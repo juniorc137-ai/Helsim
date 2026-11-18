@@ -74,13 +74,13 @@ teste em `test/engine.test.js` cobrindo o caminho ideal e o caminho sem interven
 - O motor roda no navegador do instrutor; se a página do instrutor for fechada, o roteiro
   em andamento é perdido (os monitores mantêm o último estado).
 
-## HelseCapture (gestão, gravação e debriefing)
+## HELSIM (gestão, gravação e debriefing)
 
-`/captura.html` (botão **HelseCapture · Agenda · Debriefing** na tela inicial), com a identidade
+`/captura.html` (botão **HELSIM · Agenda · Debriefing** na tela inicial), com a identidade
 visual Helse Solutions (barra marinho, menu lateral por módulos, tipografia IBM Plex, tema claro
-e escuro; ícone HelseCapture em `public/img/`, botões de captura em vermelho vivo), reproduz, em implementação aberta, o fluxo de um sistema de gestão de simulação do tipo SimCapture:
+e escuro; ícone HELSIM em `public/img/`, botões de captura em vermelho vivo), reproduz, em implementação aberta, o fluxo de um sistema de gestão de simulação do tipo SimCapture:
 
-| Etapa | No HelseCapture |
+| Etapa | No HELSIM |
 |---|---|
 | Agenda | Calendário mensal de salas, reservas únicas ou recorrentes (até 1 ano), conflito de sala e de equipamento permanente, aprovação de pedidos de docentes, exportação `.ics` |
 | Cursos e pessoas | Turmas com estudantes e docentes, importação/exportação CSV (ponte com Moodle/Canvas) |
@@ -140,7 +140,7 @@ As regras (horários, atraso, NEWS2, alergias, estoque, ocupação) ficam em `pu
 
 ### Modo de senhas (cadastro por e-mail)
 
-Quando o HelseCapture é aberto pelo servidor (`npm start`, endereço `/captura.html`), o acesso exige conta:
+Quando o HELSIM é aberto pelo servidor (`npm start`, endereço `/captura.html`), o acesso exige conta:
 
 1. **Cadastro**: a pessoa informa nome e e-mail; o servidor gera uma **senha temporária aleatória**
    (12 caracteres, válida por 24 h) e a envia ao e-mail.
@@ -160,7 +160,7 @@ E-mail real por SMTP (por exemplo, o servidor de e-mail da instituição):
 
 ```bash
 SMTP_HOST=smtp.exemplo.edu.br SMTP_PORT=587 SMTP_USER=helsecapture@exemplo.edu.br \
-SMTP_PASS='senha-do-app' SMTP_FROM='HelseCapture <helsecapture@exemplo.edu.br>' \
+SMTP_PASS='senha-do-app' SMTP_FROM='HELSIM <helsecapture@exemplo.edu.br>' \
 PUBLIC_URL=https://simulacao.exemplo.edu.br npm start
 ```
 

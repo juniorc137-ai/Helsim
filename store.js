@@ -1,4 +1,4 @@
-/* HelseCapture – banco de dados central (sincronização entre computadores).
+/* HELSIM – banco de dados central (sincronização entre computadores).
  *
  * O navegador continua trabalhando com a cópia local (IndexedDB, funciona
  * offline) e sincroniza com este servidor: o documento de dados inteiro tem

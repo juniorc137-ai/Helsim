@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════════════════════
- * HelseCapture – módulos exclusivos de docente e administrador
+ * HELSIM – módulos exclusivos de docente e administrador
  *
  *  1. Prontuário eletrônico simulado (prescrição, aprazamento, administração,
  *     histórico e sinais vitais com NEWS2), integrado às sessões ao vivo:
@@ -381,7 +381,7 @@
       const w = window.open("", "_blank");
       if (!w) return toast("Permita janelas pop-up para imprimir.");
       w.document.write(`<!doctype html><meta charset="utf-8"><title>Prescrição ${esc(p.rx.number)}</title><style>body{font:13px system-ui;margin:28px;color:#111}h1{font-size:18px;margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #bbb;padding:5px 7px;text-align:left}th{background:#eef2f7}.al{color:#b00;font-weight:700}.sig{margin-top:48px;border-top:1px solid #333;width:280px;padding-top:4px}</style>
-        <h1>Prescrição Nº ${esc(p.rx.number)} · ${p.rx.status === "liberada" ? "LIBERADA" : "EM DIGITAÇÃO"}</h1><div>Material de simulação clínica · HelseCapture · ${esc(DB.settings.institution || "")}</div>
+        <h1>Prescrição Nº ${esc(p.rx.number)} · ${p.rx.status === "liberada" ? "LIBERADA" : "EM DIGITAÇÃO"}</h1><div>Material de simulação clínica · HELSIM · ${esc(DB.settings.institution || "")}</div>
         <p><b>${esc(p.name)}</b> · Atendimento ${esc(p.encounter)} · Prontuário ${esc(p.record)} · ${esc(p.unit)} ${p.bed ? "Leito " + esc(p.bed) : ""}<br>${esc(p.diagnosis || "")}${p.allergies ? `<br><span class="al">ALERGIA: ${esc(p.allergies)}</span>` : ""}<br>Válida até ${esc(fmtDT(+new Date(p.rx.validUntil)))}</p>
         <table><tr><th>Seq</th><th>Tipo</th><th>Descrição</th><th>Dose</th><th>Via</th><th>Frequência</th><th>Horários</th><th>Status</th></tr>${p.items.map((it, i) => `<tr><td>${i + 1}</td><td>${esc(it.type)}</td><td>${esc(it.desc)}${it.obs ? "<br><small>" + esc(it.obs) + "</small>" : ""}</td><td>${esc(it.dose || "")}</td><td>${esc(it.route || "")}</td><td>${esc(it.freq || "")}</td><td>${esc((it.times || []).join(" · "))}</td><td>${it.status}</td></tr>`).join("")}</table>
         <div class="sig">${esc(p.rx.prescriber || "Prescritor")}</div><script>print()<\/script>`);
@@ -871,7 +871,7 @@
     function screen(mode, msg = "", email = "") {
       if (!box) { box = document.createElement("div"); box.id = "auth"; document.body.appendChild(box); }
       box.hidden = false;
-      const head = `<div class="au-logo"><span class="tb-logo"></span><b>Helse<span class="cap">CAPTURE</span></b></div>`;
+      const head = `<div class="au-logo"><span class="tb-logo"></span><b>HELSIM</b></div>`;
       const err = msg ? `<div class="au-msg ${/enviad|chegar|criad/i.test(msg) ? "ok" : ""}" role="alert">${esc(msg)}</div>` : "";
       const forms = {
         login: `<h2>Entrar</h2>${err}<form data-au="login"><label class="f"><span>E-mail</span><input name="email" type="email" autocomplete="username" required value="${esc(email)}"></label>
@@ -1025,7 +1025,7 @@
     };
     root.hcDeleteRemoteMedia = (id) => { if (SY.on && AU.user.role !== "estudante") dataFetch("DELETE", `/media/${encodeURIComponent(id)}`).catch(() => {}); };
     root.hcAuthExpired = () => { SY.on = false; setState(""); toast("Sua sessão expirou. Entre novamente."); logout(); };
-    /** Chamado no início: liga o modo de senhas quando a página é servida pelo servidor do HelseCapture. */
+    /** Chamado no início: liga o modo de senhas quando a página é servida pelo servidor do HELSIM. */
     root.hcAuthBoot = async () => {
       if (!/^https?:$/.test(location.protocol)) return;
       try { const r = await fetch("/api/auth/status", { cache: "no-store" }); const j = r.ok ? await r.json() : null; if (!j || j.enabled !== true) return; AU.on = true; AU.mail = j.mail; AU.syncAvail = j.sync !== false; } catch (e) { return; }
@@ -1039,7 +1039,7 @@
     R.config = () => origConfig() + (AU.on && AU.user && AU.user.role === "admin" && UI.role === "admin"
       ? `<section class="card"><div class="between"><h2 style="margin:0">Usuários e acesso</h2><button class="btn primary" data-act="au-new">+ Usuário</button></div><div id="au-users" class="muted">Carregando…</div>
         <p class="muted small" style="margin-top:8px">Novos cadastros entram como estudante; promova docentes aqui. “Nova senha” envia outra senha temporária e obriga a troca no próximo acesso. E-mail: ${AU.mail === "smtp" ? "SMTP configurado" : "modo de teste (data/outbox)"}.</p></section>`
-      : `<section class="card"><h2>Modo de senhas</h2><p class="muted">${AU.on ? "Ativo. Você entrou como " + esc(AU.user ? AU.user.name : "") + "." : "Disponível quando o HelseCapture roda pelo servidor (<code>npm start</code>): cadastro por e-mail, senha temporária enviada ao e-mail e troca obrigatória no primeiro acesso. Neste arquivo/link a troca de perfil continua livre."}</p></section>`);
+      : `<section class="card"><h2>Modo de senhas</h2><p class="muted">${AU.on ? "Ativo. Você entrou como " + esc(AU.user ? AU.user.name : "") + "." : "Disponível quando o HELSIM roda pelo servidor (<code>npm start</code>): cadastro por e-mail, senha temporária enviada ao e-mail e troca obrigatória no primeiro acesso. Neste arquivo/link a troca de perfil continua livre."}</p></section>`);
     async function loadUsers() {
       const el = $("#au-users"); if (!el) return;
       try {

@@ -1,4 +1,4 @@
-/* HelseCapture – modo de senhas (cadastro por e-mail, senha temporária e troca obrigatória).
+/* HELSIM – modo de senhas (cadastro por e-mail, senha temporária e troca obrigatória).
  *
  * Fluxo: a pessoa se cadastra com nome e e-mail → o servidor gera uma senha
  * temporária aleatória (válida por 24 h) e envia por e-mail → no primeiro
@@ -42,7 +42,7 @@ function passwordProblems(pw, u) {
 }
 const validEmail = (e) => /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/.test(String(e || ""));
 
-function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, appName = "HelseCapture", baseUrl = "" } = {}) {
+function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, appName = "HELSIM", baseUrl = "" } = {}) {
   const file = path.join(dataDir, "users.json");
   fs.mkdirSync(dataDir, { recursive: true });
   let db = { users: [] };

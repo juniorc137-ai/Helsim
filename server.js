@@ -5,7 +5,7 @@ const path = require("path");
 const app = express();
 app.use(express.static(path.join(__dirname, "public")));
 
-// Modo de senhas do HelseCapture (cadastro por e-mail + senha temporária + troca obrigatória)
+// Modo de senhas do HELSIM (cadastro por e-mail + senha temporária + troca obrigatória)
 // e banco central (sincronização entre computadores; HC_SYNC=0 desliga)
 const { createAuth } = require("./auth");
 const { createStore } = require("./store");

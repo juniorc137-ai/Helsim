@@ -272,7 +272,7 @@
     let host = "";
     try { host = new URL(u).hostname; } catch (e) { /* inválido */ }
     const local = /^(localhost|127\.|\[?::1\]?$)/.test(host);
-    if (page.protocol === "https:" && /^http:/i.test(u) && !local) problems.push("Esta página está em https e o link da câmera em http: o navegador bloqueia conteúdo misto. Use um link https ou abra o HelseCapture pelo servidor local (http).");
+    if (page.protocol === "https:" && /^http:/i.test(u) && !local) problems.push("Esta página está em https e o link da câmera em http: o navegador bloqueia conteúdo misto. Use um link https ou abra o HELSIM pelo servidor local (http).");
     if (/^[a-z]+:\/\/[^/]*:[^/]*@/i.test(u)) problems.push("Usuário e senha no link podem ser bloqueados pelo navegador; prefira um link com token ou liberado na rede da sala.");
     return { kind: k, ok: !problems.length || (problems.length === 1 && /senha/.test(problems[0])), problems };
   }

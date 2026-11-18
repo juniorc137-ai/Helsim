@@ -1,5 +1,5 @@
 /**
- * HelseCapture – biblioteca de exemplo baseada em evidências.
+ * HELSIM – biblioteca de exemplo baseada em evidências.
  *
  * Cursos, cenários, avaliações e checklists construídos a partir dos 24 artigos de
  * Clinical Simulation in Nursing, v. 105 (2025), incluindo a revisão 2025 dos
