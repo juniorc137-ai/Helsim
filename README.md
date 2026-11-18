@@ -137,3 +137,32 @@ estudante não vê as telas e as ações são recusadas mesmo se chamadas direta
 
 As regras (horários, atraso, NEWS2, alergias, estoque, ocupação) ficam em `public/captura-modulos.js`
 (`HC_CLIN`) e têm testes em `test/captura.test.js`.
+
+### Modo de senhas (cadastro por e-mail)
+
+Quando o HelseCapture é aberto pelo servidor (`npm start`, endereço `/captura.html`), o acesso exige conta:
+
+1. **Cadastro**: a pessoa informa nome e e-mail; o servidor gera uma **senha temporária aleatória**
+   (12 caracteres, válida por 24 h) e a envia ao e-mail.
+2. **Primeiro acesso**: com a senha temporária, a única tela disponível é a de **cadastrar a senha
+   definitiva** (mínimo de 10 caracteres, letras e números, diferente da temporária). Só depois o sistema abre.
+3. **Perfis**: o primeiro cadastro do servidor vira administrador; os demais entram como estudante e o
+   administrador promove docentes em **Configurações › Usuários e acesso** (onde também cadastra pessoas,
+   envia nova senha temporária e exclui acessos). Estudantes ficam presos ao próprio perfil; docentes podem
+   visualizar como estudante.
+4. **Recuperação**: “Esqueci minha senha” envia outra senha temporária e invalida a anterior.
+
+Segurança: senhas com scrypt e sal por usuário, sessões de 12 h guardadas só como hash, bloqueio de 15 min
+após 5 erros, limite de pedidos por IP e respostas que não revelam se um e-mail já tem cadastro. As contas
+ficam em `data/users.json` (fora do Git). Os dados das sessões continuam no navegador de cada computador.
+
+E-mail real por SMTP (por exemplo, o servidor de e-mail da instituição):
+
+```bash
+SMTP_HOST=smtp.exemplo.edu.br SMTP_PORT=587 SMTP_USER=helsecapture@exemplo.edu.br \
+SMTP_PASS='senha-do-app' SMTP_FROM='HelseCapture <helsecapture@exemplo.edu.br>' \
+PUBLIC_URL=https://simulacao.exemplo.edu.br npm start
+```
+
+Sem `SMTP_HOST`, o servidor roda em modo de teste: cada e-mail é salvo em `data/outbox/`. `HC_AUTH=0`
+desliga o modo de senhas. O arquivo único e o link de demonstração não têm servidor e mantêm a troca livre de perfil.

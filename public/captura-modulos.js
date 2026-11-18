@@ -797,5 +797,116 @@
       "salas-date": (el) => { if (el.value) { UI.salasDay = el.value; render(); } },
     };
     for (const [k, fn] of Object.entries(CH)) CHG[k] = (el) => (isStaff() ? fn(el) : deny());
+
+    // ═══════════════════════ MODO DE SENHAS (servidor) ═══════════════════
+    const AU = (root.HC_AUTH = { on: false, mail: "", token: "", user: null });
+    const RANK = { estudante: 0, docente: 1, admin: 2 };
+    const tokGet = () => { try { return localStorage.getItem("hc-auth") || ""; } catch (e) { return ""; } };
+    const tokSet = (t) => { try { t ? localStorage.setItem("hc-auth", t) : localStorage.removeItem("hc-auth"); } catch (e) {} };
+    async function api(path, body, method) {
+      const r = await fetch("/api/auth" + path, { method: method || (body ? "POST" : "GET"), headers: { "Content-Type": "application/json", ...(AU.token ? { Authorization: "Bearer " + AU.token } : {}) }, body: body ? JSON.stringify(body) : undefined });
+      let j = {}; try { j = await r.json(); } catch (e) {}
+      if (!r.ok) { const err = new Error(j.error || `Erro ${r.status}`); err.status = r.status; throw err; }
+      return j;
+    }
+    const allowed = (role) => !AU.user || RANK[role] <= RANK[AU.user.role];
+    root.hcAuthGuard = () => { if (AU.on && AU.user && !allowed(UI.role)) UI.role = AU.user.role; };
+    root.hcAuthLock = () => {
+      if (!AU.on || !AU.user) return;
+      $$("#role option").forEach((o) => { o.disabled = !allowed(o.value); o.hidden = !allowed(o.value); });
+      $("#role").disabled = AU.user.role === "estudante";
+      if (UI.role === AU.user.role) {
+        let p = DB.people.find((x) => (x.email || "").toLowerCase() === AU.user.email);
+        if (!p) { p = { id: C.uid("p"), name: AU.user.name, email: AU.user.email, role: AU.user.role }; DB.people.push(p); save(); }
+        if (p.role !== AU.user.role) { p.role = AU.user.role; save(); }
+        UI.me = p.id;
+        const me = $("#me"); if (me) { if (![...me.options].some((o) => o.value === p.id)) me.insertAdjacentHTML("beforeend", opt(p.id, p.name, p.id)); me.value = p.id; me.disabled = true; }
+      } else { const me = $("#me"); if (me) me.disabled = false; }
+      const ctx = $(".topbar .ctx");
+      if (ctx && !$("#tb-logout")) ctx.insertAdjacentHTML("beforeend", `<button type="button" class="tb-chip" id="tb-logout" data-act="auth-logout" title="Sair">Sair</button>`);
+      const av = $("#tb-avatar"); if (av) { av.textContent = AU.user.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase(); av.title = `${AU.user.name} · ${AU.user.email} · ${ROLES[AU.user.role]}`; }
+    };
+
+    let box = null, waitLogin = null;
+    const mail = () => (AU.mail === "smtp" ? "" : `<p class="muted small au-dev">Servidor em modo de teste: o e-mail não é enviado, fica salvo na pasta <code>data/outbox</code> do servidor. Configure o SMTP para envio real.</p>`);
+    function screen(mode, msg = "", email = "") {
+      if (!box) { box = document.createElement("div"); box.id = "auth"; document.body.appendChild(box); }
+      box.hidden = false;
+      const head = `<div class="au-logo"><span class="tb-logo"></span><b>Helse<span class="cap">CAPTURE</span></b></div>`;
+      const err = msg ? `<div class="au-msg ${/enviad|chegar|criad/i.test(msg) ? "ok" : ""}" role="alert">${esc(msg)}</div>` : "";
+      const forms = {
+        login: `<h2>Entrar</h2>${err}<form data-au="login"><label class="f"><span>E-mail</span><input name="email" type="email" autocomplete="username" required value="${esc(email)}"></label>
+          <label class="f"><span>Senha</span><input name="password" type="password" autocomplete="current-password" required></label><button class="btn primary au-go">Entrar</button></form>
+          <div class="au-links"><a href="#" data-au-go="register">Primeiro acesso: cadastrar</a><a href="#" data-au-go="forgot">Esqueci minha senha</a></div>`,
+        register: `<h2>Cadastro</h2>${err}<p class="muted small">Informe seu nome e e-mail institucional. Uma senha temporária será enviada ao e-mail; no primeiro acesso você cadastra a senha definitiva.</p>
+          <form data-au="register"><label class="f"><span>Nome completo</span><input name="name" required autocomplete="name"></label><label class="f"><span>E-mail</span><input name="email" type="email" required autocomplete="email" value="${esc(email)}"></label>
+          <button class="btn primary au-go">Enviar senha temporária</button></form>${mail()}<div class="au-links"><a href="#" data-au-go="login">Já tenho a senha</a></div>`,
+        forgot: `<h2>Recuperar acesso</h2>${err}<p class="muted small">Enviaremos uma nova senha temporária. A anterior deixa de valer.</p>
+          <form data-au="forgot"><label class="f"><span>E-mail</span><input name="email" type="email" required value="${esc(email)}"></label><button class="btn primary au-go">Enviar nova senha</button></form>${mail()}<div class="au-links"><a href="#" data-au-go="login">Voltar</a></div>`,
+        change: `<h2>Cadastre sua senha definitiva</h2>${err}<p class="muted small">Por segurança, a senha temporária só serve para este passo.</p>
+          <form data-au="change"><label class="f"><span>Senha temporária (do e-mail)</span><input name="current" type="password" required autocomplete="current-password"></label>
+          <label class="f"><span>Nova senha</span><input name="password" type="password" required autocomplete="new-password" minlength="10"></label>
+          <label class="f"><span>Confirmar nova senha</span><input name="confirm" type="password" required autocomplete="new-password"></label>
+          <ul class="au-rules"><li data-r="len">Pelo menos 10 caracteres</li><li data-r="mix">Letras e números</li><li data-r="eq">As duas senhas iguais</li></ul>
+          <button class="btn primary au-go">Salvar e entrar</button></form><div class="au-links"><a href="#" data-au-go="logout">Sair</a></div>`,
+      };
+      box.innerHTML = `<div class="au-card">${head}${forms[mode]}<p class="au-foot">Helse Solutions · dados das sessões ficam neste navegador</p></div>`;
+      const f = $("form", box); const first = f && $("input:not([value]),input[value='']", f); if (first) first.focus();
+      if (mode === "change") { const upd = () => { const p = f.password.value, c = f.confirm.value; const ok = { len: p.length >= 10, mix: /[A-Za-zÀ-ÿ]/.test(p) && /\d/.test(p), eq: p && p === c }; $$(".au-rules li", box).forEach((li) => li.classList.toggle("ok", !!ok[li.dataset.r])); }; f.oninput = upd; upd(); }
+    }
+    function done(user, token) { AU.user = user; AU.token = token; tokSet(token); if (box) box.hidden = true; UI.role = user.role; savePrefs(); if (waitLogin) { const w = waitLogin; waitLogin = null; w(); } else render(); }
+    document.addEventListener("click", (e) => {
+      const a = e.target.closest("[data-au-go]"); if (!a) return; e.preventDefault();
+      const email = (box && $("input[name=email]", box) || {}).value || "";
+      if (a.dataset.auGo === "logout") return logout(); screen(a.dataset.auGo, "", email);
+    });
+    document.addEventListener("submit", async (e) => {
+      const f = e.target.closest("form[data-au]"); if (!f) return; e.preventDefault();
+      const b = $(".au-go", f); b.disabled = true; const fd = Object.fromEntries(new FormData(f)); const mode = f.dataset.au;
+      try {
+        if (mode === "login") { const j = await api("/login", fd); AU.token = j.token; if (j.user.mustChange) screen("change"); else done(j.user, j.token); }
+        if (mode === "register") { const j = await api("/register", fd); screen("login", j.message + (j.first ? " Este é o primeiro cadastro do servidor: ele terá perfil de administrador." : ""), fd.email); }
+        if (mode === "forgot") { const j = await api("/forgot", fd); screen("login", j.message, fd.email); }
+        if (mode === "change") { if (fd.password !== fd.confirm) throw new Error("As senhas não conferem."); const j = await api("/change-password", { current: fd.current, password: fd.password }); done(j.user, j.token); toast("Senha definitiva cadastrada."); }
+      } catch (x) { const em = fd.email || ""; screen(x.status === 401 && mode === "change" ? "login" : mode, x.message, em); }
+    });
+    async function logout() { try { await api("/logout", {}); } catch (e) {} AU.user = null; AU.token = ""; tokSet(""); const l = $("#tb-logout"); if (l) l.remove(); screen("login"); }
+    ACT["auth-logout"] = () => { if (LIVE.recording) return toast("Encerre a gravação antes de sair."); logout(); };
+
+    /** Chamado no início: liga o modo de senhas quando a página é servida pelo servidor do HelseCapture. */
+    root.hcAuthBoot = async () => {
+      if (!/^https?:$/.test(location.protocol)) return;
+      try { const r = await fetch("/api/auth/status", { cache: "no-store" }); const j = r.ok ? await r.json() : null; if (!j || j.enabled !== true) return; AU.on = true; AU.mail = j.mail; } catch (e) { return; }
+      AU.token = tokGet();
+      if (AU.token) { try { const j = await api("/me"); AU.user = j.user; UI.role = j.user.role; return; } catch (e) { if (/Troque/.test(e.message)) { await new Promise((res) => { waitLogin = res; screen("change"); }); return; } AU.token = ""; tokSet(""); } }
+      await new Promise((res) => { waitLogin = res; screen("login"); });
+    };
+
+    // Configurações › Usuários e acesso (administrador)
+    const origConfig = R.config, origAfter = AFTER.config;
+    R.config = () => origConfig() + (AU.on && AU.user && AU.user.role === "admin" && UI.role === "admin"
+      ? `<section class="card"><div class="between"><h2 style="margin:0">Usuários e acesso</h2><button class="btn primary" data-act="au-new">+ Usuário</button></div><div id="au-users" class="muted">Carregando…</div>
+        <p class="muted small" style="margin-top:8px">Novos cadastros entram como estudante; promova docentes aqui. “Nova senha” envia outra senha temporária e obriga a troca no próximo acesso. E-mail: ${AU.mail === "smtp" ? "SMTP configurado" : "modo de teste (data/outbox)"}.</p></section>`
+      : `<section class="card"><h2>Modo de senhas</h2><p class="muted">${AU.on ? "Ativo. Você entrou como " + esc(AU.user ? AU.user.name : "") + "." : "Disponível quando o HelseCapture roda pelo servidor (<code>npm start</code>): cadastro por e-mail, senha temporária enviada ao e-mail e troca obrigatória no primeiro acesso. Neste arquivo/link a troca de perfil continua livre."}</p></section>`);
+    async function loadUsers() {
+      const el = $("#au-users"); if (!el) return;
+      try {
+        const { users } = await api("/users");
+        el.className = ""; el.innerHTML = `<div class="tbl"><table><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Situação</th><th>Último acesso</th><th></th></tr>${users.map((u) => `<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td>
+          <td><select data-au-role="${u.id}" ${u.id === AU.user.id ? "disabled" : ""}>${Object.keys(RANK).reverse().map((r) => opt(r, ROLES[r], u.role)).join("")}</select></td>
+          <td>${u.mustChange ? '<span class="tag warn">aguardando troca de senha</span>' : '<span class="tag ok">ativo</span>'}</td><td class="small">${u.lastLogin ? esc(fmtDT(u.lastLogin)) : "—"}</td>
+          <td class="row" style="gap:4px"><button class="btn sm" data-act="au-reset" data-id="${u.id}">Nova senha</button>${u.id === AU.user.id ? "" : `<button class="btn sm" data-act="au-del" data-id="${u.id}">Excluir</button>`}</td></tr>`).join("")}</table></div>`;
+        $$("[data-au-role]", el).forEach((s) => { s.onchange = async () => { try { await api(`/users/${s.dataset.auRole}/role`, { role: s.value }); toast("Perfil atualizado."); } catch (e) { toast(e.message); loadUsers(); } }; });
+      } catch (e) { el.textContent = e.message; }
+    }
+    AFTER.config = async () => { if (origAfter) await origAfter(); loadUsers(); };
+    const adminOnly = (fn) => (b) => (AU.user && AU.user.role === "admin" ? fn(b) : toast("Apenas o administrador."));
+    ACT["au-reset"] = adminOnly(async (b) => { if (!(await ask("Enviar uma nova senha temporária? A senha atual deixa de valer.", "Enviar"))) return; try { await api(`/users/${b.dataset.id}/reset`, {}); toast("Nova senha temporária enviada."); loadUsers(); } catch (e) { toast(e.message); } });
+    ACT["au-del"] = adminOnly(async (b) => { if (!(await ask("Excluir este acesso? Os registros das sessões não são apagados.", "Excluir"))) return; try { await api(`/users/${b.dataset.id}`, null, "DELETE"); loadUsers(); } catch (e) { toast(e.message); } });
+    ACT["au-new"] = adminOnly(() => modal("Cadastrar usuário", `<label class="f"><span>Nome</span><input name="name" required></label><label class="f"><span>E-mail</span><input name="email" type="email" required></label>
+      <label class="f"><span>Perfil</span><select name="role">${opt("estudante", ROLES.estudante)}${opt("docente", ROLES.docente)}${opt("admin", ROLES.admin)}</select></label><p class="muted small">A pessoa recebe a senha temporária por e-mail e cadastra a definitiva no primeiro acesso.</p>`,
+      { submit: "Cadastrar e enviar", onSubmit: async (fd) => { try { await api("/users", Object.fromEntries(fd)); toast("Usuário cadastrado; senha temporária enviada."); loadUsers(); } catch (e) { toast(e.message); return false; } } }));
+    const origRole = CHG.role;
+    CHG.role = (el) => { if (AU.on && AU.user && !allowed(el.value)) { el.value = UI.role; return toast("Perfil não permitido para sua conta."); } origRole(el); };
   };
 })(typeof window !== "undefined" ? window : globalThis);
