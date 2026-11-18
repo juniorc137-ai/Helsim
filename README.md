@@ -117,3 +117,23 @@ O navegador aceita **WebRTC (WHEP)**, **HLS (.m3u8)**, **MJPEG**, imagem atualiz
 Câmeras só **RTSP** precisam de um conversor na rede da sala (MediaMTX ou go2rtc), que publica o mesmo
 vídeo em WebRTC/HLS. HLS, MJPEG e snapshot passam por um canvas e exigem CORS liberado; uma página em
 https não abre câmeras em http (conteúdo misto), então use o servidor local nesse caso.
+
+### Módulos do laboratório (somente docente e administrador)
+
+O grupo **Laboratório · restrito** do menu só aparece nos perfis docente e administrador; o perfil
+estudante não vê as telas e as ações são recusadas mesmo se chamadas diretamente.
+
+- **Prontuário eletrônico simulado**: pacientes vinculados a cenários, prescrição numerada (digitação →
+  liberação), aprazamento automático (N/Nh, 1x/dia e 2x/dia a partir das 06:00), checagem da administração,
+  aprazamento com motivo, suspensão e reativação, itens SOS, relógio do cenário com tolerância de atraso,
+  alerta de alergia com sinônimos (por exemplo dipirona e metamizol), histórico exportável em CSV, relatório
+  de pontualidade e sinais vitais com NEWS2 e tendência. Na **Sessão ao vivo**, a aba *Prontuário* checa
+  horários e itens SOS, e cada registro vira anotação “Prontuário” na linha do tempo do debriefing.
+- **Almoxarifado (Helse Log)**: mapa dos armários com pictogramas, inspetor de compartimento com entrada e
+  saída, inventário filtrável, movimentações auditadas, etiqueta com QR code (carregado da internet sob
+  demanda), alerta de estoque crítico no menu e no painel, e lista de reposição até 1,5 × o mínimo.
+- **Ocupação das salas**: visão do dia por sala (status agora, taxa de ocupação das 7h às 22h) e grade
+  horária, lida da mesma agenda de reservas.
+
+As regras (horários, atraso, NEWS2, alergias, estoque, ocupação) ficam em `public/captura-modulos.js`
+(`HC_CLIN`) e têm testes em `test/captura.test.js`.

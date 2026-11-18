@@ -154,3 +154,38 @@ test("biblioteca baseada em evidências: referências e vínculos consistentes",
   assert.equal(articles.length, 24, "os 24 artigos da pasta");
   for (const [k, r] of Object.entries(L.refs)) { assert.ok(cited.has(k), `referência ${k} usada`); assert.match(r, /\((20(1[89]|2[0-5]))\)/, `${k} entre 2018 e 2025`); assert.match(r, /https:\/\/doi\.org\//); }
 });
+
+const M = require("../public/captura-modulos.js");
+test("prontuário: horários, aprazamento automático, atraso e NEWS2", () => {
+  assert.deepEqual(M.parseTimes("18h, 6, 08h30;22:00 6:00"), ["06:00", "08:30", "18:00", "22:00"]);
+  assert.deepEqual(M.parseTimes("25:00, abc"), []);
+  assert.deepEqual(M.autoTimes("8/8h"), ["06:00", "14:00", "22:00"]);
+  assert.deepEqual(M.autoTimes("12/12h", "09:00"), ["09:00", "21:00"]);
+  assert.deepEqual(M.autoTimes("1x/dia"), ["06:00"]);
+  assert.equal(M.doseStatus({ status: "pendente", time: "06:00" }, M.toMin("06:40"), 60), "pendente");
+  assert.equal(M.doseStatus({ status: "pendente", time: "05:30" }, M.toMin("06:40"), 60), "atrasada");
+  assert.equal(M.doseStatus({ status: "administrada", time: "05:30" }, M.toMin("09:00"), 30), "administrada");
+  // NEWS2: paciente estável = 0; deteriorado = alto risco
+  assert.equal(M.news2({ fr: 16, spo2: 97, o2: false, pas: 120, fc: 80, avpu: "A", temp: 36.8 }).score, 0);
+  const bad = M.news2({ fr: 26, spo2: 90, o2: true, pas: 88, fc: 135, avpu: "V", temp: 39.4 });
+  assert.equal(bad.score, 3 + 3 + 2 + 3 + 3 + 3 + 2); assert.equal(bad.risk, "alto");
+  assert.equal(M.news2({ fr: 16, spo2: 97, o2: false, pas: 120, fc: 80, avpu: "C", temp: 36.8 }).risk, "baixo-médio");
+  assert.equal(M.news2({ fr: 16, spo2: 97, pas: 120, fc: 80 }), null);
+  assert.ok(M.vitalFlags({ pas: 168, pad: 112, fc: 96, spo2: 97 }).some((f) => /grave/.test(f)));
+});
+test("prontuário: alerta de alergia reconhece sinônimos", () => {
+  assert.deepEqual(M.allergyHit("Metamizol sódico 1 g", "Dipirona"), ["Dipirona"]);
+  assert.deepEqual(M.allergyHit("Amoxicilina 500 mg", "penicilina, látex"), ["penicilina"]);
+  assert.deepEqual(M.allergyHit("Paracetamol 750 mg", "Dipirona"), []);
+  assert.deepEqual(M.allergyHit("Dipirona 1 g", "Nega"), []);
+});
+test("almoxarifado e salas: status de estoque, reposição e ocupação", () => {
+  assert.equal(M.stockStatus({ stock: 0, min: 1 }), "empty");
+  assert.equal(M.stockStatus({ stock: 12, min: 30 }), "crit");
+  assert.equal(M.stockStatus({ stock: 2, min: 2 }), "warn");
+  assert.equal(M.stockStatus({ stock: 140, min: 50 }), "ok");
+  assert.equal(M.reorderQty({ stock: 12, min: 30 }), 33);
+  assert.equal(M.reorderQty({ stock: 3, min: 2 }), 0);
+  assert.equal(M.occupancy([[0, 30], [20, 50], [80, 120]], 0, 100), 0.7);
+  assert.equal(M.occupancy([], 0, 100), 0);
+});

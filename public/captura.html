@@ -273,6 +273,53 @@ ul.plain li:last-child{border-bottom:0}
   .toolbar select{max-width:150px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+/* prontuário eletrônico */
+.ptb{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr 1.25fr;gap:0;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:var(--radius);margin-bottom:12px}
+.ptb>div{padding:9px 12px;border-right:1px solid var(--line);min-width:0;display:flex;flex-direction:column;gap:2px}
+.ptb>div:last-child{border-right:0}
+.ptb span{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em}
+.ptb b{font:600 14px var(--f-cond)}.ptb i{font-style:normal;font-size:12px;color:var(--muted)}
+.ptb .alg{color:#fff;background:var(--bad);border-radius:3px;padding:2px 8px;align-self:flex-start;font-size:12.5px}
+.mono{font-family:var(--f-mono)}
+tr.dose.atrasada td:first-child{box-shadow:inset 3px 0 var(--bad)}tr.dose.administrada td:first-child{box-shadow:inset 3px 0 var(--ok)}tr.dose.pendente td:first-child{box-shadow:inset 3px 0 var(--warn)}
+.svf{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0 12px}
+.svc{width:100%;height:auto;max-height:240px;display:block}
+/* almoxarifado */
+.mapa{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;align-items:start}
+.cabs{display:grid;gap:8px}
+.cab{display:flex;flex-direction:column;gap:6px;min-width:0}
+.cab-l{font:600 11px var(--f-cond);color:var(--faint);text-transform:uppercase;letter-spacing:.08em}
+.cmp{display:flex;flex-direction:column;gap:4px;min-height:104px;padding:6px 8px;border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--surface-2);cursor:pointer;text-align:left;min-width:0}
+.cmp:hover{border-color:var(--accent)}.cmp.on{outline:2px solid var(--accent);outline-offset:1px;background:var(--accent-soft)}
+.cmp.crit{border-color:var(--bad);background:var(--bad-bg)}.cmp.hit{outline:2px dashed var(--hi);outline-offset:1px}
+.cmp.closed{align-items:center;justify-content:center;flex:1;min-height:330px;background:repeating-linear-gradient(45deg,var(--surface-2),var(--surface-2) 8px,var(--sunken) 8px,var(--sunken) 16px)}
+.cmp-h{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;color:var(--muted)}
+.cnt{font:600 11px var(--f-mono);border-radius:9px;padding:0 7px;color:#fff}.cnt.ok{background:var(--ok)}.cnt.warn{background:var(--warn)}.cnt.bad{background:var(--bad)}
+.pics{display:flex;gap:4px;align-items:flex-end;flex:1;min-height:56px}
+.pics span{display:block;height:56px;flex:0 1 44px;min-width:0}.pics svg{width:100%;height:100%}
+.insp{position:sticky;top:calc(var(--top-h) + 12px)}
+.ic{border:1px solid var(--line);border-radius:var(--radius);padding:8px 10px;margin-bottom:8px;background:var(--surface-2)}
+.stepper{display:inline-flex;gap:6px;align-items:center}.stepper b{min-width:32px;text-align:center;font-size:16px}
+.prog{height:6px;border-radius:3px;background:var(--sunken);overflow:hidden}.prog i{display:block;height:100%}
+.lbl-prev{display:flex;gap:14px;align-items:center;border:1px dashed var(--line-strong);border-radius:var(--radius);padding:12px;background:#fff;color:#111}
+.lbl-prev .muted{color:#555}.qr{width:120px;height:120px;flex:none;background:#f3f4f6}
+/* ocupação das salas */
+.rooms{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.room{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--c,var(--accent));border-radius:var(--radius);padding:12px 14px}
+.mtl{position:relative;height:12px;background:var(--sunken);border-radius:3px;margin:10px 0 2px;overflow:hidden}
+.mtl i{position:absolute;top:0;bottom:0;border-radius:2px;opacity:.9}.mtl b{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--rec)}
+.mtl-l{display:flex;justify-content:space-between;font:10.5px var(--f-mono);color:var(--faint);margin-bottom:6px}
+.hgrid{padding-bottom:14px;display:grid;grid-template-columns:52px repeat(var(--n),minmax(140px,1fr));overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+.hg-h{padding:7px 8px;background:var(--surface-2);border-bottom:1px solid var(--line-strong);border-left:1px solid var(--line);font:600 12.5px var(--f-cond);position:sticky;top:0}
+.hg-h:first-child{border-left:0}
+.hg-t,.hg-c{position:relative;height:660px}
+.hg-t span{position:absolute;right:6px;transform:translateY(-50%);font:10.5px var(--f-mono);color:var(--faint)}.hg-t span:first-child{transform:none}
+.hg-c{border-left:1px solid var(--line)}.hg-c>i{position:absolute;left:0;right:0;border-top:1px solid var(--line)}
+.hg-c .now{position:absolute;left:0;right:0;border-top:2px solid var(--rec);z-index:2}
+.hg-b{position:absolute;left:4px;right:4px;z-index:1;overflow:hidden;text-align:left;font-size:11.5px;line-height:1.25;padding:3px 6px;border:0;border-left:3px solid var(--c);border-radius:3px;background:color-mix(in srgb,var(--c) 18%,var(--surface));color:var(--text);cursor:pointer}
+.hg-b.pend{border-left-style:dashed;background:var(--warn-bg)}.hg-b b{display:block;font:600 11px var(--f-mono)}
+@media (max-width:1100px){.ptb{grid-template-columns:1fr 1fr}.ptb>div{border-bottom:1px solid var(--line)}.mapa{grid-template-columns:1fr}.insp{position:static}.svf{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.ptb{grid-template-columns:1fr}.ptb>div{border-right:0}.cabs{grid-template-columns:1fr!important}.cmp.closed{min-height:90px}}
 @media print{.side,.topbar,.toolbar,.statusbar,.crumbs,.pctl{display:none}.shell{display:block}}
 </style>
 </head>
@@ -319,6 +366,7 @@ ul.plain li:last-child{border-bottom:0}
 <script src="captura-core.js"></script>
 <script src="scenarios.js"></script>
 <script src="captura-biblioteca.js"></script>
+<script src="captura-modulos.js"></script>
 <script>
 "use strict";
 /* ════════════════════════════════════════════════════════════════════════
@@ -396,7 +444,7 @@ const delMedia = (id) => USE_MEM
 
 let DB = null;
 function emptyDB() {
-  return { v: 1, locations: [], resources: [], people: [], courses: [], scenarios: [], evaluations: [], reservations: [], sessions: [],
+  return { v: 1, locations: [], resources: [], people: [], courses: [], scenarios: [], evaluations: [], reservations: [], sessions: [], patients: [], cabinets: [], stock: [], movements: [],
     settings: { institution: "", retentionDays: 0, wsUrl: "" } };
 }
 let saveT = 0;
@@ -468,7 +516,7 @@ function render() {
   if (!groups.some(([, items]) => items.some((n) => n[0] === UI.view)) && UI.view !== "sessao") UI.view = "painel";
   const pend = DB.reservations.filter((r) => r.status === "pendente").length;
   $("#nav").innerHTML = groups.map(([g, items]) => `<div class="navgrp"><span>${g}</span><nav class="nav">${items.map(([id, label]) =>
-    `<button ${UI.view === id || (UI.view === "sessao" && id === "sessoes") ? 'aria-current="page"' : ""} data-act="go" data-v="${id}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICO[id]}</svg>${label}${id === "agenda" && pend && canEdit() ? `<span class="badge" title="Reservas pendentes">${pend}</span>` : ""}</button>`).join("")}</nav></div>`).join("");
+    `<button ${UI.view === id || (UI.view === "sessao" && id === "sessoes") ? 'aria-current="page"' : ""} data-act="go" data-v="${id}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICO[id]}</svg>${label}${id === "agenda" && pend && canEdit() ? `<span class="badge" title="Reservas pendentes">${pend}</span>` : ""}${window.HC_NAV_BADGE && HC_NAV_BADGE[id] ? HC_NAV_BADGE[id]() : ""}</button>`).join("")}</nav></div>`).join("");
   $("#role").value = UI.role;
   const pool = DB.people.filter((p) => UI.role === "estudante" ? p.role === "estudante" : UI.role === "docente" ? p.role === "docente" : p.role === "admin" || p.role === "docente");
   if (UI.me && !pool.some((p) => p.id === UI.me)) UI.me = "";
@@ -554,6 +602,7 @@ R.painel = () => {
   const pend = UI.role === "admin" ? DB.reservations.filter((r) => r.status === "pendente").length : 0;
   return `<h1>Painel${DB.settings.institution ? " · " + esc(DB.settings.institution) : ""}</h1>
   ${!DB.sessions.length && UI.role === "admin" ? `<div class="card"><div class="between"><div><b>Comece por aqui.</b> <span class="muted">Carregue a biblioteca baseada em evidências: 5 cursos, 13 cenários e 24 avaliações e checklists construídos a partir de 24 artigos de <i>Clinical Simulation in Nursing</i> (2025), incluindo os padrões INACSL 2025, com agenda, estudantes e uma sessão de pré-eclâmpsia gravada.</span></div><button class="btn primary" data-act="demo">Carregar biblioteca</button></div></div>` : ""}
+  ${window.hcPainelExtra ? hcPainelExtra() : ""}
   ${pend ? `<div class="card"><span class="tag warn">${pend} reserva(s) aguardando aprovação</span> <button class="btn sm" data-act="go" data-v="agenda">Ver agenda</button></div>` : ""}
   <div class="kpis">${kpi("Sessões gravadas", u.sessions)}${kpi("Horas de simulação", fmtH(u.hours))}${kpi("Horas-participante", fmtH(u.personHours))}${kpi("Avaliações registradas", nRes)}</div>
   <div class="cols">
@@ -894,12 +943,13 @@ function liveRecHtml() {
     <div>${n ? `<div class="vgrid ${n === 1 ? "n1" : ""}">${LIVE.sources.map((s) => `<div class="vtile"><video id="pv-${s.id}" muted playsinline autoplay></video><span class="lbl">${esc(s.label)}</span></div>`).join("")}</div>` : `<div class="empty">Gravação sem vídeo: linha do tempo, áudio e dados do simulador.</div>`}
       <div class="card" style="margin-top:10px"><div class="between" style="margin:0"><h2 style="margin:0">Simulador</h2><span id="sim-status" class="tag"></span></div><div id="sim-vitals" style="margin-top:8px"></div></div></div>
     <aside class="card">
-      <div class="tabs"><button class="on" data-act="ltab" data-t="ann">Anotar</button><button data-act="ltab" data-t="log">Registro</button><button data-act="ltab" data-t="eval">Avaliar</button><button data-act="ltab" data-t="tr">Transcrição</button></div>
+      <div class="tabs"><button class="on" data-act="ltab" data-t="ann">Anotar</button><button data-act="ltab" data-t="log">Registro</button><button data-act="ltab" data-t="eval">Avaliar</button><button data-act="ltab" data-t="tr">Transcrição</button>${window.hcLiveEhr ? `<button data-act="ltab" data-t="ehr">Prontuário</button>` : ""}</div>
       <div class="tp on" id="lt-ann"><div class="annbtns">${lib.map((a, i) => `<button class="btn" style="--c:${esc(a.color)}" data-act="ann-pre" data-i="${i}">${esc(a.label)}${i < 9 ? `<kbd>${i + 1}</kbd>` : ""}<br><span class="muted small">${esc(a.cat || "")}</span></button>`).join("")}</div>
         <div class="row"><input id="ann-text" placeholder="Anotação livre (Enter)" style="flex:1"><button class="btn" data-act="ann-free">+</button></div>
         <p class="muted small" style="margin-top:6px">Atalhos: teclas 1–9 marcam as anotações acima no instante atual.</p>
         <h3>Últimas</h3><ul class="log" id="live-log-short"></ul></div>
       <div class="tp" id="lt-log"><ul class="log" id="live-log"></ul></div>
+      ${window.hcLiveEhr ? `<div class="tp" id="lt-ehr">${hcLiveEhr(ses)}</div>` : ""}
       <div class="tp" id="lt-eval">${evs.length ? `<label class="f"><span>Instrumento</span><select id="lv-ev">${evs.map((e) => opt(e.id, e.title)).join("")}</select></label>
         <label class="f"><span>Avaliado</span><select id="lv-subj">${opt("equipe", "Equipe")}${ses.participantIds.map((id) => opt(id, nameOf("people", id))).join("")}</select></label>
         <button class="btn primary" data-act="lv-eval">Abrir formulário</button><ul class="plain" id="lv-results" style="margin-top:10px"></ul>`
@@ -1553,6 +1603,7 @@ function seedBasics() {
   DB.locations.push({ id: C.uid("l"), name: "Sala de simulação 1 (alta fidelidade)" }, { id: C.uid("l"), name: "Sala de simulação 2 (habilidades)" }, { id: C.uid("l"), name: "Sala de debriefing" });
   DB.resources.push({ id: C.uid("rs"), name: "Manequim adulto de alta fidelidade", kind: "capital" }, { id: C.uid("rs"), name: "Monitor SimClin (tablet)", kind: "capital" },
     { id: C.uid("rs"), name: "Câmera móvel", kind: "capital" }, { id: C.uid("rs"), name: "Kit de acesso venoso", kind: "consumivel" });
+  if (window.hcSeedLab) hcSeedLab();
 }
 async function loadDemo() {
   if (DB.sessions.length && !(await ask("Acrescentar a biblioteca de exemplo aos dados existentes?"))) return;
@@ -1640,6 +1691,7 @@ async function loadDemo() {
     R0(EV.reflexao, team[0], ["Fiquei assustada na convulsão, mas o grupo se organizou.", "Ofertaria oxigênio logo no início.", "Vou revisar o protocolo de sulfato de magnésio."], undefined, who(team[0])));
   DB.sessions.unshift(ses);
   if (!DB.settings.institution) DB.settings.institution = "Centro de Simulação Clínica";
+  if (window.hcDemoClinico) hcDemoClinico();
   save(); render(); toast(`Biblioteca carregada: ${B.courses.length} cursos, ${B.scenarios.length} cenários e ${B.evaluations.length} avaliações baseados em ${Object.keys(B.refs).length} referências.`, 6000);
 }
 const shortRef = (r) => { const y = (String(r).match(/\((\d{4})\)/) || [])[1] || "s.d."; const head = String(r).split(/\(\d{4}\)/)[0]; const first = head.split(",")[0].trim();
@@ -1839,12 +1891,14 @@ window.addEventListener("beforeunload", (e) => { if (LIVE.recording) { e.prevent
 window.addEventListener("resize", () => { if (PB) drawTimeline(); });
 
 // ═════════════════════════════ INÍCIO ═════════════════════════════════════
+if (window.hcInstallModules) hcInstallModules();
 (async function boot() {
   loadPrefs(); applyTheme(); tick(); setInterval(tick, 15000);
   try { if (!window.indexedDB) throw new Error("sem IndexedDB"); await idb(); } catch (e) { USE_MEM = true; }
   try { DB = await kvGet("db"); } catch (e) { DB = null; }
   if (!DB) { DB = emptyDB(); seedBasics(); save(); }
   DB = Object.assign(emptyDB(), DB); DB.settings = Object.assign(emptyDB().settings, DB.settings);
+  if (window.hcAfterLoad) hcAfterLoad();
   try { // recupera gravação interrompida (fechamento da aba, queda de energia)
     const draft = await kvGet("draft");
     if (draft && !DB.sessions.some((s) => s.id === draft.id)) {
