@@ -187,3 +187,21 @@ compartilhados por todos os computadores que acessam o mesmo servidor.
 - **Cópias de segurança**: `data/db.json` com cópias automáticas em `data/backups/` (no máximo uma a cada
   10 min, as 30 mais recentes); vídeos em `data/media/`. `HC_DATA_DIR` muda a pasta e `HC_SYNC=0` desliga o
   banco central (cada navegador volta a guardar só os próprios dados).
+
+### Aplicativo de computador (macOS e Windows)
+
+A pasta `desktop/` empacota o HELSIM como aplicativo próprio (Electron). Ele abre numa janela própria,
+sem navegador, com menu em português e permissão de câmera e microfone.
+
+- Se já houver um servidor do HELSIM na porta 3000 (por exemplo, o que inicia com o computador), o app se
+  conecta a ele. Senão, liga o servidor embutido e o desliga ao sair.
+- Os dados ficam em `~/HelseCapture/SimClin/data` quando essa pasta existe; senão, na pasta de dados do app.
+
+```bash
+cd desktop
+npm install
+npm run dist        # macOS: gera dist/mac*/HELSIM.app (sem assinatura, para uso no próprio Mac)
+npm run dist:dmg    # macOS: instalador .dmg
+npm run dist:win    # Windows: instalador .exe (gerar no Windows)
+```
+

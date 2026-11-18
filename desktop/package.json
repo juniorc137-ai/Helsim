@@ -1,0 +1,40 @@
+{
+  "name": "helsim-desktop",
+  "productName": "HELSIM",
+  "version": "1.0.0",
+  "description": "HELSIM – aplicativo de computador (gestão, gravação e debriefing de simulação clínica)",
+  "author": "Helse Solutions",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "prepare-server": "node prepare-server.js",
+    "start": "npm run prepare-server && electron .",
+    "dist": "npm run prepare-server && electron-builder --mac --dir",
+    "dist:dmg": "npm run prepare-server && electron-builder --mac dmg",
+    "dist:win": "npm run prepare-server && electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "br.helse.helsim",
+    "productName": "HELSIM",
+    "copyright": "Helse Solutions",
+    "files": ["main.js", "preload.js", "package.json"],
+    "extraResources": [{ "from": "server", "to": "server" }],
+    "directories": { "output": "dist", "buildResources": "build" },
+    "mac": {
+      "category": "public.app-category.education",
+      "icon": "build/icon.png",
+      "identity": null,
+      "target": ["dir", "dmg"],
+      "extendInfo": {
+        "NSCameraUsageDescription": "O HELSIM usa a câmera para gravar as sessões de simulação.",
+        "NSMicrophoneUsageDescription": "O HELSIM usa o microfone para gravar o áudio das sessões e transcrever o debriefing."
+      }
+    },
+    "win": { "icon": "build/icon.png" },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "shortcutName": "HELSIM" }
+  }
+}
