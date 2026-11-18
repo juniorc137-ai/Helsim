@@ -5,6 +5,10 @@ const path = require("path");
 const app = express();
 app.use(express.static(path.join(__dirname, "public")));
 
+// Modo de senhas do HelseCapture (cadastro por e-mail + senha temporária + troca obrigatória)
+const { createAuth } = require("./auth");
+if (process.env.HC_AUTH !== "0") app.use("/api/auth", createAuth({ dataDir: process.env.HC_DATA_DIR || path.join(__dirname, "data"), baseUrl: process.env.PUBLIC_URL || "" }).router);
+
 // Rota catch-all → index.html (SPA)
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
@@ -55,6 +59,16 @@ wss.on("connection", (ws) => {
         // Envia estado atual para o monitor
         if (r.state) ws.send(JSON.stringify({ type: "state", state: r.state }));
       }
+      return;
+    }
+
+    // ── EVENTO DO ROTEIRO (instrutor → monitores e estações de captura) ──
+    // Não fica guardado na sala: só interessa a quem está gravando naquele momento.
+    if (msg.type === "event" && wsRole === "instructor" && wsRoom && msg.entry) {
+      const r = rooms.get(wsRoom);
+      if (!r) return;
+      const out = JSON.stringify({ type: "event", entry: msg.entry });
+      r.monitors.forEach((m) => { if (m.readyState === 1) m.send(out); });
       return;
     }
 
