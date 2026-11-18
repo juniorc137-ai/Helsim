@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════════════════════
- * HelseCapture – módulos exclusivos de docente e administrador
+ * HELSIM – módulos exclusivos de docente e administrador
  *
  *  1. Prontuário eletrônico simulado (prescrição, aprazamento, administração,
  *     histórico e sinais vitais com NEWS2), integrado às sessões ao vivo:
@@ -101,7 +101,46 @@
     if (open) tot += ce - cs;
     return to > from ? tot / (to - from) : 0;
   }
-  const HC_CLIN = { toMin, fromMin, parseTimes, autoTimes, doseStatus, news2, vitalFlags, allergyHit, stockStatus, reorderQty, occupancy };
+  // ── Mescla de três vias (sincronização com o banco central) ───────────────
+  const eqJ = (a, b) => a === b || JSON.stringify(a) === JSON.stringify(b);
+  const isObj = (x) => x && typeof x === "object" && !Array.isArray(x);
+  const idArr = (...as) => as.some(Array.isArray) && as.every((a) => a === undefined || (Array.isArray(a) && a.every((x) => isObj(x) && "id" in x)));
+  /**
+   * Mescla a versão local e a remota a partir da última versão comum (base).
+   * Listas de objetos com id são mescladas item a item; objetos alterados dos
+   * dois lados são mesclados campo a campo; num conflito real vale o local.
+   * Itens iguais ao local mantêm a mesma referência (telas abertas não quebram).
+   */
+  function merge3(base, local, remote) {
+    base = base || {}; local = local || {}; remote = remote || {};
+    const out = {};
+    for (const k of new Set([...Object.keys(remote), ...Object.keys(local)])) {
+      const b = base[k], l = local[k], r = remote[k];
+      if (idArr(l, r, b)) out[k] = mergeList(b || [], l || [], r || [], k);
+      else if (!(k in local)) { if (!(k in base) || !eqJ(r, b)) out[k] = r; }
+      else if (!(k in remote)) { if (!(k in base) || !eqJ(l, b)) out[k] = l; }
+      else if (eqJ(l, b)) out[k] = eqJ(r, l) ? l : r;
+      else if (eqJ(r, b) || eqJ(r, l)) out[k] = l;
+      else out[k] = isObj(l) && isObj(r) ? merge3(isObj(b) ? b : {}, l, r) : l;
+    }
+    return out;
+  }
+  function mergeList(b, l, r, key) {
+    const bm = new Map(b.map((x) => [x.id, x])), lm = new Map(l.map((x) => [x.id, x])), rm = new Map(r.map((x) => [x.id, x]));
+    const pick = (id) => {
+      const B = bm.get(id), L = lm.get(id), R = rm.get(id);
+      if (L && R) { if (eqJ(L, R) || eqJ(R, B)) return L; if (eqJ(L, B)) return R; return merge3(B || {}, L, R); }
+      if (L) return B && eqJ(L, B) ? null : L; // removido no servidor (sem alteração local) ou novo/alterado aqui
+      if (R) return B && eqJ(R, B) ? null : R; // removido aqui (sem alteração remota) ou novo/alterado no servidor
+      return null;
+    };
+    const out = [], seen = new Set();
+    const order = key === "sessions" ? [...l, ...r] : [...r, ...l];
+    for (const x of order) { if (seen.has(x.id)) continue; seen.add(x.id); const v = pick(x.id); if (v) out.push(v); }
+    if (key === "sessions") out.sort((a, c) => (c.startedAt || 0) - (a.startedAt || 0));
+    return out;
+  }
+  const HC_CLIN = { toMin, fromMin, parseTimes, autoTimes, doseStatus, news2, vitalFlags, allergyHit, stockStatus, reorderQty, occupancy, merge3 };
   root.HC_CLIN = HC_CLIN;
   if (typeof module !== "undefined" && module.exports) module.exports = HC_CLIN;
   if (typeof window === "undefined") return;
@@ -342,7 +381,7 @@
       const w = window.open("", "_blank");
       if (!w) return toast("Permita janelas pop-up para imprimir.");
       w.document.write(`<!doctype html><meta charset="utf-8"><title>Prescrição ${esc(p.rx.number)}</title><style>body{font:13px system-ui;margin:28px;color:#111}h1{font-size:18px;margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #bbb;padding:5px 7px;text-align:left}th{background:#eef2f7}.al{color:#b00;font-weight:700}.sig{margin-top:48px;border-top:1px solid #333;width:280px;padding-top:4px}</style>
-        <h1>Prescrição Nº ${esc(p.rx.number)} · ${p.rx.status === "liberada" ? "LIBERADA" : "EM DIGITAÇÃO"}</h1><div>Material de simulação clínica · HelseCapture · ${esc(DB.settings.institution || "")}</div>
+        <h1>Prescrição Nº ${esc(p.rx.number)} · ${p.rx.status === "liberada" ? "LIBERADA" : "EM DIGITAÇÃO"}</h1><div>Material de simulação clínica · HELSIM · ${esc(DB.settings.institution || "")}</div>
         <p><b>${esc(p.name)}</b> · Atendimento ${esc(p.encounter)} · Prontuário ${esc(p.record)} · ${esc(p.unit)} ${p.bed ? "Leito " + esc(p.bed) : ""}<br>${esc(p.diagnosis || "")}${p.allergies ? `<br><span class="al">ALERGIA: ${esc(p.allergies)}</span>` : ""}<br>Válida até ${esc(fmtDT(+new Date(p.rx.validUntil)))}</p>
         <table><tr><th>Seq</th><th>Tipo</th><th>Descrição</th><th>Dose</th><th>Via</th><th>Frequência</th><th>Horários</th><th>Status</th></tr>${p.items.map((it, i) => `<tr><td>${i + 1}</td><td>${esc(it.type)}</td><td>${esc(it.desc)}${it.obs ? "<br><small>" + esc(it.obs) + "</small>" : ""}</td><td>${esc(it.dose || "")}</td><td>${esc(it.route || "")}</td><td>${esc(it.freq || "")}</td><td>${esc((it.times || []).join(" · "))}</td><td>${it.status}</td></tr>`).join("")}</table>
         <div class="sig">${esc(p.rx.prescriber || "Prescritor")}</div><script>print()<\/script>`);
@@ -832,7 +871,7 @@
     function screen(mode, msg = "", email = "") {
       if (!box) { box = document.createElement("div"); box.id = "auth"; document.body.appendChild(box); }
       box.hidden = false;
-      const head = `<div class="au-logo"><span class="tb-logo"></span><b>Helse<span class="cap">CAPTURE</span></b></div>`;
+      const head = `<div class="au-logo"><span class="tb-logo"></span><b>HELSIM</b></div>`;
       const err = msg ? `<div class="au-msg ${/enviad|chegar|criad/i.test(msg) ? "ok" : ""}" role="alert">${esc(msg)}</div>` : "";
       const forms = {
         login: `<h2>Entrar</h2>${err}<form data-au="login"><label class="f"><span>E-mail</span><input name="email" type="email" autocomplete="username" required value="${esc(email)}"></label>
@@ -850,11 +889,11 @@
           <ul class="au-rules"><li data-r="len">Pelo menos 10 caracteres</li><li data-r="mix">Letras e números</li><li data-r="eq">As duas senhas iguais</li></ul>
           <button class="btn primary au-go">Salvar e entrar</button></form><div class="au-links"><a href="#" data-au-go="logout">Sair</a></div>`,
       };
-      box.innerHTML = `<div class="au-card">${head}${forms[mode]}<p class="au-foot">Helse Solutions · dados das sessões ficam neste navegador</p></div>`;
+      box.innerHTML = `<div class="au-card">${head}${forms[mode]}<p class="au-foot">Helse Solutions · ${AU.syncAvail ? "dados sincronizados com o banco central do servidor" : "dados das sessões ficam neste navegador"}</p></div>`;
       const f = $("form", box); const first = f && $("input:not([value]),input[value='']", f); if (first) first.focus();
       if (mode === "change") { const upd = () => { const p = f.password.value, c = f.confirm.value; const ok = { len: p.length >= 10, mix: /[A-Za-zÀ-ÿ]/.test(p) && /\d/.test(p), eq: p && p === c }; $$(".au-rules li", box).forEach((li) => li.classList.toggle("ok", !!ok[li.dataset.r])); }; f.oninput = upd; upd(); }
     }
-    function done(user, token) { AU.user = user; AU.token = token; tokSet(token); if (box) box.hidden = true; UI.role = user.role; savePrefs(); if (waitLogin) { const w = waitLogin; waitLogin = null; w(); } else render(); }
+    function done(user, token) { AU.user = user; AU.token = token; tokSet(token); if (box) box.hidden = true; UI.role = user.role; savePrefs(); if (waitLogin) { const w = waitLogin; waitLogin = null; w(); } else { render(); if (!SY.on && root.hcSyncBoot) root.hcSyncBoot(); else if (SY.on) pull(); } }
     document.addEventListener("click", (e) => {
       const a = e.target.closest("[data-au-go]"); if (!a) return; e.preventDefault();
       const email = (box && $("input[name=email]", box) || {}).value || "";
@@ -873,10 +912,123 @@
     async function logout() { try { await api("/logout", {}); } catch (e) {} AU.user = null; AU.token = ""; tokSet(""); const l = $("#tb-logout"); if (l) l.remove(); screen("login"); }
     ACT["auth-logout"] = () => { if (LIVE.recording) return toast("Encerre a gravação antes de sair."); logout(); };
 
-    /** Chamado no início: liga o modo de senhas quando a página é servida pelo servidor do HelseCapture. */
+
+    // ═══════════════════════ BANCO CENTRAL (sincronização) ═══════════════
+    const SY = (root.HC_SYNC = { on: false, rev: 0, base: null, state: "", last: 0, busy: false, pending: false, timer: 0, userChanged: false });
+    const clone = (x) => JSON.parse(JSON.stringify(x));
+    async function dataFetch(method, path, body, raw) {
+      const r = await fetch("/api/data" + path, { method, headers: { Authorization: "Bearer " + AU.token, ...(raw ? {} : { "Content-Type": "application/json" }) }, body: raw ? body : body ? JSON.stringify(body) : undefined });
+      return r;
+    }
+    const pristine = (d) => !d.sessions.length && !d.courses.length && !d.scenarios.length && !d.patients.length && d.people.length <= 1;
+    const saveMeta = () => kvPut("sync", { rev: SY.rev, base: SY.base, user: AU.user && AU.user.email, role: SY.role }).catch(() => {});
+    // O recorte que o servidor entrega depende do perfil: se o perfil mudou, a cópia local deixa de servir de base.
+    function checkRole() {
+      if (SY.role === AU.user.role) return;
+      const wasStudent = SY.role === "estudante" || AU.user.role === "estudante";
+      SY.role = AU.user.role; SY.rev = 0; SY.base = null;
+      if (wasStudent) { SY.userChanged = true; if (AU.user.role === "estudante") DB = emptyDB(); }
+    }
+    const safeToRender = () => $("#modal").hidden && $("#ask").hidden && !LIVE.recording && UI.view !== "aovivo" && UI.view !== "sessao" && !(document.activeElement && $("#main").contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));
+    function applyDB(merged) {
+      const changed = !HC_CLIN.merge3 || JSON.stringify(merged) !== JSON.stringify(DB);
+      DB = Object.assign(emptyDB(), merged); DB.settings = Object.assign(emptyDB().settings, DB.settings);
+      kvPut("db", DB).catch(() => {});
+      if (changed) { if (safeToRender()) render(); else SY.needRender = true; }
+    }
+    function setState(st) {
+      SY.state = st; if (st === "ok") SY.last = Date.now();
+      const el = $("#sync-st"); if (el) el.outerHTML = root.hcSyncStatus();
+    }
+    root.hcSyncStatus = () => {
+      if (!SY.on) return "";
+      const [c, t] = SY.state === "ok" ? ["var(--ok)", `Banco central sincronizado${SY.last ? " · " + fmtHM(SY.last) : ""}`] : SY.state === "send" ? ["var(--warn)", "Enviando alterações ao servidor…"] : SY.state === "offline" ? ["var(--bad)", "Sem conexão com o servidor: alterações guardadas neste computador"] : ["var(--faint)", "Conectando ao banco central…"];
+      return `<span id="sync-st"><i class="dot" style="background:${c}"></i>${esc(t)}</span>`;
+    };
+    async function pull() {
+      if (!SY.on || SY.busy) return;
+      checkRole(); SY.busy = true;
+      try {
+        const r = await dataFetch("GET", `/db${SY.base ? "?rev=" + SY.rev : ""}`);
+        if (r.status === 401) { SY.busy = false; return root.hcAuthExpired && root.hcAuthExpired(); }
+        if (!r.ok) throw new Error(r.status);
+        const j = await r.json();
+        if (j.same) { setState(SY.pendingLocal ? "send" : "ok"); return; }
+        if (!j.db) { SY.busy = false; if (AU.user.role !== "estudante") { SY.base = {}; SY.rev = j.rev; return push(); } setState("ok"); return; }
+        const merged = !SY.base ? (SY.userChanged || pristine(DB) ? j.db : HC_CLIN.merge3({}, DB, j.db)) : HC_CLIN.merge3(SY.base, DB, j.db);
+        SY.userChanged = false;
+        applyDB(merged); SY.base = clone(j.db); SY.rev = j.rev; saveMeta();
+        SY.busy = false;
+        if (JSON.stringify(merged) !== JSON.stringify(j.db)) return push();
+        setState("ok");
+      } catch (e) { setState("offline"); } finally { SY.busy = false; }
+    }
+    async function push() {
+      if (!SY.on) return;
+      if (SY.busy) { SY.pending = true; return; }
+      checkRole();
+      if (!SY.base) return pull(); // sem base confiável: primeiro busca e mescla, depois envia
+      SY.busy = true; setState("send");
+      try {
+        for (let i = 0; i < 4; i++) {
+          const snap = clone(DB);
+          const r = await dataFetch("PUT", "/db", { db: snap, baseRev: SY.rev });
+          if (r.status === 409) { const j = await r.json(); applyDB(HC_CLIN.merge3(SY.base, DB, j.db)); SY.base = clone(j.db); SY.rev = j.rev; continue; }
+          if (r.status === 401) return root.hcAuthExpired && root.hcAuthExpired();
+          if (!r.ok) throw new Error(r.status);
+          SY.rev = (await r.json()).rev; SY.base = snap; SY.pendingLocal = false; saveMeta(); setState("ok"); return;
+        }
+        throw new Error("conflito persistente");
+      } catch (e) { SY.pendingLocal = true; setState("offline"); }
+      finally { SY.busy = false; if (SY.pending) { SY.pending = false; schedulePush(); } }
+    }
+    function schedulePush() { clearTimeout(SY.timer); SY.timer = setTimeout(push, 1200); }
+    root.hcSyncDirty = () => { if (SY.on) { SY.pendingLocal = true; schedulePush(); } };
+    root.hcSyncBoot = async () => {
+      if (!AU.on || !AU.user || !AU.syncAvail) return;
+      SY.on = true;
+      let m = null; try { m = await kvGet("sync"); } catch (e) {}
+      if (m && m.user === AU.user.email) { SY.rev = m.rev; SY.base = m.base; SY.role = m.role || AU.user.role; } else { SY.userChanged = true; SY.role = AU.user.role; }
+      if (SY.userChanged && AU.user.role === "estudante") { DB = emptyDB(); } // outra conta usou este navegador: não expõe dados alheios
+      checkRole();
+      await pull();
+      setInterval(() => { if (document.visibilityState === "visible") pull(); }, 12000);
+      window.addEventListener("focus", () => pull());
+      setInterval(() => { if (SY.needRender && safeToRender()) { SY.needRender = false; render(); } }, 2000);
+      if (AU.user.role !== "estudante") setTimeout(() => DB.sessions.forEach((s) => root.hcUploadMedia(s, true)), 4000);
+    };
+    // vídeos: envio após a gravação e busca sob demanda em outros computadores
+    root.hcRemoteChunks = async (id) => {
+      if (!SY.on) return [];
+      try {
+        const r = await dataFetch("GET", `/media/${encodeURIComponent(id)}`); if (!r.ok) return [];
+        const { chunks } = await r.json(); const out = [];
+        for (const seq of chunks) { const x = await dataFetch("GET", `/media/${encodeURIComponent(id)}/${seq}`); if (!x.ok) return []; const b = await x.blob(); out.push(b); putChunk(id, seq, b).catch(() => {}); }
+        return out;
+      } catch (e) { return []; }
+    };
+    const uploading = new Set();
+    root.hcUploadMedia = async (ses, quiet) => {
+      if (!SY.on || AU.user.role === "estudante") return;
+      let n = 0;
+      for (const m of ses.media || []) {
+        if (m.uploaded || m.deleted || uploading.has(m.id)) continue;
+        uploading.add(m.id);
+        try {
+          const ch = await getLocalChunks(m.id); if (!ch.length) continue;
+          for (let i = 0; i < ch.length; i++) { const r = await dataFetch("PUT", `/media/${encodeURIComponent(m.id)}/${i}`, ch[i], true); if (!r.ok) throw new Error(r.status); }
+          m.uploaded = true; n++; save();
+        } catch (e) { if (!quiet) toast("Não foi possível enviar um vídeo ao servidor agora; nova tentativa automática depois."); }
+        finally { uploading.delete(m.id); }
+      }
+      if (n && !quiet) toast(`${n} vídeo(s) enviado(s) ao banco central.`);
+    };
+    root.hcDeleteRemoteMedia = (id) => { if (SY.on && AU.user.role !== "estudante") dataFetch("DELETE", `/media/${encodeURIComponent(id)}`).catch(() => {}); };
+    root.hcAuthExpired = () => { SY.on = false; setState(""); toast("Sua sessão expirou. Entre novamente."); logout(); };
+    /** Chamado no início: liga o modo de senhas quando a página é servida pelo servidor do HELSIM. */
     root.hcAuthBoot = async () => {
       if (!/^https?:$/.test(location.protocol)) return;
-      try { const r = await fetch("/api/auth/status", { cache: "no-store" }); const j = r.ok ? await r.json() : null; if (!j || j.enabled !== true) return; AU.on = true; AU.mail = j.mail; } catch (e) { return; }
+      try { const r = await fetch("/api/auth/status", { cache: "no-store" }); const j = r.ok ? await r.json() : null; if (!j || j.enabled !== true) return; AU.on = true; AU.mail = j.mail; AU.syncAvail = j.sync !== false; } catch (e) { return; }
       AU.token = tokGet();
       if (AU.token) { try { const j = await api("/me"); AU.user = j.user; UI.role = j.user.role; return; } catch (e) { if (/Troque/.test(e.message)) { await new Promise((res) => { waitLogin = res; screen("change"); }); return; } AU.token = ""; tokSet(""); } }
       await new Promise((res) => { waitLogin = res; screen("login"); });
@@ -887,7 +1039,7 @@
     R.config = () => origConfig() + (AU.on && AU.user && AU.user.role === "admin" && UI.role === "admin"
       ? `<section class="card"><div class="between"><h2 style="margin:0">Usuários e acesso</h2><button class="btn primary" data-act="au-new">+ Usuário</button></div><div id="au-users" class="muted">Carregando…</div>
         <p class="muted small" style="margin-top:8px">Novos cadastros entram como estudante; promova docentes aqui. “Nova senha” envia outra senha temporária e obriga a troca no próximo acesso. E-mail: ${AU.mail === "smtp" ? "SMTP configurado" : "modo de teste (data/outbox)"}.</p></section>`
-      : `<section class="card"><h2>Modo de senhas</h2><p class="muted">${AU.on ? "Ativo. Você entrou como " + esc(AU.user ? AU.user.name : "") + "." : "Disponível quando o HelseCapture roda pelo servidor (<code>npm start</code>): cadastro por e-mail, senha temporária enviada ao e-mail e troca obrigatória no primeiro acesso. Neste arquivo/link a troca de perfil continua livre."}</p></section>`);
+      : `<section class="card"><h2>Modo de senhas</h2><p class="muted">${AU.on ? "Ativo. Você entrou como " + esc(AU.user ? AU.user.name : "") + "." : "Disponível quando o HELSIM roda pelo servidor (<code>npm start</code>): cadastro por e-mail, senha temporária enviada ao e-mail e troca obrigatória no primeiro acesso. Neste arquivo/link a troca de perfil continua livre."}</p></section>`);
     async function loadUsers() {
       const el = $("#au-users"); if (!el) return;
       try {

@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>HelseCapture</title>
-<link rel="icon" type="image/png" href="img/helsecapture-favicon.png">
+<title>HELSIM</title>
+<link rel="icon" type="image/png" href="img/helsim-favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-/* HelseCapture · identidade Helse Solutions: barra superior marinho · menu lateral por módulos ·
+/* HELSIM · identidade Helse Solutions: barra superior marinho · menu lateral por módulos ·
    área de trabalho com trilha, barra de ferramentas, painéis e tabelas densas · barra de status. */
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -19,7 +19,7 @@
   --brand:#0B2A5B;--brand-ink:#FFFFFF;--accent:#2F7CC1;--accent-soft:#E3EFFA;
   --ok:#15803D;--ok-bg:#DCF5E5;--warn:#B45309;--warn-bg:#FDF0D5;--hi:#C2410C;--hi-bg:#FFE6D5;--bad:#B91C1C;--bad-bg:#FDE2E2;
   --hr:#15803D;--spo:#0369A1;--bp:#C2410C;
-  --icon:url("img/helsecapture-icone.png");
+  --icon:url("img/helsim-icone.png");--icon-h:url("img/helsim-favicon.png");
   --rec:#E10600;--rec-hover:#FF1A12;--rec-soft:rgba(225,6,0,.1);
   --f-ui:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
   --f-cond:'IBM Plex Sans Condensed','Arial Narrow','Segoe UI',sans-serif;
@@ -58,7 +58,7 @@ h3{font:600 11px var(--f-cond);margin:12px 0 6px;color:var(--faint);text-transfo
 
 /* ===== barra superior ===== */
 .topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;height:var(--top-h);background:var(--brand);color:var(--brand-ink);display:flex;align-items:center;gap:14px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.tb-logo{height:42px;aspect-ratio:1;flex:none;background:var(--icon) center/contain no-repeat;border-radius:9px;box-shadow:0 0 0 1px rgba(255,255,255,.14)}
+.tb-logo{height:42px;aspect-ratio:1;flex:none;background:var(--icon-h) center/contain no-repeat;border-radius:9px;box-shadow:0 0 0 1px rgba(255,255,255,.14)}
 .cap{color:var(--rec);letter-spacing:.04em}
 .topbar .mod b .cap{color:#FF2A1F;font-size:inherit;opacity:1}
 .topbar .sep{width:1px;align-self:stretch;margin-block:12px;background:rgba(255,255,255,.18)}
@@ -335,9 +335,9 @@ tr.dose.atrasada td:first-child{box-shadow:inset 3px 0 var(--bad)}tr.dose.admini
 </head>
 <body>
 <header class="topbar">
-  <span class="tb-logo" role="img" aria-label="HelseCapture"></span>
+  <span class="tb-logo" role="img" aria-label="HELSIM"></span>
   <span class="sep" aria-hidden="true"></span>
-  <div class="mod"><b>Helse<span class="cap">CAPTURE</span></b><span>Gravação, agenda e debriefing de simulação clínica</span></div>
+  <div class="mod"><b>HELSIM</b><span>Gravação, agenda e debriefing de simulação clínica</span></div>
   <div class="ctx">
     <span class="tb-chip hide-md" id="tb-inst"></span>
     <span class="tb-chip mono" id="tb-clock"></span>
@@ -348,13 +348,13 @@ tr.dose.atrasada td:first-child{box-shadow:inset 3px 0 var(--bad)}tr.dose.admini
 </header>
 <div class="shell">
   <aside class="side" aria-label="Módulos">
-    <div class="logo" role="img" aria-label="HelseCapture"><i></i><b>Helse<span class="cap">CAPTURE</span></b></div>
+    <div class="logo" role="img" aria-label="HELSIM"><i></i><b>HELSIM</b></div>
     <div id="nav"></div>
-    <div class="foot">HelseCapture v1.0 · dados locais<br>Helse Solutions</div>
+    <div class="foot">HELSIM v1.0 · dados locais<br>Helse Solutions</div>
   </aside>
   <div class="main">
     <main class="work">
-      <div class="crumbs"><span>Helse<span class="cap">CAPTURE</span></span> › <b id="crumb">Painel</b></div>
+      <div class="crumbs"><span>HELSIM</span> › <b id="crumb">Painel</b></div>
       <div class="toolbar">
         <label class="field">Perfil <select id="role" data-change="role">
           <option value="admin">Administrador</option><option value="docente">Docente</option><option value="estudante">Estudante</option>
@@ -380,7 +380,7 @@ tr.dose.atrasada td:first-child{box-shadow:inset 3px 0 var(--bad)}tr.dose.admini
 <script>
 "use strict";
 /* ════════════════════════════════════════════════════════════════════════
- * HelseCapture – gestão, gravação e debriefing de simulação clínica (identidade Helse Solutions)
+ * HELSIM – gestão, gravação e debriefing de simulação clínica (identidade Helse Solutions)
  *
  * Implementação aberta (clean-room) do fluxo descrito publicamente para
  * sistemas de gestão de simulação: agenda de salas/recursos → cenário →
@@ -445,10 +445,11 @@ const kvGet = (k) => USE_MEM ? Promise.resolve(MEM.kv.get(k)) : tx("kv", "readon
 const kvPut = (k, v) => USE_MEM ? (MEM.kv.set(k, v), Promise.resolve()) : tx("kv", "readwrite", (s) => s.put(v, k));
 const kvDel = (k) => USE_MEM ? (MEM.kv.delete(k), Promise.resolve()) : tx("kv", "readwrite", (s) => s.delete(k));
 const putChunk = (id, seq, blob) => USE_MEM ? (MEM.media.set(id + "|" + String(seq).padStart(6, "0"), blob), Promise.resolve()) : tx("media", "readwrite", (s) => s.put(blob, [id, seq]));
-const getChunks = (id) => USE_MEM
+const getLocalChunks = (id) => USE_MEM
   ? Promise.resolve([...MEM.media.keys()].filter((k) => k.startsWith(id + "|")).sort().map((k) => MEM.media.get(k)))
   : tx("media", "readonly", (s) => s.getAll(mediaRange(id)));
-const delMedia = (id) => USE_MEM
+const getChunks = async (id) => { const ch = await getLocalChunks(id); return ch.length || !window.hcRemoteChunks ? ch : hcRemoteChunks(id); };
+const delMedia = (id) => (window.hcDeleteRemoteMedia && hcDeleteRemoteMedia(id), 0) || USE_MEM
   ? ([...MEM.media.keys()].filter((k) => k.startsWith(id + "|")).forEach((k) => MEM.media.delete(k)), Promise.resolve())
   : tx("media", "readwrite", (s) => s.delete(mediaRange(id)));
 
@@ -458,7 +459,7 @@ function emptyDB() {
     settings: { institution: "", retentionDays: 0, wsUrl: "" } };
 }
 let saveT = 0;
-function save() { clearTimeout(saveT); saveT = setTimeout(() => kvPut("db", DB).catch((e) => toast("Falha ao salvar: " + e.message)), 150); }
+function save() { clearTimeout(saveT); saveT = setTimeout(() => kvPut("db", DB).catch((e) => toast("Falha ao salvar: " + e.message)), 150); if (window.hcSyncDirty) hcSyncDirty(); }
 const byId = (col, id) => (DB[col] || []).find((x) => x.id === id);
 const nameOf = (col, id, f) => { const x = byId(col, id); return x ? x[f || (col === "courses" ? "title" : col === "scenarios" || col === "evaluations" ? "title" : "name")] : "—"; };
 
@@ -550,10 +551,10 @@ function chrome() {
   $("#tb-avatar").title = `${who} · ${ROLES[UI.role]}`;
   $("#tb-stamp").textContent = `${DB.sessions.length} sessões · ${DB.reservations.length} reservas · ${DB.people.length} pessoas`;
   const sim = LIVE.sim && LIVE.sim.status === "conectado";
-  $("#statusbar").innerHTML = `<span><i class="dot" style="background:var(--ok)"></i>Armazenamento ${USE_MEM ? "em memória (não persiste)" : "local (IndexedDB)"}</span>
+  $("#statusbar").innerHTML = `<span><i class="dot" style="background:var(--ok)"></i>Armazenamento ${window.HC_SYNC && HC_SYNC.on ? "central (servidor) + cópia local" : USE_MEM ? "em memória (não persiste)" : "local (IndexedDB)"}</span>${window.hcSyncStatus ? hcSyncStatus() : ""}
     <span><i class="dot" style="background:${sim ? "var(--ok)" : "var(--faint)"}"></i>Simulador ${sim ? "conectado · sala " + esc(LIVE.sim.room) : "desconectado"}</span>
     <span><i class="dot" style="background:var(--accent)"></i>Perfil: ${esc(ROLES[UI.role])}</span>
-    <span class="right">HelseCapture v1.0</span>`;
+    <span class="right">HELSIM v1.0</span>`;
 }
 function tick() { const c = $("#tb-clock"); if (c) c.textContent = new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); }
 function applyTheme() { if (UI.theme) document.documentElement.dataset.theme = UI.theme; else delete document.documentElement.dataset.theme; }
@@ -1214,7 +1215,7 @@ async function recStop() {
   })));
   await Promise.allSettled(LIVE.pending);
   ses.media = ses.media.filter((m) => m.chunks > 0);
-  DB.sessions.unshift(ses); save(); kvDel("draft").catch(() => {});
+  DB.sessions.unshift(ses); save(); kvDel("draft").catch(() => {}); if (window.hcUploadMedia) hcUploadMedia(ses);
   LIVE.sources.forEach((s) => stopStream(s.stream)); stopStream(LIVE.mic); simClose();
   LIVE = freshLive();
   go("sessao", ses.id);
@@ -1586,7 +1587,7 @@ R.config = () => `<h1>Configurações</h1>
     <label class="f"><span>Excluir vídeos após (dias; 0 = manter). Cenários podem definir prazo próprio.</span><input type="number" min="0" data-change="set" name="retentionDays" value="${esc(DB.settings.retentionDays)}"></label>
     <button class="btn" data-act="retention">Aplicar retenção agora</button>
     <p class="muted small" style="margin-top:6px">Os metadados, anotações e avaliações permanecem; apenas os arquivos de vídeo são apagados.</p></section>
-  <section class="card"><h2>Armazenamento</h2><p id="st-est" class="muted">Calculando…</p>${USE_MEM ? `<div class="conf">IndexedDB indisponível: os dados ficam só na memória e se perdem ao fechar a página.</div>` : ""}
+  <section class="card"><h2>Armazenamento</h2><p id="st-est" class="muted">Calculando…</p>${window.HC_SYNC && HC_SYNC.on ? `<p class="small">Banco central ativo: cadastros, agenda, sessões, avaliações e vídeos ficam no servidor e são sincronizados entre computadores; este navegador mantém uma cópia para uso sem conexão.</p>` : ""}${USE_MEM ? `<div class="conf">IndexedDB indisponível: os dados ficam só na memória e se perdem ao fechar a página.</div>` : ""}
     <div class="row"><button class="btn" data-act="persist">Pedir armazenamento persistente</button></div>
     <h2 style="margin-top:14px">Cópia de segurança</h2><p class="muted small">O arquivo JSON contém cadastros, agenda, sessões, anotações e avaliações (sem os vídeos; baixe-os em cada sessão).</p>
     <div class="row"><button class="btn" data-act="backup">Exportar backup</button><label class="btn">Restaurar backup<input type="file" accept=".json,application/json" data-change="restore" hidden></label></div>
@@ -1838,7 +1839,10 @@ const ACT = {
   "retention": () => applyRetention(false),
   "persist": async () => { try { const ok = navigator.storage && navigator.storage.persist ? await navigator.storage.persist() : false; toast(ok ? "Armazenamento persistente concedido." : "O navegador não concedeu armazenamento persistente."); render(); } catch (e) { toast(e.message); } },
   "backup": () => download(`simclin-captura-backup-${isoDate(Date.now())}.json`, JSON.stringify(DB, null, 1), "application/json"),
-  "wipe": async () => { if (!(await ask("Apagar TODOS os dados e vídeos deste navegador?")) || !(await ask("Confirma? Não há como desfazer."))) return;
+  "wipe": async () => { const central = window.HC_SYNC && HC_SYNC.on;
+    if (central && !(window.HC_AUTH && HC_AUTH.user && HC_AUTH.user.role === "admin")) return toast("Com o banco central ativo, apenas o administrador pode apagar tudo.");
+    if (!(await ask(central ? "Apagar TODOS os dados e vídeos do servidor central? Isso afeta todos os computadores." : "Apagar TODOS os dados e vídeos deste navegador?")) || !(await ask("Confirma? Não há como desfazer."))) return;
+    if (central) for (const s of DB.sessions) for (const m of s.media || []) hcDeleteRemoteMedia(m.id);
     if (USE_MEM) { MEM.kv.clear(); MEM.media.clear(); } else { await tx("media", "readwrite", (s) => s.clear()); await kvDel("db"); }
     DB = emptyDB(); seedBasics(); save(); render(); toast("Dados apagados."); },
   "loc-new": () => modal("Nova sala", `<label class="f"><span>Nome</span><input name="name" required></label>`, { onSubmit: (fd) => { const n = fd.get("name").trim(); if (!n) return false; DB.locations.push({ id: C.uid("l"), name: n }); save(); render(); } }),
@@ -1912,6 +1916,7 @@ if (window.hcInstallModules) hcInstallModules();
   DB = Object.assign(emptyDB(), DB); DB.settings = Object.assign(emptyDB().settings, DB.settings);
   if (window.hcAfterLoad) hcAfterLoad();
   if (window.hcAuthBoot) await hcAuthBoot();
+  if (window.hcSyncBoot) await hcSyncBoot();
   try { // recupera gravação interrompida (fechamento da aba, queda de energia)
     const draft = await kvGet("draft");
     if (draft && !DB.sessions.some((s) => s.id === draft.id)) {
