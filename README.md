@@ -154,7 +154,7 @@ Quando o HelseCapture é aberto pelo servidor (`npm start`, endereço `/captura.
 
 Segurança: senhas com scrypt e sal por usuário, sessões de 12 h guardadas só como hash, bloqueio de 15 min
 após 5 erros, limite de pedidos por IP e respostas que não revelam se um e-mail já tem cadastro. As contas
-ficam em `data/users.json` (fora do Git). Os dados das sessões continuam no navegador de cada computador.
+ficam em `data/users.json` (fora do Git).
 
 E-mail real por SMTP (por exemplo, o servidor de e-mail da instituição):
 
@@ -166,3 +166,24 @@ PUBLIC_URL=https://simulacao.exemplo.edu.br npm start
 
 Sem `SMTP_HOST`, o servidor roda em modo de teste: cada e-mail é salvo em `data/outbox/`. `HC_AUTH=0`
 desliga o modo de senhas. O arquivo único e o link de demonstração não têm servidor e mantêm a troca livre de perfil.
+
+### Banco de dados central (vários computadores)
+
+Com o modo de senhas ativo, o servidor também guarda um **banco central** (`store.js`, rota `/api/data`):
+cadastros, cursos, agenda, cenários, sessões, avaliações, prontuário, almoxarifado e vídeos passam a ser
+compartilhados por todos os computadores que acessam o mesmo servidor.
+
+- **Sincronização automática**: cada navegador trabalha sobre uma cópia local (continua funcionando sem rede)
+  e conversa com o servidor a cada 12 s, ao voltar para a janela e logo após cada alteração. A barra inferior
+  mostra o estado (sincronizado, enviando, sem conexão).
+- **Edições simultâneas**: o documento tem número de revisão; se outra pessoa gravou antes, o navegador mescla
+  item a item (mescla de três vias: o que cada lado mudou desde a última versão comum) e reenvia. Mudanças em
+  itens diferentes nunca se perdem; no mesmo campo do mesmo item, prevalece a última gravação.
+- **Vídeos**: enviados em blocos ao servidor ao encerrar a gravação (com nova tentativa automática) e baixados
+  sob demanda nos outros computadores.
+- **Permissões**: docente e administrador leem e gravam tudo. O estudante recebe só as próprias sessões,
+  cursos e reservas (sem prontuário, almoxarifado nem dados de colegas) e só consegue acrescentar as próprias
+  avaliações. “Apagar tudo” fica restrito ao administrador e avisa que apaga no servidor.
+- **Cópias de segurança**: `data/db.json` com cópias automáticas em `data/backups/` (no máximo uma a cada
+  10 min, as 30 mais recentes); vídeos em `data/media/`. `HC_DATA_DIR` muda a pasta e `HC_SYNC=0` desliga o
+  banco central (cada navegador volta a guardar só os próprios dados).

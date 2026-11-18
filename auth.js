@@ -48,7 +48,15 @@ function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, app
   let db = { users: [] };
   try { db = JSON.parse(fs.readFileSync(file, "utf8")); } catch (e) {}
   const persist = () => { const tmp = file + ".tmp"; fs.writeFileSync(tmp, JSON.stringify(db, null, 1), { mode: 0o600 }); fs.renameSync(tmp, file); };
+  // sessões persistidas (só o hash do token) para que reiniciar o servidor não desconecte ninguém
+  const sfile = path.join(dataDir, "sessions.json");
   const sessions = new Map(); // sha256(token) → { userId, scope, exp }
+  try { for (const [k, v] of Object.entries(JSON.parse(fs.readFileSync(sfile, "utf8")))) if (v.exp > Date.now()) sessions.set(k, v); } catch (e) {}
+  let sT = 0;
+  const saveSessions = () => { clearTimeout(sT); sT = setTimeout(() => { try { const tmp = sfile + ".tmp"; fs.writeFileSync(tmp, JSON.stringify(Object.fromEntries([...sessions].filter(([, v]) => v.exp > Date.now()))), { mode: 0o600 }); fs.renameSync(tmp, sfile); } catch (e) {} }, 200); };
+  const _set = sessions.set.bind(sessions), _del = sessions.delete.bind(sessions);
+  sessions.set = (k, v) => { const r = _set(k, v); saveSessions(); return r; };
+  sessions.delete = (k) => { const r = _del(k); saveSessions(); return r; };
   const hits = new Map(); // ip → [timestamps]
 
   const transport = mailer || makeTransport(dataDir);
@@ -81,7 +89,7 @@ function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, app
 
   const r = express.Router();
   r.use(express.json({ limit: "20kb" }));
-  r.get("/status", (req, res) => res.json({ enabled: true, users: db.users.length, mail: transport.kind }));
+  r.get("/status", (req, res) => res.json({ enabled: true, users: db.users.length, mail: transport.kind, sync: process.env.HC_SYNC !== "0" }));
 
   r.post("/register", async (req, res) => {
     if (limited(req)) return res.status(429).json({ error: "Muitas tentativas. Aguarde 15 minutos." });
@@ -157,7 +165,7 @@ function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, app
     if (u.id === req.auth.user.id) return res.status(400).json({ error: "Você não pode excluir a própria conta." });
     db.users = db.users.filter((x) => x !== u); persist(); for (const [k, s] of sessions) if (s.userId === u.id) sessions.delete(k); res.json({ ok: true });
   });
-  return { router: r, _db: () => db };
+  return { router: r, need, _db: () => db };
 }
 
 /** SMTP pelas variáveis SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM (e SMTP_SECURE=1 para a porta 465). */

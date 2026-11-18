@@ -6,8 +6,15 @@ const app = express();
 app.use(express.static(path.join(__dirname, "public")));
 
 // Modo de senhas do HelseCapture (cadastro por e-mail + senha temporária + troca obrigatória)
+// e banco central (sincronização entre computadores; HC_SYNC=0 desliga)
 const { createAuth } = require("./auth");
-if (process.env.HC_AUTH !== "0") app.use("/api/auth", createAuth({ dataDir: process.env.HC_DATA_DIR || path.join(__dirname, "data"), baseUrl: process.env.PUBLIC_URL || "" }).router);
+const { createStore } = require("./store");
+if (process.env.HC_AUTH !== "0") {
+  const dataDir = process.env.HC_DATA_DIR || path.join(__dirname, "data");
+  const auth = createAuth({ dataDir, baseUrl: process.env.PUBLIC_URL || "" });
+  app.use("/api/auth", auth.router);
+  if (process.env.HC_SYNC !== "0") app.use("/api/data", createStore({ dataDir, need: auth.need }).router);
+}
 
 // Rota catch-all → index.html (SPA)
 app.get("*", (req, res) => {

@@ -445,10 +445,11 @@ const kvGet = (k) => USE_MEM ? Promise.resolve(MEM.kv.get(k)) : tx("kv", "readon
 const kvPut = (k, v) => USE_MEM ? (MEM.kv.set(k, v), Promise.resolve()) : tx("kv", "readwrite", (s) => s.put(v, k));
 const kvDel = (k) => USE_MEM ? (MEM.kv.delete(k), Promise.resolve()) : tx("kv", "readwrite", (s) => s.delete(k));
 const putChunk = (id, seq, blob) => USE_MEM ? (MEM.media.set(id + "|" + String(seq).padStart(6, "0"), blob), Promise.resolve()) : tx("media", "readwrite", (s) => s.put(blob, [id, seq]));
-const getChunks = (id) => USE_MEM
+const getLocalChunks = (id) => USE_MEM
   ? Promise.resolve([...MEM.media.keys()].filter((k) => k.startsWith(id + "|")).sort().map((k) => MEM.media.get(k)))
   : tx("media", "readonly", (s) => s.getAll(mediaRange(id)));
-const delMedia = (id) => USE_MEM
+const getChunks = async (id) => { const ch = await getLocalChunks(id); return ch.length || !window.hcRemoteChunks ? ch : hcRemoteChunks(id); };
+const delMedia = (id) => (window.hcDeleteRemoteMedia && hcDeleteRemoteMedia(id), 0) || USE_MEM
   ? ([...MEM.media.keys()].filter((k) => k.startsWith(id + "|")).forEach((k) => MEM.media.delete(k)), Promise.resolve())
   : tx("media", "readwrite", (s) => s.delete(mediaRange(id)));
 
@@ -458,7 +459,7 @@ function emptyDB() {
     settings: { institution: "", retentionDays: 0, wsUrl: "" } };
 }
 let saveT = 0;
-function save() { clearTimeout(saveT); saveT = setTimeout(() => kvPut("db", DB).catch((e) => toast("Falha ao salvar: " + e.message)), 150); }
+function save() { clearTimeout(saveT); saveT = setTimeout(() => kvPut("db", DB).catch((e) => toast("Falha ao salvar: " + e.message)), 150); if (window.hcSyncDirty) hcSyncDirty(); }
 const byId = (col, id) => (DB[col] || []).find((x) => x.id === id);
 const nameOf = (col, id, f) => { const x = byId(col, id); return x ? x[f || (col === "courses" ? "title" : col === "scenarios" || col === "evaluations" ? "title" : "name")] : "—"; };
 
@@ -550,7 +551,7 @@ function chrome() {
   $("#tb-avatar").title = `${who} · ${ROLES[UI.role]}`;
   $("#tb-stamp").textContent = `${DB.sessions.length} sessões · ${DB.reservations.length} reservas · ${DB.people.length} pessoas`;
   const sim = LIVE.sim && LIVE.sim.status === "conectado";
-  $("#statusbar").innerHTML = `<span><i class="dot" style="background:var(--ok)"></i>Armazenamento ${USE_MEM ? "em memória (não persiste)" : "local (IndexedDB)"}</span>
+  $("#statusbar").innerHTML = `<span><i class="dot" style="background:var(--ok)"></i>Armazenamento ${window.HC_SYNC && HC_SYNC.on ? "central (servidor) + cópia local" : USE_MEM ? "em memória (não persiste)" : "local (IndexedDB)"}</span>${window.hcSyncStatus ? hcSyncStatus() : ""}
     <span><i class="dot" style="background:${sim ? "var(--ok)" : "var(--faint)"}"></i>Simulador ${sim ? "conectado · sala " + esc(LIVE.sim.room) : "desconectado"}</span>
     <span><i class="dot" style="background:var(--accent)"></i>Perfil: ${esc(ROLES[UI.role])}</span>
     <span class="right">HelseCapture v1.0</span>`;
@@ -1214,7 +1215,7 @@ async function recStop() {
   })));
   await Promise.allSettled(LIVE.pending);
   ses.media = ses.media.filter((m) => m.chunks > 0);
-  DB.sessions.unshift(ses); save(); kvDel("draft").catch(() => {});
+  DB.sessions.unshift(ses); save(); kvDel("draft").catch(() => {}); if (window.hcUploadMedia) hcUploadMedia(ses);
   LIVE.sources.forEach((s) => stopStream(s.stream)); stopStream(LIVE.mic); simClose();
   LIVE = freshLive();
   go("sessao", ses.id);
@@ -1586,7 +1587,7 @@ R.config = () => `<h1>Configurações</h1>
     <label class="f"><span>Excluir vídeos após (dias; 0 = manter). Cenários podem definir prazo próprio.</span><input type="number" min="0" data-change="set" name="retentionDays" value="${esc(DB.settings.retentionDays)}"></label>
     <button class="btn" data-act="retention">Aplicar retenção agora</button>
     <p class="muted small" style="margin-top:6px">Os metadados, anotações e avaliações permanecem; apenas os arquivos de vídeo são apagados.</p></section>
-  <section class="card"><h2>Armazenamento</h2><p id="st-est" class="muted">Calculando…</p>${USE_MEM ? `<div class="conf">IndexedDB indisponível: os dados ficam só na memória e se perdem ao fechar a página.</div>` : ""}
+  <section class="card"><h2>Armazenamento</h2><p id="st-est" class="muted">Calculando…</p>${window.HC_SYNC && HC_SYNC.on ? `<p class="small">Banco central ativo: cadastros, agenda, sessões, avaliações e vídeos ficam no servidor e são sincronizados entre computadores; este navegador mantém uma cópia para uso sem conexão.</p>` : ""}${USE_MEM ? `<div class="conf">IndexedDB indisponível: os dados ficam só na memória e se perdem ao fechar a página.</div>` : ""}
     <div class="row"><button class="btn" data-act="persist">Pedir armazenamento persistente</button></div>
     <h2 style="margin-top:14px">Cópia de segurança</h2><p class="muted small">O arquivo JSON contém cadastros, agenda, sessões, anotações e avaliações (sem os vídeos; baixe-os em cada sessão).</p>
     <div class="row"><button class="btn" data-act="backup">Exportar backup</button><label class="btn">Restaurar backup<input type="file" accept=".json,application/json" data-change="restore" hidden></label></div>
@@ -1838,7 +1839,10 @@ const ACT = {
   "retention": () => applyRetention(false),
   "persist": async () => { try { const ok = navigator.storage && navigator.storage.persist ? await navigator.storage.persist() : false; toast(ok ? "Armazenamento persistente concedido." : "O navegador não concedeu armazenamento persistente."); render(); } catch (e) { toast(e.message); } },
   "backup": () => download(`simclin-captura-backup-${isoDate(Date.now())}.json`, JSON.stringify(DB, null, 1), "application/json"),
-  "wipe": async () => { if (!(await ask("Apagar TODOS os dados e vídeos deste navegador?")) || !(await ask("Confirma? Não há como desfazer."))) return;
+  "wipe": async () => { const central = window.HC_SYNC && HC_SYNC.on;
+    if (central && !(window.HC_AUTH && HC_AUTH.user && HC_AUTH.user.role === "admin")) return toast("Com o banco central ativo, apenas o administrador pode apagar tudo.");
+    if (!(await ask(central ? "Apagar TODOS os dados e vídeos do servidor central? Isso afeta todos os computadores." : "Apagar TODOS os dados e vídeos deste navegador?")) || !(await ask("Confirma? Não há como desfazer."))) return;
+    if (central) for (const s of DB.sessions) for (const m of s.media || []) hcDeleteRemoteMedia(m.id);
     if (USE_MEM) { MEM.kv.clear(); MEM.media.clear(); } else { await tx("media", "readwrite", (s) => s.clear()); await kvDel("db"); }
     DB = emptyDB(); seedBasics(); save(); render(); toast("Dados apagados."); },
   "loc-new": () => modal("Nova sala", `<label class="f"><span>Nome</span><input name="name" required></label>`, { onSubmit: (fd) => { const n = fd.get("name").trim(); if (!n) return false; DB.locations.push({ id: C.uid("l"), name: n }); save(); render(); } }),
@@ -1912,6 +1916,7 @@ if (window.hcInstallModules) hcInstallModules();
   DB = Object.assign(emptyDB(), DB); DB.settings = Object.assign(emptyDB().settings, DB.settings);
   if (window.hcAfterLoad) hcAfterLoad();
   if (window.hcAuthBoot) await hcAuthBoot();
+  if (window.hcSyncBoot) await hcSyncBoot();
   try { // recupera gravação interrompida (fechamento da aba, queda de energia)
     const draft = await kvGet("draft");
     if (draft && !DB.sessions.some((s) => s.id === draft.id)) {
