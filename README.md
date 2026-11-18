@@ -120,7 +120,7 @@ https não abre câmeras em http (conteúdo misto), então use o servidor local 
 
 ### Módulos do laboratório (somente docente e administrador)
 
-O grupo **Laboratório · restrito** do menu só aparece nos perfis docente e administrador; o perfil
+O grupo **Laboratório · restrito** do menu só aparece nos perfis docente e administrador (o **Almoxarifado** só para o administrador); o perfil
 estudante não vê as telas e as ações são recusadas mesmo se chamadas diretamente.
 
 - **Prontuário eletrônico simulado**: pacientes vinculados a cenários, prescrição numerada (digitação →
@@ -181,7 +181,7 @@ compartilhados por todos os computadores que acessam o mesmo servidor.
   itens diferentes nunca se perdem; no mesmo campo do mesmo item, prevalece a última gravação.
 - **Vídeos**: enviados em blocos ao servidor ao encerrar a gravação (com nova tentativa automática) e baixados
   sob demanda nos outros computadores.
-- **Permissões**: docente e administrador leem e gravam tudo. O estudante recebe só as próprias sessões,
+- **Permissões**: administrador lê e grava tudo; docente também, exceto o almoxarifado, que o servidor não lhe envia e preserva quando ele grava. O estudante recebe só as próprias sessões,
   cursos e reservas (sem prontuário, almoxarifado nem dados de colegas) e só consegue acrescentar as próprias
   avaliações. “Apagar tudo” fica restrito ao administrador e avisa que apaga no servidor.
 - **Cópias de segurança**: `data/db.json` com cópias automáticas em `data/backups/` (no máximo uma a cada

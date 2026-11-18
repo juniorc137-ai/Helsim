@@ -27,7 +27,7 @@ test("merge3: exclusões de um lado são respeitadas; conflito real mantém a ve
 
 test("banco central: revisão, 409, recorte do estudante e vídeos", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "hcstore-"));
-  const users = { adm: { id: "u1", email: "ana@x.br", name: "Ana", role: "admin" }, est: { id: "u2", email: "eva@x.br", name: "Eva", role: "estudante" }, out: { id: "u3", email: "rui@x.br", name: "Rui", role: "estudante" } };
+  const users = { adm: { id: "u1", email: "ana@x.br", name: "Ana", role: "admin" }, est: { id: "u2", email: "eva@x.br", name: "Eva", role: "estudante" }, out: { id: "u3", email: "rui@x.br", name: "Rui", role: "estudante" }, doc: { id: "u4", email: "bia@x.br", name: "Bia", role: "docente" } };
   const need = () => (req, res, next) => { const u = users[(req.headers.authorization || "").slice(7)]; if (!u) return res.status(401).end(); req.auth = { user: u }; next(); };
   const store = createStore({ dataDir: dir, need });
   const app = express(); app.use("/api/data", store.router);
@@ -50,6 +50,36 @@ test("banco central: revisão, 409, recorte do estudante e vídeos", async () =>
     const forged = { ...v, sessions: [{ ...v.sessions[0], results: [{ id: "r1", subjectId: "p1" }, { id: "r2", subjectId: "p2" }] }] };
     r = await call("est", "PUT", "/db", { db: forged, baseRev: 1 }); assert.equal(r.j.rev, 2);
     const doc = store._doc().db; assert.equal(doc.sessions.length, 2); assert.deepEqual(doc.sessions[0].results.map((x) => x.id), ["r1"]); assert.equal(doc.patients.length, 1);
+    // docente: não recebe o almoxarifado e, ao gravar, não o apaga
+    r = await call("doc", "GET", "/db"); assert.equal(r.j.db.stock.length, 0); assert.equal(r.j.db.patients.length, 1); assert.equal(r.j.db.sessions.length, 0, "docente não vê sessões alheias");
+    r = await call("doc", "PUT", "/db", { db: { ...r.j.db, stock: [], locations: [{ id: "l1" }] }, baseRev: 2 }); assert.equal(r.j.rev, 3);
+    assert.equal(store._doc().db.stock.length, 1); assert.equal(store._doc().db.locations.length, 1);
+    assert.equal((await call("adm", "GET", "/db")).j.db.stock.length, 1);
+    // sessões, avaliações e pessoas do docente
+    { let d = (await call("doc", "GET", "/db")).j;
+      const db2 = { ...d.db, sessions: [{ id: "sB", participantIds: [], media: [{ id: "mB" }], results: [] }], evaluations: [{ id: "evB", title: "Minha" }],
+        people: [{ id: "px", name: "Intruso", email: "x@x.br" }, { id: "pb", name: "Bia", email: "bia@x.br" }] };
+      await call("doc", "PUT", "/db", { db: db2, baseRev: d.rev });
+      const sv = store._doc().db;
+      assert.deepEqual(sv.sessions.map((x) => x.id).sort(), ["s1", "s2", "sB"], "sessões alheias preservadas");
+      assert.equal(sv.sessions.find((x) => x.id === "sB").ownerEmail, "bia@x.br");
+      assert.equal(sv.people.some((p) => p.id === "px"), false, "docente não cadastra pessoas"); assert.equal(sv.people.some((p) => p.id === "pb"), true, "mas entra o próprio cadastro");
+      d = (await call("doc", "GET", "/db")).j; assert.deepEqual(d.db.sessions.map((x) => x.id), ["sB"]); assert.deepEqual(d.db.evaluations.map((x) => x.id), ["evB"]);
+      assert.equal((await call("doc", "GET", "/media/m1")).status, 404, "vídeo de sessão alheia");
+      assert.equal((await call("doc", "PUT", "/media/m1/0", Buffer.from("x"), true)).status, 403);
+      assert.equal((await call("doc", "PUT", "/media/mB/0", Buffer.from("x"), true)).status, 200);
+    }
+    // reservas: docente cria (pendente) e altera só as próprias
+    let d = (await call("doc", "GET", "/db")).j.db;
+    const alheia = { id: "rA", title: "Do admin", start: "2026-12-01T10:00", end: "2026-12-01T11:00", status: "aprovada", createdByEmail: "ana@x.br" };
+    let cur = store._doc(); await call("adm", "PUT", "/db", { db: { ...cur.db, reservations: [alheia] }, baseRev: cur.rev });
+    d = (await call("doc", "GET", "/db")).j;
+    const minha = { id: "rB", title: "Minha", start: "2026-12-02T10:00", end: "2026-12-02T11:00", status: "aprovada" };
+    r = await call("doc", "PUT", "/db", { db: { ...d.db, reservations: [{ ...alheia, title: "Editada", status: "recusada" }, minha] }, baseRev: d.rev });
+    let rs = store._doc().db.reservations; assert.equal(rs.find((x) => x.id === "rA").title, "Do admin"); assert.equal(rs.find((x) => x.id === "rB").status, "pendente"); assert.equal(rs.find((x) => x.id === "rB").createdByEmail, "bia@x.br");
+    d = (await call("doc", "GET", "/db")).j;
+    await call("doc", "PUT", "/db", { db: { ...d.db, reservations: [] }, baseRev: d.rev }); // tenta apagar tudo
+    rs = store._doc().db.reservations; assert.deepEqual(rs.map((x) => x.id), ["rA"], "apaga só a própria");
     // vídeos
     assert.equal((await call("est", "PUT", "/media/m1/0", Buffer.from("abc"), true)).status, 403);
     assert.equal((await call("adm", "PUT", "/media/m1/0", Buffer.from("abc"), true)).status, 200);
@@ -62,7 +92,7 @@ test("banco central: revisão, 409, recorte do estudante e vídeos", async () =>
     assert.equal((await call("adm", "DELETE", "/media/m1")).status, 200);
     assert.deepEqual((await call("adm", "GET", "/media/m1")).j.chunks, []);
     // persiste após reinício
-    assert.equal(createStore({ dataDir: dir, need })._doc().rev, 2);
+    assert.ok(createStore({ dataDir: dir, need })._doc().rev >= 6);
     assert.ok(fs.readdirSync(path.join(dir, "backups")).length >= 1);
   } finally { srv.close(); }
 });

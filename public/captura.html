@@ -470,6 +470,17 @@ function loadPrefs() { try { Object.assign(UI, JSON.parse(localStorage.getItem("
 function savePrefs() { try { const { view, role, me, layout, agLoc, theme } = UI; localStorage.setItem("captura-ui", JSON.stringify({ view, role, me, layout, agLoc, theme })); } catch (e) {} }
 const canEdit = () => UI.role !== "estudante";
 const meLabel = () => (UI.me && nameOf("people", UI.me)) || ROLES[UI.role];
+// Reservas: o administrador edita todas; o docente cria e edita só as que ele mesmo criou.
+const myEmail = () => (window.HC_AUTH && HC_AUTH.on && HC_AUTH.user ? HC_AUTH.user.email : "");
+const ownsRes = (r) => (myEmail() ? r.createdByEmail === myEmail() : !!UI.me && r.createdById === UI.me);
+const canEditRes = (r) => UI.role === "admin" || (UI.role === "docente" && (!DB.reservations.includes(r) || ownsRes(r)));
+const RES_KEYS = ["start", "end", "locationId", "resourceIds", "recur"];
+// Sessões e avaliações: o docente vê e altera só as que ele criou; pessoas só o administrador cadastra.
+const mine = (x) => (myEmail() ? x.ownerEmail === myEmail() : !!UI.me && x.ownerId === UI.me);
+const owner = () => ({ ownerEmail: myEmail(), ownerId: UI.me || "" });
+const isAdm = () => UI.role === "admin";
+const visibleEvals = () => (UI.role === "docente" ? DB.evaluations.filter(mine) : DB.evaluations);
+const canEditEval = (e) => isAdm() || (UI.role === "docente" && (!DB.evaluations.includes(e) || mine(e)));
 
 function toast(msg, ms = 3200) {
   const t = $("#toast"); t.textContent = msg; t.style.display = "block";
@@ -549,7 +560,7 @@ function chrome() {
   const st = $("#tb-status"); st.className = "tb-chip lvl " + (LIVE.recording ? "rec" : "ok"); st.textContent = LIVE.recording ? "Gravando" : "Pronto";
   const who = meLabel(); $("#tb-avatar").textContent = who.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "HC";
   $("#tb-avatar").title = `${who} · ${ROLES[UI.role]}`;
-  $("#tb-stamp").textContent = `${DB.sessions.length} sessões · ${DB.reservations.length} reservas · ${DB.people.length} pessoas`;
+  $("#tb-stamp").textContent = `${visibleSessions().length} sessões · ${DB.reservations.length} reservas · ${DB.people.length} pessoas`;
   const sim = LIVE.sim && LIVE.sim.status === "conectado";
   $("#statusbar").innerHTML = `<span><i class="dot" style="background:var(--ok)"></i>Armazenamento ${window.HC_SYNC && HC_SYNC.on ? "central (servidor) + cópia local" : USE_MEM ? "em memória (não persiste)" : "local (IndexedDB)"}</span>${window.hcSyncStatus ? hcSyncStatus() : ""}
     <span><i class="dot" style="background:${sim ? "var(--ok)" : "var(--faint)"}"></i>Simulador ${sim ? "conectado · sala " + esc(LIVE.sim.room) : "desconectado"}</span>
@@ -587,7 +598,7 @@ document.addEventListener("submit", (e) => {
 
 // ── Utilidades de domínio ────────────────────────────────────────────────
 function visibleSessions() {
-  return UI.role === "estudante" ? DB.sessions.filter((s) => (s.participantIds || []).includes(UI.me)) : DB.sessions;
+  return UI.role === "estudante" ? DB.sessions.filter((s) => (s.participantIds || []).includes(UI.me)) : UI.role === "docente" ? DB.sessions.filter(mine) : DB.sessions;
 }
 function occurrencesBetween(a, b) {
   const out = [];
@@ -675,9 +686,9 @@ function reservationForm(r, conflicts) {
 function openReservation(r, idx) {
   const isNew = !DB.reservations.includes(r);
   const recurring = !isNew && r.recur && r.recur.freq && r.recur.freq !== "nenhuma";
-  const readonly = !canEdit();
+  const readonly = !canEditRes(r);
   if (readonly) {
-    return modal(r.title, `<p>${esc(nameOf("locations", r.locationId))} · ${fmtDT(+new Date(r.start))}–${fmtHM(+new Date(r.end))}</p><p class="muted">${esc(nameOf("courses", r.courseId))} · ${esc(nameOf("scenarios", r.scenarioId))}</p><p>${esc(r.notes || "")}</p>`);
+    return modal(r.title, `<p>${esc(nameOf("locations", r.locationId))} · ${fmtDT(+new Date(r.start))}–${fmtHM(+new Date(r.end))}</p><p class="muted">${esc(nameOf("courses", r.courseId))} · ${esc(nameOf("scenarios", r.scenarioId))}</p><p>${esc(r.notes || "")}</p><p class="small muted">Reservado por ${esc(r.createdBy || "—")} · ${esc(r.status || "aprovada")}${UI.role === "docente" ? ". Somente quem criou a reserva ou o administrador pode alterá-la." : ""}</p>`);
   }
   const submit = (fd) => {
     const date = fd.get("date"), s = new Date(`${date}T${fd.get("t1")}`), e = new Date(`${date}T${fd.get("t2")}`);
@@ -688,8 +699,8 @@ function openReservation(r, idx) {
     if (cand.recur.freq !== "nenhuma" && !cand.recur.until) { toast("Informe até quando a reserva se repete."); return false; }
     const conf = C.findConflicts(DB.reservations, cand, DB.resources);
     if (conf.length && !fd.get("override")) { show(cand, conf); return false; }
-    if (isNew) { cand.status = UI.role === "admin" ? "aprovada" : "pendente"; cand.createdBy = meLabel(); DB.reservations.push(cand); }
-    else Object.assign(r, cand);
+    if (isNew) { cand.status = UI.role === "admin" ? "aprovada" : "pendente"; cand.createdBy = meLabel(); cand.createdById = UI.me || ""; cand.createdByEmail = myEmail(); DB.reservations.push(cand); }
+    else { if (UI.role !== "admin" && RES_KEYS.some((k) => JSON.stringify(cand[k]) !== JSON.stringify(r[k]))) cand.status = "pendente"; Object.assign(r, cand); }
     save(); render(); toast(cand.status === "pendente" ? "Reserva enviada para aprovação." : "Reserva salva.");
   };
   const extra = isNew ? "" : `${r.scenarioId || r.locationId ? `<button type="button" class="btn rec-o" data-act="live-from-res" data-id="${r.id}">● Iniciar sessão</button>` : ""}
@@ -704,8 +715,8 @@ function newReservation(date) {
 }
 
 // ═════════════════════════════ CURSOS E PESSOAS ═══════════════════════════
-R.cursos = () => `<div class="between"><h1 style="margin:0">Cursos e pessoas</h1><div class="row"><button class="btn primary" data-act="course-new">+ Curso</button><button class="btn" data-act="person-new">+ Pessoa</button>
-  <label class="btn">Importar participantes (CSV)<input type="file" accept=".csv,text/csv" data-change="roster" hidden></label><button class="btn" data-act="people-csv">Exportar CSV</button></div></div>
+R.cursos = () => `<div class="between"><h1 style="margin:0">Cursos e pessoas</h1><div class="row"><button class="btn primary" data-act="course-new">+ Curso</button>${isAdm() ? `<button class="btn" data-act="person-new">+ Pessoa</button>
+  <label class="btn">Importar participantes (CSV)<input type="file" accept=".csv,text/csv" data-change="roster" hidden></label>` : ""}<button class="btn" data-act="people-csv">Exportar CSV</button></div></div>
   <section class="card"><h2>Cursos</h2>${DB.courses.length ? `<div class="tbl"><table><tr><th>Código</th><th>Curso</th><th>Período</th><th>Estudantes</th><th>Docentes</th><th>Sessões</th></tr>
     ${DB.courses.map((c) => `<tr class="click" data-act="course-open" data-id="${c.id}"><td>${esc(c.code)}</td><td>${esc(c.title)}</td><td>${esc(c.term || "")}</td><td>${(c.participantIds || []).length}</td><td>${(c.facultyIds || []).length}</td><td>${DB.sessions.filter((s) => s.courseId === c.id).length}</td></tr>`).join("")}</table></div>` : `<div class="empty">Nenhum curso</div>`}</section>
   <section class="card"><h2>Pessoas (${DB.people.length})</h2>${DB.people.length ? `<div class="tbl"><table><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Sessões</th></tr>
@@ -731,6 +742,7 @@ function openCourse(c) {
 }
 function openPerson(p) {
   const isNew = !DB.people.includes(p);
+  if (!isAdm()) return modal(p.name || "Pessoa", `<p>${esc(p.email || "")}</p><p class="muted">${esc(ROLES[p.role] || p.role || "")}</p><p class="small muted">Somente o administrador cadastra ou altera pessoas.</p>`);
   modal(isNew ? "Nova pessoa" : "Editar pessoa", `<label class="f"><span>Nome</span><input name="name" required value="${esc(p.name || "")}"></label>
     <label class="f"><span>E-mail</span><input name="email" type="email" value="${esc(p.email || "")}"></label>
     <label class="f"><span>Papel</span><select name="role">${Object.entries(ROLES).map(([k, v]) => opt(k, v, p.role || "estudante")).join("")}</select></label>`, {
@@ -813,8 +825,8 @@ function importEngineScenarios(quiet) {
 
 // ═════════════════════════════ AVALIAÇÕES ═════════════════════════════════
 R.avaliacoes = () => `<div class="between"><h1 style="margin:0">Avaliações</h1><button class="btn primary" data-act="ev-new">+ Avaliação</button></div>
-  ${DB.evaluations.length ? `<div class="tbl card"><table><tr><th>Título</th><th>Tipo</th><th>Itens</th><th>Pontos</th><th>Críticos</th><th>Respostas</th><th></th></tr>
-  ${DB.evaluations.map((e) => { const sc = C.scoreEvaluation(e, {}); const n = DB.sessions.reduce((a, s) => a + (s.results || []).filter((r) => r.evaluationId === e.id).length, 0);
+  ${visibleEvals().length ? `<div class="tbl card"><table><tr><th>Título</th><th>Tipo</th><th>Itens</th><th>Pontos</th><th>Críticos</th><th>Respostas</th><th></th></tr>
+  ${visibleEvals().map((e) => { const sc = C.scoreEvaluation(e, {}); const n = visibleSessions().reduce((a, s) => a + (s.results || []).filter((r) => r.evaluationId === e.id).length, 0);
     return `<tr class="click" data-act="ev-open" data-id="${e.id}"><td>${esc(e.title)}${(e.refs || []).length ? `<span class="small muted" style="display:block">${e.refs.map((r) => esc(shortRef(r))).join("; ")}</span>` : ""}</td><td>${esc(EVAL_TYPES[e.type] || e.type)}</td><td>${e.items.length}</td><td>${sc.max}</td><td>${e.items.filter((i) => i.critical).length}</td><td>${n}</td>
     <td><button class="btn sm" data-act="ev-print" data-id="${e.id}">Imprimir</button></td></tr>`; }).join("")}</table></div>`
   : `<div class="empty">Nenhuma avaliação. Crie checklists de desempenho, escalas comportamentais, questionários pré/pós e formulários de reflexão.</div>`}
@@ -829,6 +841,7 @@ function itemRow(it) {
 }
 function openEvaluation(e) {
   const isNew = !DB.evaluations.includes(e);
+  if (!canEditEval(e)) return toast("Você só pode editar as avaliações que criou.");
   modal(isNew ? "Nova avaliação" : "Editar avaliação", `<label class="f"><span>Título</span><input name="title" required value="${esc(e.title || "")}"></label>
     <label class="f"><span>Tipo</span><select name="type">${Object.entries(EVAL_TYPES).map(([k, v]) => opt(k, v, e.type || "avaliador")).join("")}</select></label>
     <label class="f"><span>Instruções</span><textarea name="instructions" style="min-height:44px">${esc(e.instructions || "")}</textarea></label>
@@ -847,7 +860,7 @@ function openEvaluation(e) {
       }).filter((it) => it.text);
       if (!items.length) { toast("Inclua ao menos um item."); return false; }
       Object.assign(e, { title: fd.get("title").trim() || "Avaliação", type: fd.get("type"), instructions: fd.get("instructions").trim(), refs: fd.get("refs").split("\n").map((x) => x.trim()).filter(Boolean), items });
-      if (isNew) DB.evaluations.push(e); save(); render();
+      if (isNew) { Object.assign(e, owner()); DB.evaluations.push(e); } save(); render();
     } });
   if (!(e.items || []).length) $("#items").insertAdjacentHTML("beforeend", itemRow({}));
 }
@@ -1168,7 +1181,7 @@ async function recStart() {
   LIVE.mic = mic;
   const ses = { id: C.uid("s"), title: s.title.trim() || "Sessão " + fmtDT(Date.now()), courseId: s.courseId, scenarioId: s.scenarioId, locationId: s.locationId,
     participantIds: [...s.pids], reservationId: s.reservationId, startedAt: Date.now(), duration: 0, media: [], annotations: [], samples: [], transcript: [], results: [],
-    notes: "", consent: true, createdBy: meLabel(), simRoom: LIVE.sim && LIVE.sim.status === "conectado" ? LIVE.sim.room : "" };
+    notes: "", consent: true, createdBy: meLabel(), ...owner(), simRoom: LIVE.sim && LIVE.sim.status === "conectado" ? LIVE.sim.room : "" };
   LIVE.session = ses; LIVE.t0 = performance.now(); LIVE.pending = []; LIVE.recorders = []; LIVE.storageErr = false;
   const plan = LIVE.sources.map((src, i) => ({ label: src.label, kind: src.kind, tracks: [...src.stream.getVideoTracks(), ...(i === 0 && mic ? mic.getAudioTracks() : [])], hasAudio: i === 0 && !!mic }));
   if (!plan.length && mic) plan.push({ label: "Áudio", kind: "audio", tracks: mic.getAudioTracks(), hasAudio: true, audioOnly: true });
@@ -1341,7 +1354,7 @@ R.sessoes = () => {
 // ═════════════════════════════ VISUALIZADOR / DEBRIEFING ══════════════════
 let PB = null;
 R.sessao = () => {
-  const s = byId("sessions", UI.sel);
+  const s = visibleSessions().find((x) => x.id === UI.sel);
   if (!s) return `<div class="empty">Sessão não encontrada. <button class="btn" data-act="go" data-v="sessoes">Voltar</button></div>`;
   const media = s.media || [];
   const main = Math.min(UI.main, Math.max(0, media.length - 1));
@@ -1554,7 +1567,7 @@ function printSession(s) {
 
 // ═════════════════════════════ RELATÓRIOS ═════════════════════════════════
 R.relatorios = () => {
-  const ses = DB.sessions.filter((s) => !UI.repCourse || s.courseId === UI.repCourse);
+  const ses = visibleSessions().filter((s) => !UI.repCourse || s.courseId === UI.repCourse);
   const u = C.usageReport(ses), lr = C.learnerReport(ses, DB.evaluations, DB.people), ar = C.annotationReport(ses);
   const ev = byId("evaluations", UI.repEval) || DB.evaluations[0];
   let items = "";
@@ -1728,9 +1741,10 @@ const ACT = {
   // agenda
   "ag-mon": (b) => { const d = +b.dataset.d, m = new Date(UI.agMonth); UI.agMonth = d ? +new Date(m.getFullYear(), m.getMonth() + d, 1) : Date.now(); render(); },
   "res-open": (b, e) => { e.stopPropagation(); const r = byId("reservations", b.dataset.id); if (r) openReservation(r, +b.dataset.idx); },
-  "res-status": (b) => { const r = byId("reservations", b.dataset.id); if (r) { r.status = b.dataset.s; save(); render(); } },
+  "res-status": (b) => { if (UI.role !== "admin") return toast("Somente o administrador aprova ou recusa reservas."); const r = byId("reservations", b.dataset.id); if (r) { r.status = b.dataset.s; save(); render(); } },
   "res-del": async (b) => {
     const r = byId("reservations", b.dataset.id); if (!r) return;
+    if (!canEditRes(r)) return toast("Você só pode alterar as reservas que criou.");
     if (b.dataset.idx !== undefined && +b.dataset.idx > 0) { r.recur.skip = [...(r.recur.skip || []), +b.dataset.idx]; }
     else if (b.dataset.idx !== undefined) { // 1ª ocorrência da série: a série passa a começar na seguinte
       const nx = C.expandRecurrence(r)[1];
@@ -1757,7 +1771,7 @@ const ACT = {
   "course-del": async (b) => { if (!(await ask("Excluir o curso? As sessões permanecem."))) return; DB.courses = DB.courses.filter((c) => c.id !== b.dataset.id); save(); closeModal(); render(); },
   "person-new": () => openPerson({ id: C.uid("p"), role: "estudante" }),
   "person-open": (b) => openPerson(byId("people", b.dataset.id)),
-  "person-del": async (b) => { if (!(await ask("Excluir esta pessoa?"))) return; const id = b.dataset.id; DB.people = DB.people.filter((p) => p.id !== id); DB.courses.forEach((c) => { c.participantIds = (c.participantIds || []).filter((x) => x !== id); c.facultyIds = (c.facultyIds || []).filter((x) => x !== id); }); save(); closeModal(); render(); },
+  "person-del": async (b) => { if (!isAdm()) return toast("Somente o administrador exclui pessoas."); if (!(await ask("Excluir esta pessoa?"))) return; const id = b.dataset.id; DB.people = DB.people.filter((p) => p.id !== id); DB.courses.forEach((c) => { c.participantIds = (c.participantIds || []).filter((x) => x !== id); c.facultyIds = (c.facultyIds || []).filter((x) => x !== id); }); save(); closeModal(); render(); },
   "people-csv": () => download("participantes.csv", C.toCSV(DB.people.map((p) => ({ nome: p.name, email: p.email, papel: p.role, cursos: DB.courses.filter((c) => [...(c.participantIds || []), ...(c.facultyIds || [])].includes(p.id)).map((c) => c.code || c.title).join(", ") }))), "text/csv;charset=utf-8"),
   // cenários
   "sc-new": () => openScenario({ id: C.uid("sc"), annotations: CRM_MARKERS.map(([label, cat]) => ({ id: C.uid("a"), label, cat, color: colorFor(cat) })), evaluationIds: [] }),
@@ -1769,7 +1783,7 @@ const ACT = {
   "ev-new": () => openEvaluation({ id: C.uid("ev"), type: "avaliador", items: [] }),
   "ev-open": (b, e) => { if (e.target.closest("[data-act=ev-print]")) return; openEvaluation(byId("evaluations", b.dataset.id)); },
   "ev-print": (b, e) => { e.stopPropagation(); printEvaluation(byId("evaluations", b.dataset.id)); },
-  "ev-del": async (b) => { if (!(await ask("Excluir a avaliação? Resultados já registrados deixarão de ser pontuados."))) return; DB.evaluations = DB.evaluations.filter((x) => x.id !== b.dataset.id); DB.scenarios.forEach((s) => (s.evaluationIds = (s.evaluationIds || []).filter((x) => x !== b.dataset.id))); save(); closeModal(); render(); },
+  "ev-del": async (b) => { if (!canEditEval(byId("evaluations", b.dataset.id) || {})) return toast("Você só pode excluir as avaliações que criou."); if (!(await ask("Excluir a avaliação? Resultados já registrados deixarão de ser pontuados."))) return; DB.evaluations = DB.evaluations.filter((x) => x.id !== b.dataset.id); DB.scenarios.forEach((s) => (s.evaluationIds = (s.evaluationIds || []).filter((x) => x !== b.dataset.id))); save(); closeModal(); render(); },
   "item-add": () => $("#items").insertAdjacentHTML("beforeend", itemRow({})),
   "item-del": (b) => b.closest(".it").remove(),
   // ao vivo
@@ -1827,12 +1841,12 @@ const ACT = {
       <div class="f"><span>Participantes</span><div class="checks">${DB.people.filter((p) => p.role === "estudante" || p.role === "pe").map((p) => `<label><input type="checkbox" name="pids" value="${p.id}" ${(s.participantIds || []).includes(p.id) ? "checked" : ""}> ${esc(p.name)}</label>`).join("")}</div></div>`,
       { onSubmit: (fd) => { Object.assign(s, { title: fd.get("title").trim() || s.title, courseId: fd.get("courseId"), scenarioId: fd.get("scenarioId"), locationId: fd.get("locationId"), participantIds: fd.getAll("pids") }); save(); render(); } }); },
   // relatórios
-  "rep-usage": () => { const ses = DB.sessions.filter((s) => !UI.repCourse || s.courseId === UI.repCourse);
+  "rep-usage": () => { const ses = visibleSessions().filter((s) => !UI.repCourse || s.courseId === UI.repCourse);
     download("uso-simulacao.csv", C.toCSV(ses.map((s) => ({ data: fmtDT(s.startedAt), titulo: s.title, curso: nameOf("courses", s.courseId), cenario: nameOf("scenarios", s.scenarioId), sala: nameOf("locations", s.locationId), duracao_min: (s.duration / 60).toFixed(1), participantes: (s.participantIds || []).length, horas_participante: ((s.duration / 3600) * (s.participantIds || []).length).toFixed(2), anotacoes: (s.annotations || []).filter((a) => a.source !== "simulador").length, avaliacoes: (s.results || []).length }))), "text/csv;charset=utf-8"); },
-  "rep-learners": () => { const ses = DB.sessions.filter((s) => !UI.repCourse || s.courseId === UI.repCourse);
+  "rep-learners": () => { const ses = visibleSessions().filter((s) => !UI.repCourse || s.courseId === UI.repCourse);
     download("desempenho-estudantes.csv", C.toCSV(C.learnerReport(ses, DB.evaluations, DB.people).map((r) => ({ estudante: r.name, email: (byId("people", r.personId) || {}).email || "", sessoes: r.sessions, avaliacoes: r.evaluations, media_pct: r.mean, minimo_pct: r.min, com_item_critico: r.critical }))), "text/csv;charset=utf-8"); },
   "rep-results": () => { const rows = [];
-    for (const s of DB.sessions.filter((x) => !UI.repCourse || x.courseId === UI.repCourse)) for (const r of s.results || []) { const ev = byId("evaluations", r.evaluationId); if (!ev) continue; const sc = C.scoreEvaluation(ev, r.answers);
+    for (const s of visibleSessions().filter((x) => !UI.repCourse || x.courseId === UI.repCourse)) for (const r of s.results || []) { const ev = byId("evaluations", r.evaluationId); if (!ev) continue; const sc = C.scoreEvaluation(ev, r.answers);
       rows.push({ sessao: s.title, data: fmtDT(s.startedAt), instrumento: ev.title, tipo: ev.type, avaliado: r.subjectId === "equipe" ? "Equipe" : nameOf("people", r.subjectId), email: (byId("people", r.subjectId) || {}).email || "", avaliador: r.evaluator || "", pontos: sc.points, maximo: sc.max, pct: sc.pct ?? "", criticos_nao_cumpridos: sc.criticalMissed.join(" | ") }); }
     download("resultados-avaliacoes.csv", C.toCSV(rows), "text/csv;charset=utf-8"); },
   // configurações
@@ -1876,7 +1890,7 @@ const CHG = {
   "rep-course": (el) => { UI.repCourse = el.value; render(); },
   "rep-eval": (el) => { UI.repEval = el.value; render(); },
   "set": (el) => { DB.settings[el.name] = el.type === "number" ? +el.value || 0 : el.value.trim(); save(); },
-  "roster": (el) => { const f = el.files[0]; if (f) f.text().then(importRoster); el.value = ""; },
+  "roster": (el) => { if (!isAdm()) { el.value = ""; return toast("Somente o administrador importa participantes."); } const f = el.files[0]; if (f) f.text().then(importRoster); el.value = ""; },
   "restore": (el) => { const f = el.files[0]; if (!f) return; f.text().then(async (t) => { try { const d = JSON.parse(t); if (!d || !Array.isArray(d.sessions)) throw new Error("arquivo inválido"); if (!(await ask("Substituir os dados atuais pelo backup?"))) return; DB = Object.assign(emptyDB(), d); save(); render(); toast("Backup restaurado."); } catch (e) { toast("Não foi possível restaurar: " + e.message); } }); el.value = ""; },
 };
 

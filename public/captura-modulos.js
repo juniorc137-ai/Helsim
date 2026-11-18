@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════════════════════
- * HELSIM – módulos exclusivos de docente e administrador
+ * HELSIM – módulos exclusivos de docente e administrador (almoxarifado: somente administrador)
  *
  *  1. Prontuário eletrônico simulado (prescrição, aprazamento, administração,
  *     histórico e sinais vitais com NEWS2), integrado às sessões ao vivo:
@@ -148,6 +148,7 @@
   // ════════════════════════════ INTERFACE ════════════════════════════════
   root.hcInstallModules = function () {
     const isStaff = () => STAFF.includes(UI.role);
+    const isAdmin = () => UI.role === "admin"; // almoxarifado: somente administrador
     const nowHM = () => isoTime(Date.now());
     const S = (k, d) => (UI[k] === undefined ? (UI[k] = d) : UI[k]);
     const svg = (p) => `<svg viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`;
@@ -156,13 +157,13 @@
     ICO.prontuario = '<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 3v3h6V3"/><path d="M12 10v6M9 13h6"/>';
     ICO.almox = '<path d="M3 21V7l9-4 9 4v14"/><path d="M7 21v-8h10v8"/><path d="M7 17h10"/>';
     ICO.salas = '<rect x="3" y="4" width="8" height="7" rx="1"/><rect x="13" y="4" width="8" height="7" rx="1"/><rect x="3" y="13" width="8" height="7" rx="1"/><rect x="13" y="13" width="8" height="7" rx="1"/>';
-    NAV.splice(NAV.length - 1, 0, ["Laboratório · restrito", [["prontuario", "Prontuário eletrônico", STAFF], ["almox", "Almoxarifado", STAFF], ["salas", "Ocupação das salas", STAFF]]]);
+    NAV.splice(NAV.length - 1, 0, ["Laboratório · restrito", [["prontuario", "Prontuário eletrônico", STAFF], ["almox", "Almoxarifado", ["admin"]], ["salas", "Ocupação das salas", STAFF]]]);
     Object.assign(VIEW_LABEL, { prontuario: "Prontuário eletrônico", almox: "Almoxarifado (Helse Log)", salas: "Ocupação das salas" });
     root.HC_NAV_BADGE = {
-      almox: () => { const n = (DB.stock || []).filter((i) => i.stock < i.min).length; return n ? `<span class="badge" title="Itens com estoque crítico">${n}</span>` : ""; },
+      almox: () => { if (!isAdmin()) return ""; const n = (DB.stock || []).filter((i) => i.stock < i.min).length; return n ? `<span class="badge" title="Itens com estoque crítico">${n}</span>` : ""; },
     };
     root.hcPainelExtra = () => {
-      if (!isStaff()) return "";
+      if (!isAdmin()) return "";
       const crit = (DB.stock || []).filter((i) => i.stock < i.min);
       return crit.length ? `<div class="card"><span class="tag bad">${crit.length} item(ns) do almoxarifado abaixo do estoque mínimo</span> <button class="btn sm" data-act="go" data-v="almox">Ver almoxarifado</button></div>` : "";
     };
@@ -541,6 +542,7 @@
     };
 
     R.almox = () => {
+      if (!isAdmin()) return `<h1>Almoxarifado</h1><div class="empty">O almoxarifado é restrito ao administrador.</div>`;
       const tab = S("labTab", "mapa");
       const t = (id, l) => `<button class="${tab === id ? "on" : ""}" data-act="lab-tab" data-t="${id}">${l}</button>`;
       return `<div class="between"><h1 style="margin:0">Almoxarifado <span class="muted" style="font-weight:400">· Helse Log</span></h1><div class="row">
@@ -824,7 +826,8 @@
         openReservation({ id: C.uid("r"), title: "", locationId: b.dataset.loc || "", start: d.toISOString(), end: new Date(+d + 2 * 3600000).toISOString(), resourceIds: [], recur: { freq: "nenhuma" } }); },
     };
     const deny = () => toast("Função disponível apenas para docente ou administrador.");
-    for (const [k, fn] of Object.entries(A)) ACT[k] = (b, e) => (isStaff() ? fn(b, e) : deny());
+    const denyAdmin = () => toast("O almoxarifado é restrito ao administrador.");
+    for (const [k, fn] of Object.entries(A)) ACT[k] = (b, e) => (k.startsWith("lab-") ? (isAdmin() ? fn(b, e) : denyAdmin()) : isStaff() ? fn(b, e) : deny());
     const CH = {
       "ehr-pt": (el) => { UI.ehrPt = el.value; UI.ehrItem = ""; render(); },
       "ehr-clock": (el) => { const p = pt(); p.clock = el.value; save(); render(); },
@@ -835,7 +838,7 @@
       "lab-fst": (el) => { UI.labSt = el.value; render(); },
       "salas-date": (el) => { if (el.value) { UI.salasDay = el.value; render(); } },
     };
-    for (const [k, fn] of Object.entries(CH)) CHG[k] = (el) => (isStaff() ? fn(el) : deny());
+    for (const [k, fn] of Object.entries(CH)) CHG[k] = (el) => (k.startsWith("lab-") ? (isAdmin() ? fn(el) : denyAdmin()) : isStaff() ? fn(el) : deny());
 
     // ═══════════════════════ MODO DE SENHAS (servidor) ═══════════════════
     const AU = (root.HC_AUTH = { on: false, mail: "", token: "", user: null });
@@ -976,7 +979,9 @@
           if (r.status === 409) { const j = await r.json(); applyDB(HC_CLIN.merge3(SY.base, DB, j.db)); SY.base = clone(j.db); SY.rev = j.rev; continue; }
           if (r.status === 401) return root.hcAuthExpired && root.hcAuthExpired();
           if (!r.ok) throw new Error(r.status);
-          SY.rev = (await r.json()).rev; SY.base = snap; SY.pendingLocal = false; saveMeta(); setState("ok"); return;
+          const j = await r.json(); SY.base = snap; SY.pendingLocal = false;
+          // o servidor pode ter ajustado o envio (permissões): busca a versão gravada logo em seguida
+          SY.rev = j.adjusted ? -1 : j.rev; saveMeta(); setState("ok"); if (j.adjusted) setTimeout(pull, 300); return;
         }
         throw new Error("conflito persistente");
       } catch (e) { SY.pendingLocal = true; setState("offline"); }
