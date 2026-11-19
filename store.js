@@ -104,7 +104,7 @@ function createStore({ dataDir, need }) {
     return (incoming || []).map((x) => { const y = { ...x }; delete y.photo; if (ph.get(x.id)) y.photo = ph.get(x.id); return y; });
   }
   function docenteWrite(keep, db, u) {
-    const out = { ...db, patients: withServerPhotos(keep.patients, db.patients),
+    const out = { ...db, patients: withServerPhotos(keep.patients, db.patients), locations: withServerPhotos(keep.locations, db.locations),
       sessions: mergeOwned(keep.sessions, db.sessions, u, false, false),
       scenarios: mergeOwned(keep.scenarios, withServerImages(keep.scenarios, db.scenarios), u, true, true),
       evaluations: mergeOwned(keep.evaluations, db.evaluations, u, true, true),

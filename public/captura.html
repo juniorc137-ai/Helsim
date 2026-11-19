@@ -338,7 +338,10 @@ tr.dose.atrasada td:first-child{box-shadow:inset 3px 0 var(--bad)}tr.dose.admini
 .lbl-prev .muted{color:#555}.qr{width:120px;height:120px;flex:none;background:#f3f4f6}
 /* ocupação das salas */
 .rooms{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
-.room{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--c,var(--accent));border-radius:var(--radius);padding:12px 14px}
+.room-img{display:block;width:calc(100% + 28px);margin:-12px -14px 10px;aspect-ratio:16/9;object-fit:cover;border-radius:0}
+.loc-thumb{width:56px;height:32px;object-fit:cover;border-radius:4px;border:1px solid var(--line)}
+.res-room{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;border:1px solid var(--line);margin:4px 0 8px}
+.room{overflow:hidden;background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--c,var(--accent));border-radius:var(--radius);padding:12px 14px}
 .mtl{position:relative;height:12px;background:var(--sunken);border-radius:3px;margin:10px 0 2px;overflow:hidden}
 .mtl i{position:absolute;top:0;bottom:0;border-radius:2px;opacity:.9}.mtl b{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--rec)}
 .mtl-l{display:flex;justify-content:space-between;font:10.5px var(--f-mono);color:var(--faint);margin-bottom:6px}
@@ -774,7 +777,7 @@ function reservationForm(r, conflicts) {
   <div class="fg">
     <label class="f"><span>Curso</span><select name="courseId">${opts("courses", r.courseId)}</select></label>
     <label class="f"><span>Cenário</span><select name="scenarioId">${optList(usableScenarios(), r.scenarioId)}</select></label>
-    <label class="f"><span>Sala</span><select name="locationId">${opts("locations", r.locationId)}</select></label>
+    <label class="f"><span>Sala</span><select name="locationId" data-roomprev>${opts("locations", r.locationId)}</select></label>
     <label class="f"><span>Cor</span><input type="color" name="color" value="${esc(r.color || "#2F7CC1")}"></label>
     <label class="f"><span>Data</span><input type="date" name="date" value="${isoDate(t0)}" required></label>
     <div class="row"><label class="f"><span>Início</span><input type="time" name="t1" value="${isoTime(t0)}" required></label><label class="f"><span>Fim</span><input type="time" name="t2" value="${isoTime(t1)}" required></label></div>
@@ -935,6 +938,49 @@ function shrinkScenarioImage(file) {
 queueMicrotask(() => { CHG["sc-img"] = (el) => { const f = el.files[0]; el.value = ""; if (!f) return; if (f.size > 20e6) return toast("Imagem grande demais.");
   shrinkScenarioImage(f).then((d) => { SC_IMG = d; const pv = $("#sc-img-prev"); if (pv) { pv.src = d; pv.hidden = false; } }).catch((e) => toast(e.message)); };
 ACT["sc-img-del"] = () => { SC_IMG = ""; const pv = $("#sc-img-prev"); if (pv) { pv.removeAttribute("src"); pv.hidden = true; } }; });
+// foto das salas (só administrador) e prompts para criar a imagem no Gemini
+const ROOM_STYLE = "Fotografia realista, horizontal 16:9, de um ambiente de um centro de simulação clínica universitário moderno no Brasil, inspirado em laboratórios de simulação de cursos de Enfermagem e Medicina: paredes claras, piso vinílico hospitalar, iluminação de teto difusa, câmeras discretas no teto e microfones para gravação do debriefing, paleta com azul-marinho e azul-claro. Ambiente limpo, organizado e pronto para a aula, sem pessoas ou com equipe ao fundo desfocada. Sem texto, letras, logotipos, nomes de instituição ou marcas de fabricantes; equipamentos genéricos.";
+function roomPrompt(l) {
+  const n = (l.name || "").toLowerCase();
+  const kind = /debrief/.test(n) ? "Sala de debriefing: mesa oval com cadeiras para 10 pessoas, tela grande na parede para rever o vídeo da simulação, quadro branco, ambiente acolhedor e silencioso."
+    : /habilidad|procedimento|treino/.test(n) ? "Sala de habilidades clínicas: bancadas com simuladores de tarefa (braço para punção venosa, torso para RCP, modelo de sondagem), pia para higiene das mãos, armários com insumos etiquetados por cores."
+    : /parto|obst/.test(n) ? "Sala de simulação obstétrica: leito PPP, simulador materno-fetal de alta fidelidade, berço aquecido para o recém-nascido, carrinho com materiais de parto."
+    : /pedi|neonat|crian/.test(n) ? "Sala de simulação pediátrica: berço e leito infantil, manequim pediátrico de alta fidelidade, monitor multiparamétrico, carrinho de emergência pediátrico com fita de Broselow genérica, decoração lúdica discreta."
+    : /uti|intensiv|cr[ií]tic/.test(n) ? "Box de UTI simulado: leito com cabeceira elevada, régua de gases, ventilador mecânico, bombas de infusão, monitor multiparamétrico e manequim de alta fidelidade intubado."
+    : /control/.test(n) ? "Sala de controle: bancada com computadores e monitores mostrando as câmeras da simulação, mesa de som, vidro espelhado com vista para a sala de simulação."
+    : "Sala de simulação de alta fidelidade: leito hospitalar com manequim de alta fidelidade, monitor multiparamétrico, régua de gases, carrinho de emergência, suporte de soro e, ao fundo, vidro espelhado da sala de controle.";
+  return `${ROOM_STYLE}\n\nAmbiente: ${l.name}. ${kind}\nEnquadramento: plano aberto, a partir da porta, mostrando o ambiente inteiro.`;
+}
+let LOC_IMG = "";
+function openRoomPhoto(id) {
+  const l = byId("locations", id); if (!l || !isAdm()) return;
+  LOC_IMG = l.photo || "";
+  modal(`Foto da sala · ${l.name}`, `<img id="loc-img-prev" class="scimg-prev" alt="" ${l.photo ? `src="${esc(l.photo)}"` : "hidden"}>
+    <textarea id="loc-prompt-box" readonly style="min-height:150px;font-size:12px;margin:8px 0">${esc(roomPrompt(l))}</textarea>
+    <div class="row"><button type="button" class="btn" data-act="loc-prompt-copy">Copiar prompt para o Gemini</button><label class="btn">Escolher imagem<input type="file" accept="image/*" data-change="loc-img" hidden></label><button type="button" class="btn ghost" data-act="loc-img-del">Remover foto</button></div>
+    <p class="muted small">Cole o prompt no Gemini, baixe a imagem em paisagem e use “Escolher imagem”. A foto aparece em Ocupação das salas e ao reservar.</p>`,
+    { onSubmit: () => { if (LOC_IMG) l.photo = LOC_IMG; else delete l.photo; save(); render(); toast("Foto da sala atualizada."); } });
+}
+queueMicrotask(() => {
+  ACT["loc-photo"] = (b) => openRoomPhoto(b.dataset.id);
+  ACT["loc-prompt-copy"] = () => { const t = ($("#loc-prompt-box") || {}).value || ""; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast("Prompt copiado."), () => {}); };
+  ACT["loc-img-del"] = () => { LOC_IMG = ""; const pv = $("#loc-img-prev"); if (pv) { pv.removeAttribute("src"); pv.hidden = true; } };
+  ACT["loc-prompts"] = () => { if (!isAdm()) return;
+    download("prompts-imagens-salas.txt", `Prompts para criar no Gemini uma imagem para cada sala do HELSIM (${DB.locations.length}).\nCole um prompt por conversa, baixe a imagem em paisagem e, no HELSIM, vá em Configurações › Salas e recursos › Foto.\n\n` +
+      DB.locations.map((l, i) => `${String(i + 1).padStart(2, "0")}. ${l.name}${l.photo ? " (já tem foto)" : ""}\n${"-".repeat(60)}\n${roomPrompt(l)}`).join("\n\n\n"));
+    toast(`${DB.locations.length} prompts baixados.`); };
+  CHG["loc-img"] = (el) => { const f = el.files[0]; el.value = ""; if (!f || !isAdm()) return; if (f.size > 20e6) return toast("Imagem grande demais.");
+    shrinkScenarioImage(f).then((d) => { LOC_IMG = d; const pv = $("#loc-img-prev"); if (pv) { pv.src = d; pv.hidden = false; } }).catch((e) => toast(e.message)); };
+});
+// prévia da foto da sala no formulário de reserva
+function roomPrev(sel) {
+  const l = byId("locations", sel.value), box = sel.closest("form") && sel.closest("form").querySelector("#res-room-prev");
+  let img = box || null;
+  if (!img) { img = document.createElement("img"); img.id = "res-room-prev"; img.className = "res-room"; img.alt = ""; const fg = sel.closest(".fg"); if (fg) fg.after(img); else return; }
+  if (l && l.photo) { img.src = l.photo; img.hidden = false; img.alt = `Foto da sala ${l.name}`; } else img.hidden = true;
+}
+document.addEventListener("change", (e) => { if (e.target.matches && e.target.matches("select[data-roomprev]")) roomPrev(e.target); });
+new MutationObserver(() => { const s = document.querySelector("select[data-roomprev]"); if (s && !s.dataset.pv) { s.dataset.pv = 1; roomPrev(s); } }).observe(document.documentElement, { childList: true, subtree: true });
 function openScenario(s) {
   const isNew = !DB.scenarios.includes(s);
   if (!canEditSc(s)) return modal(s.title, `${s.image ? `<img class="scimg-prev" src="${esc(s.image)}" alt="" style="margin-bottom:10px">` : ""}${AR.scenarioArea(s) ? `<p><span class="tag">${esc(AR.scenarioArea(s))}</span></p>` : ""}<p>${esc(s.summary || "")}</p>${(s.objectives || []).length ? `<h3>Objetivos</h3><ul style="margin-left:18px">${s.objectives.map((o) => `<li>${esc(o)}</li>`).join("")}</ul>` : ""}<p class="small muted">Cenário do administrador: use-o nas reservas e sessões; para adaptá-lo, duplique (a cópia vai para aprovação).</p>`,
@@ -1802,8 +1848,8 @@ R.config = () => `<h1>Configurações</h1>
     <h2 style="margin-top:14px">Cópia de segurança</h2><p class="muted small">O arquivo JSON contém cadastros, agenda, sessões, anotações e avaliações (sem os vídeos; baixe-os em cada sessão).</p>
     <div class="row"><button class="btn" data-act="backup">Exportar backup</button><label class="btn">Restaurar backup<input type="file" accept=".json,application/json" data-change="restore" hidden></label></div>
     <h2 style="margin-top:14px">Dados</h2><div class="row"><button class="btn" data-act="demo">Carregar biblioteca de exemplo</button><button class="btn danger" data-act="wipe">Apagar tudo</button></div></section></div>
-  <section class="card"><div class="between"><h2 style="margin:0">Salas e recursos</h2><div class="row"><button class="btn" data-act="loc-new">+ Sala</button><button class="btn" data-act="resrc-new">+ Recurso</button></div></div>
-    <div class="cols"><ul class="plain">${DB.locations.map((l) => `<li class="between" style="margin:0"><span>${esc(l.name)}${(l.cameras || []).length ? ` <span class="tag info">${l.cameras.length} câmera(s)</span>` : ""}</span><span class="row"><button class="btn sm" data-act="loc-cams" data-id="${l.id}">Câmeras</button><button class="btn sm" data-act="loc-del" data-id="${l.id}">✕</button></span></li>`).join("") || `<li class="muted">Sem salas</li>`}</ul>
+  <section class="card"><div class="between"><h2 style="margin:0">Salas e recursos</h2><div class="row">${isAdm() ? `<button class="btn" data-act="loc-prompts" title="Baixa um prompt de imagem para cada sala">Prompts de imagem das salas (Gemini)</button>` : ""}<button class="btn" data-act="loc-new">+ Sala</button><button class="btn" data-act="resrc-new">+ Recurso</button></div></div>
+    <div class="cols"><ul class="plain">${DB.locations.map((l) => `<li class="between" style="margin:0"><span>${esc(l.name)}${(l.cameras || []).length ? ` <span class="tag info">${l.cameras.length} câmera(s)</span>` : ""}</span><span class="row">${l.photo ? `<img class="loc-thumb" src="${esc(l.photo)}" alt="">` : ""}<button class="btn sm" data-act="loc-photo" data-id="${l.id}">Foto</button><button class="btn sm" data-act="loc-cams" data-id="${l.id}">Câmeras</button><button class="btn sm" data-act="loc-del" data-id="${l.id}">✕</button></span></li>`).join("") || `<li class="muted">Sem salas</li>`}</ul>
     <ul class="plain">${DB.resources.map((r) => `<li class="between" style="margin:0">${esc(r.name)} <span class="tag">${r.kind === "capital" ? "permanente" : "insumo"}</span><button class="btn sm" data-act="resrc-del" data-id="${r.id}">✕</button></li>`).join("") || `<li class="muted">Sem recursos</li>`}</ul></div></section>`;
 AFTER.config = async () => {
   const el = $("#st-est"); if (!el) return;
