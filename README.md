@@ -205,3 +205,22 @@ npm run dist:dmg    # macOS: instalador .dmg
 npm run dist:win    # Windows: instalador .exe (gerar no Windows)
 ```
 
+### Perfis, áreas do conhecimento e aprovação
+
+- **Administrador**: acessa tudo, cadastra pessoas e usuários e aprova cenários, avaliações e reservas.
+  Em **Configurações › Usuários e acesso** (botão “Áreas”) ou em **Cursos e pessoas**, a aba **Áreas do
+  conhecimento** define as áreas de cada docente. As 13 áreas ficam em `public/helsim-areas.js`.
+- **Docente**: vê só os grupos *Operação* e *Debriefing e avaliação*.
+  - Recebe os cenários do administrador (incluindo os de exemplo) das suas áreas e os que ele mesmo criou.
+  - Vê só as próprias sessões, avaliações e relatórios.
+  - Nas reservas de outras pessoas vê apenas “Reservado” (sala e horário).
+  - Cenários e avaliações que ele cria ou altera ficam **aguardando aprovação** do administrador e só ele
+    e o administrador os veem.
+  - Não troca de perfil.
+- **Estudante**: só as próprias sessões e avaliações.
+- **Foto do perfil**: clique no avatar da barra superior. A imagem é reduzida para 256 px e guardada na
+  conta (`/api/auth/photo`).
+
+As regras valem também no servidor: o banco central entrega a cada docente apenas o recorte dele e, ao
+gravar, preserva o que ele não pode ver nem alterar.
+

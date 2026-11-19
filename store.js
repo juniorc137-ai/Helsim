@@ -7,7 +7,7 @@
  * o navegador mesclar item a item e reenviar. Vídeos vão em blocos binários.
  *
  * Permissões: administrador lê e grava tudo. Docente recebe só as próprias sessões e avaliações (e as
- * avaliações vinculadas a cenários), sem almoxarifado; ao gravar, só alteram-se as próprias sessões,
+ * avaliações vinculadas a cenários), os cenários das áreas dele, reservas alheias sem detalhes e sem almoxarifado; ao gravar, só alteram-se as próprias sessões,
  * avaliações e reservas, e pessoas ficam com o administrador (o que ele não vê é preservado). Estudante recebe só
  * as próprias sessões, cursos e reservas, e só consegue acrescentar as próprias
  * avaliações (autoavaliação e reflexão) nas sessões de que participou.
@@ -16,6 +16,7 @@
 const fs = require("fs");
 const path = require("path");
 const express = require("express");
+const { scenarioArea, isAdminItem, isApproved } = require("./public/helsim-areas.js");
 
 function createStore({ dataDir, need }) {
   const file = path.join(dataDir, "db.json"), mediaDir = path.join(dataDir, "media"), bkDir = path.join(dataDir, "backups");
@@ -62,28 +63,41 @@ function createStore({ dataDir, need }) {
   /** Recorte do docente: só as próprias sessões e avaliações (mais as avaliações vinculadas aos cenários,
    *  para poder usá-las), sem almoxarifado. */
   function docenteView(db, u) {
+    const me = personOf(db, u), areas = (me && me.areas) || [];
     const sessions = (db.sessions || []).filter((x) => owns(x, u));
-    const need = new Set([...(db.scenarios || []).flatMap((c) => c.evaluationIds || []), ...sessions.flatMap((x) => (x.results || []).map((y) => y.evaluationId))]);
-    const v = { ...db, sessions, evaluations: (db.evaluations || []).filter((e) => owns(e, u) || need.has(e.id)) };
+    // cenários: os próprios e os do administrador aprovados nas áreas do docente
+    const scenarios = (db.scenarios || []).filter((c) => owns(c, u) || (isAdminItem(c) && isApproved(c) && areas.includes(scenarioArea(c))));
+    const need = new Set([...scenarios.flatMap((c) => c.evaluationIds || []), ...sessions.flatMap((x) => (x.results || []).map((y) => y.evaluationId))]);
+    const evaluations = (db.evaluations || []).filter((e) => owns(e, u) || (isAdminItem(e) && (need.has(e.id))));
+    // reservas de outras pessoas: só o horário e a sala
+    const reservations = (db.reservations || []).map((x) => (x.createdByEmail === u.email ? x
+      : { id: x.id, title: "Reservado", start: x.start, end: x.end, locationId: x.locationId, resourceIds: x.resourceIds || [], recur: x.recur, status: x.status, color: "#94A3B8", masked: true }));
+    const v = { ...db, sessions, scenarios, evaluations, reservations };
     for (const k of LAB) v[k] = [];
     return v;
   }
   /** Itens com dono: os dos outros ficam como estão no servidor; os próprios e os novos vêm do envio. */
-  function mergeOwned(server, incoming, u, allowDelete) {
+  /** approval: o que o docente cria ou altera fica "pendente" até o administrador aprovar. */
+  function mergeOwned(server, incoming, u, allowDelete, approval) {
     const inc = new Map((incoming || []).map((x) => [x.id, x])), out = [];
+    const strip = (x) => { const y = { ...x }; delete y.status; delete y.reviewedBy; delete y.reviewedAt; return JSON.stringify(y); };
     for (const old of server || []) {
       if (!owns(old, u)) { out.push(old); continue; }
       const x = inc.get(old.id);
-      if (x) out.push({ ...x, ownerEmail: u.email }); else if (!allowDelete) out.push(old);
+      if (!x) { if (!allowDelete) out.push(old); continue; }
+      const y = { ...x, ownerEmail: u.email, ownerRole: "docente" };
+      if (approval) { y.status = strip(x) === strip(old) ? old.status : "pendente"; if (y.status === "pendente") { delete y.reviewedBy; delete y.reviewedAt; } }
+      out.push(y);
     }
     const known = new Set((server || []).map((x) => x.id));
-    for (const x of incoming || []) if (!known.has(x.id)) out.push({ ...x, ownerEmail: u.email });
+    for (const x of incoming || []) if (!known.has(x.id)) { const y = { ...x, ownerEmail: u.email, ownerRole: "docente" }; if (approval) { y.status = "pendente"; delete y.reviewedBy; delete y.reviewedAt; } out.push(y); }
     return out;
   }
   function docenteWrite(keep, db, u) {
     const out = { ...db,
-      sessions: mergeOwned(keep.sessions, db.sessions, u, false),
-      evaluations: mergeOwned(keep.evaluations, db.evaluations, u, true),
+      sessions: mergeOwned(keep.sessions, db.sessions, u, false, false),
+      scenarios: mergeOwned(keep.scenarios, db.scenarios, u, true, true),
+      evaluations: mergeOwned(keep.evaluations, db.evaluations, u, true, true),
       reservations: docenteReservations(keep.reservations || [], db.reservations || [], u),
       people: [...(keep.people || [])] };
     // única pessoa que o docente pode incluir: ele mesmo, no primeiro acesso

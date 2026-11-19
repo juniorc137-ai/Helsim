@@ -157,7 +157,7 @@
     ICO.prontuario = '<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 3v3h6V3"/><path d="M12 10v6M9 13h6"/>';
     ICO.almox = '<path d="M3 21V7l9-4 9 4v14"/><path d="M7 21v-8h10v8"/><path d="M7 17h10"/>';
     ICO.salas = '<rect x="3" y="4" width="8" height="7" rx="1"/><rect x="13" y="4" width="8" height="7" rx="1"/><rect x="3" y="13" width="8" height="7" rx="1"/><rect x="13" y="13" width="8" height="7" rx="1"/>';
-    NAV.splice(NAV.length - 1, 0, ["Laboratório · restrito", [["prontuario", "Prontuário eletrônico", STAFF], ["almox", "Almoxarifado", ["admin"]], ["salas", "Ocupação das salas", STAFF]]]);
+    NAV.splice(NAV.length - 1, 0, ["Laboratório · restrito", [["prontuario", "Prontuário eletrônico", ["admin"]], ["almox", "Almoxarifado", ["admin"]], ["salas", "Ocupação das salas", ["admin"]]]]);
     Object.assign(VIEW_LABEL, { prontuario: "Prontuário eletrônico", almox: "Almoxarifado (Helse Log)", salas: "Ocupação das salas" });
     root.HC_NAV_BADGE = {
       almox: () => { if (!isAdmin()) return ""; const n = (DB.stock || []).filter((i) => i.stock < i.min).length; return n ? `<span class="badge" title="Itens com estoque crítico">${n}</span>` : ""; },
@@ -851,12 +851,15 @@
       if (!r.ok) { const err = new Error(j.error || `Erro ${r.status}`); err.status = r.status; throw err; }
       return j;
     }
-    const allowed = (role) => !AU.user || RANK[role] <= RANK[AU.user.role];
+    // só o administrador alterna perfis (para conferir a visão do docente/estudante); os demais ficam presos ao próprio
+    const allowed = (role) => !AU.user || (AU.user.role === "admin" ? RANK[role] <= RANK.admin : role === AU.user.role);
     root.hcAuthGuard = () => { if (AU.on && AU.user && !allowed(UI.role)) UI.role = AU.user.role; };
     root.hcAuthLock = () => {
       if (!AU.on || !AU.user) return;
       $$("#role option").forEach((o) => { o.disabled = !allowed(o.value); o.hidden = !allowed(o.value); });
-      $("#role").disabled = AU.user.role === "estudante";
+      $("#role").disabled = AU.user.role !== "admin";
+      { const fixed = AU.user.role !== "admin", rl = $("#role") && $("#role").closest("label"), mw = $("#me-wrap");
+        if (rl) rl.hidden = fixed; if (fixed && mw) mw.style.display = "none"; }
       if (UI.role === AU.user.role) {
         let p = DB.people.find((x) => (x.email || "").toLowerCase() === AU.user.email);
         if (!p) { p = { id: C.uid("p"), name: AU.user.name, email: AU.user.email, role: AU.user.role }; DB.people.push(p); save(); }
@@ -866,6 +869,7 @@
       } else { const me = $("#me"); if (me) me.disabled = false; }
       const ctx = $(".topbar .ctx");
       if (ctx && !$("#tb-logout")) ctx.insertAdjacentHTML("beforeend", `<button type="button" class="tb-chip" id="tb-logout" data-act="auth-logout" title="Sair">Sair</button>`);
+      if (root.hcPaintAvatar) setTimeout(root.hcPaintAvatar, 0);
       const av = $("#tb-avatar"); if (av) { av.textContent = AU.user.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase(); av.title = `${AU.user.name} · ${AU.user.email} · ${ROLES[AU.user.role]}`; }
     };
 
@@ -1052,7 +1056,7 @@
         el.className = ""; el.innerHTML = `<div class="tbl"><table><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Situação</th><th>Último acesso</th><th></th></tr>${users.map((u) => `<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td>
           <td><select data-au-role="${u.id}" ${u.id === AU.user.id ? "disabled" : ""}>${Object.keys(RANK).reverse().map((r) => opt(r, ROLES[r], u.role)).join("")}</select></td>
           <td>${u.mustChange ? '<span class="tag warn">aguardando troca de senha</span>' : '<span class="tag ok">ativo</span>'}</td><td class="small">${u.lastLogin ? esc(fmtDT(u.lastLogin)) : "—"}</td>
-          <td class="row" style="gap:4px"><button class="btn sm" data-act="au-reset" data-id="${u.id}">Nova senha</button>${u.id === AU.user.id ? "" : `<button class="btn sm" data-act="au-del" data-id="${u.id}">Excluir</button>`}</td></tr>`).join("")}</table></div>`;
+          <td class="row" style="gap:4px">${u.role === "docente" ? `<button class="btn sm" data-act="au-areas" data-email="${esc(u.email)}" data-name="${esc(u.name)}">Áreas</button>` : ""}<button class="btn sm" data-act="au-reset" data-id="${u.id}">Nova senha</button>${u.id === AU.user.id ? "" : `<button class="btn sm" data-act="au-del" data-id="${u.id}">Excluir</button>`}</td></tr>`).join("")}</table></div>`;
         $$("[data-au-role]", el).forEach((s) => { s.onchange = async () => { try { await api(`/users/${s.dataset.auRole}/role`, { role: s.value }); toast("Perfil atualizado."); } catch (e) { toast(e.message); loadUsers(); } }; });
       } catch (e) { el.textContent = e.message; }
     }
@@ -1061,8 +1065,57 @@
     ACT["au-reset"] = adminOnly(async (b) => { if (!(await ask("Enviar uma nova senha temporária? A senha atual deixa de valer.", "Enviar"))) return; try { await api(`/users/${b.dataset.id}/reset`, {}); toast("Nova senha temporária enviada."); loadUsers(); } catch (e) { toast(e.message); } });
     ACT["au-del"] = adminOnly(async (b) => { if (!(await ask("Excluir este acesso? Os registros das sessões não são apagados.", "Excluir"))) return; try { await api(`/users/${b.dataset.id}`, null, "DELETE"); loadUsers(); } catch (e) { toast(e.message); } });
     ACT["au-new"] = adminOnly(() => modal("Cadastrar usuário", `<label class="f"><span>Nome</span><input name="name" required></label><label class="f"><span>E-mail</span><input name="email" type="email" required></label>
-      <label class="f"><span>Perfil</span><select name="role">${opt("estudante", ROLES.estudante)}${opt("docente", ROLES.docente)}${opt("admin", ROLES.admin)}</select></label><p class="muted small">A pessoa recebe a senha temporária por e-mail e cadastra a definitiva no primeiro acesso.</p>`,
-      { submit: "Cadastrar e enviar", onSubmit: async (fd) => { try { await api("/users", Object.fromEntries(fd)); toast("Usuário cadastrado; senha temporária enviada."); loadUsers(); } catch (e) { toast(e.message); return false; } } }));
+      <label class="f"><span>Perfil</span><select name="role" data-change="pm-role">${opt("estudante", ROLES.estudante)}${opt("docente", ROLES.docente)}${opt("admin", ROLES.admin)}</select></label>
+      <div data-pm-areas hidden><div class="f"><span>Áreas do conhecimento do docente</span><div class="checks" style="display:grid;gap:6px">${HELSIM_AREAS.AREAS.map((a) => `<label><input type="checkbox" name="areas" value="${esc(a)}"> ${esc(a)}</label>`).join("")}</div></div></div><p class="muted small">A pessoa recebe a senha temporária por e-mail e cadastra a definitiva no primeiro acesso.</p>`,
+      { submit: "Cadastrar e enviar", onSubmit: async (fd) => {
+        const body = { name: fd.get("name"), email: fd.get("email"), role: fd.get("role") };
+        try { await api("/users", body); } catch (e) { toast(e.message); return false; }
+        const email = String(body.email).trim().toLowerCase();
+        let p = DB.people.find((x) => (x.email || "").toLowerCase() === email);
+        if (!p) { p = { id: C.uid("p"), name: String(body.name).trim(), email }; DB.people.push(p); }
+        Object.assign(p, { role: body.role, areas: body.role === "docente" ? fd.getAll("areas") : p.areas || [] }); save();
+        toast("Usuário cadastrado; senha temporária enviada."); loadUsers();
+      } }));
+    // a escolha do perfil mostra a aba de áreas (no cadastro de usuário e no de pessoa)
+    const origPmRole = CHG["pm-role"];
+    CHG["pm-role"] = (el) => { const a = $("[data-pm-areas]"); if (a) a.hidden = el.value !== "docente"; if (origPmRole) origPmRole(el); };
+    ACT["au-areas"] = adminOnly((b) => {
+      const email = b.dataset.email; let p = DB.people.find((x) => (x.email || "").toLowerCase() === email);
+      if (!p) { p = { id: C.uid("p"), name: b.dataset.name, email, role: "docente", areas: [] }; DB.people.push(p); }
+      openPerson(p); const t = $("[data-act=pm-tab][data-t=a]"); if (t) t.click();
+    });
+
+    // ═══════════════════════ FOTO DO PERFIL ═══════════════════════
+    const myPhoto = () => (AU.on && AU.user ? AU.user.photo || "" : ((DB.people.find((p) => p.id === UI.me) || {}).photo || ""));
+    root.hcPaintAvatar = () => {
+      const av = $("#tb-avatar"); if (!av) return;
+      const ph = myPhoto();
+      av.style.backgroundImage = ph ? `url("${ph}")` : ""; av.style.backgroundSize = "cover"; av.style.backgroundPosition = "center";
+      av.style.color = ph ? "transparent" : ""; av.setAttribute("role", "button"); av.tabIndex = 0; av.dataset.act = "profile";
+    };
+    function shrink(file) {
+      return new Promise((ok, bad) => {
+        const img = new Image(), url = URL.createObjectURL(file);
+        img.onload = () => { const S = 256, c = document.createElement("canvas"); c.width = c.height = S; const k = Math.max(S / img.width, S / img.height), w = img.width * k, h = img.height * k;
+          c.getContext("2d").drawImage(img, (S - w) / 2, (S - h) / 2, w, h); URL.revokeObjectURL(url); ok(c.toDataURL("image/jpeg", 0.85)); };
+        img.onerror = () => { URL.revokeObjectURL(url); bad(new Error("Não foi possível ler a imagem.")); };
+        img.src = url;
+      });
+    }
+    async function setPhoto(ph) {
+      if (AU.on && AU.user) { const j = await api("/photo", { photo: ph }); AU.user = j.user; }
+      else { const p = DB.people.find((x) => x.id === UI.me); if (!p) throw new Error("Selecione quem você é na barra superior para guardar a foto."); if (ph) p.photo = ph; else delete p.photo; save(); }
+      root.hcPaintAvatar(); const pv = $("#pf-prev"); if (pv) pv.style.backgroundImage = ph ? `url("${ph}")` : "";
+    }
+    ACT.profile = () => {
+      const ph = myPhoto(), name = AU.on && AU.user ? AU.user.name : meLabel();
+      modal("Meu perfil", `<div class="row" style="gap:16px;align-items:center"><div id="pf-prev" style="width:96px;height:96px;border-radius:50%;background:var(--accent-soft) center/cover no-repeat;${ph ? `background-image:url('${ph}')` : ""};flex:none;border:1px solid var(--line)"></div>
+        <div><b>${esc(name)}</b><div class="muted small">${esc(AU.on && AU.user ? AU.user.email + " · " + ROLES[AU.user.role] : ROLES[UI.role])}</div>
+        <div class="row" style="margin-top:10px"><label class="btn primary">Escolher foto<input type="file" accept="image/png,image/jpeg,image/webp" data-change="photo-file" hidden></label><button type="button" class="btn" data-act="photo-del">Remover foto</button></div>
+        <p class="muted small" style="margin-top:6px">A imagem é recortada em quadrado e reduzida para 256 px.</p></div></div>`, { submit: "Fechar" });
+    };
+    CHG["photo-file"] = (el) => { const f = el.files[0]; el.value = ""; if (!f) return; if (f.size > 15e6) return toast("Imagem grande demais."); shrink(f).then(setPhoto).then(() => toast("Foto atualizada.")).catch((e) => toast(e.message)); };
+    ACT["photo-del"] = () => setPhoto("").then(() => toast("Foto removida.")).catch((e) => toast(e.message));
     const origRole = CHG.role;
     CHG.role = (el) => { if (AU.on && AU.user && !allowed(el.value)) { el.value = UI.role; return toast("Perfil não permitido para sua conta."); } origRole(el); };
   };

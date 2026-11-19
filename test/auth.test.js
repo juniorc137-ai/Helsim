@@ -31,6 +31,11 @@ test("fluxo: cadastro → e-mail com senha temporária → troca obrigatória �
     const t2 = r.j.token;
     r = await call("/me", null, t1); assert.equal(r.status, 401, "sessão antiga invalidada");
     r = await call("/me", null, t2); assert.equal(r.status, 200);
+    const img = "data:image/jpeg;base64," + "A".repeat(30000);
+    r = await call("/photo", { photo: img }, t2); assert.equal(r.status, 200); assert.equal(r.j.user.photo, img);
+    r = await call("/photo", { photo: "javascript:alert(1)" }, t2); assert.equal(r.status, 400);
+    r = await call("/me", null, t2); assert.equal(r.j.user.photo, img);
+    r = await call("/photo", { photo: "" }, t2); assert.equal(r.j.user.photo, "");
     r = await call("/login", { email: "ana@exemplo.edu.br", password: temp }); assert.equal(r.status, 401, "temporária deixa de valer");
     // segundo cadastro vira estudante; admin promove
     await call("/register", { name: "Bruno Docente", email: "bruno@exemplo.edu.br" });

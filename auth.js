@@ -65,7 +65,7 @@ function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, app
     const text = `Olá, ${u.name || u.email}.\n\n${reason === "reset" ? "Foi gerada uma nova senha temporária" : "Seu cadastro no " + appName + " foi criado"}.\n\nE-mail: ${u.email}\nSenha temporária: ${pw}\n\nEla vale por 24 horas e só serve para o primeiro acesso: o sistema vai pedir que você cadastre uma senha definitiva (mínimo de 10 caracteres, com letras e números).${link}\n\nSe você não pediu este acesso, ignore esta mensagem.\n\n${appName} · Helse Solutions`;
     await transport.send({ to: u.email, subject: `${appName}: sua senha temporária`, text });
   }
-  const pub = (u) => ({ id: u.id, email: u.email, name: u.name, role: u.role, mustChange: !!u.mustChange, createdAt: u.createdAt, lastLogin: u.lastLogin || null });
+  const pub = (u) => ({ id: u.id, email: u.email, name: u.name, role: u.role, mustChange: !!u.mustChange, createdAt: u.createdAt, lastLogin: u.lastLogin || null, photo: u.photo || "" });
   const find = (email) => db.users.find((u) => u.email === String(email || "").trim().toLowerCase());
   function issue(u, scope) {
     const token = crypto.randomBytes(32).toString("base64url");
@@ -88,7 +88,8 @@ function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, app
   const GENERIC = "Se o e-mail estiver correto, a senha temporária chegará em alguns minutos. Confira também a caixa de spam.";
 
   const r = express.Router();
-  r.use(express.json({ limit: "20kb" }));
+  const smallJson = express.json({ limit: "20kb" }), photoJson = express.json({ limit: "400kb" });
+  r.use((req, res, next) => (req.path === "/photo" ? photoJson : smallJson)(req, res, next));
   r.get("/status", (req, res) => res.json({ enabled: true, users: db.users.length, mail: transport.kind, sync: process.env.HC_SYNC !== "0" }));
 
   r.post("/register", async (req, res) => {
@@ -140,6 +141,14 @@ function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, app
     req.auth = s; next();
   };
   r.get("/me", need(), (req, res) => res.json({ user: pub(req.auth.user) }));
+  // foto do perfil: imagem pequena (o navegador já reduz para 256 px) ou vazio para remover
+  r.post("/photo", need(), (req, res) => {
+    const photo = (req.body || {}).photo || "";
+    if (photo && (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(photo) || photo.length > 350000)) return res.status(400).json({ error: "Imagem inválida ou grande demais." });
+    const u = db.users.find((x) => x.id === req.auth.user.id); if (!u) return res.status(404).json({ error: "Usuário não encontrado." });
+    if (photo) u.photo = photo; else delete u.photo;
+    persist(); res.json({ user: pub(u) });
+  });
   r.post("/logout", (req, res) => { const s = session(req); if (s) sessions.delete(s.key); res.json({ ok: true }); });
   r.get("/users", need("admin"), (req, res) => res.json({ users: db.users.map(pub) }));
   r.post("/users/:id/role", need("admin"), (req, res) => {

@@ -69,6 +69,24 @@ test("banco central: revisão, 409, recorte do estudante e vídeos", async () =>
       assert.equal((await call("doc", "PUT", "/media/m1/0", Buffer.from("x"), true)).status, 403);
       assert.equal((await call("doc", "PUT", "/media/mB/0", Buffer.from("x"), true)).status, 200);
     }
+    // áreas do conhecimento e aprovação de cenários
+    { let cur = store._doc();
+      const db3 = { ...cur.db, people: [...cur.db.people.filter((p) => p.email !== "bia@x.br"), { id: "pb", name: "Bia", email: "bia@x.br", role: "docente", areas: ["Saúde mental"] }],
+        scenarios: [{ id: "scMH", libKey: "mh", title: "Crise" }, { id: "scPCR", libKey: "pcr", title: "PCR" }, { id: "scOutro", title: "De outro docente", area: "Saúde mental", ownerEmail: "zeca@x.br", ownerRole: "docente", status: "aprovado" }] };
+      await call("adm", "PUT", "/db", { db: db3, baseRev: cur.rev });
+      let d = (await call("doc", "GET", "/db")).j;
+      assert.deepEqual(d.db.scenarios.map((x) => x.id), ["scMH"], "só a área dele e nada de outros docentes");
+      await call("doc", "PUT", "/db", { db: { ...d.db, scenarios: [...d.db.scenarios, { id: "scNovo", title: "Meu", status: "aprovado" }] }, baseRev: d.rev });
+      let sc = store._doc().db.scenarios; assert.equal(sc.find((x) => x.id === "scNovo").status, "pendente"); assert.equal(sc.length, 4, "cenários alheios preservados");
+      cur = store._doc(); await call("adm", "PUT", "/db", { db: { ...cur.db, scenarios: cur.db.scenarios.map((x) => (x.id === "scNovo" ? { ...x, status: "aprovado" } : x)) }, baseRev: cur.rev });
+      d = (await call("doc", "GET", "/db")).j;
+      await call("doc", "PUT", "/db", { db: d.db, baseRev: d.rev }); assert.equal(store._doc().db.scenarios.find((x) => x.id === "scNovo").status, "aprovado", "sem mudança continua aprovado");
+      d = (await call("doc", "GET", "/db")).j;
+      await call("doc", "PUT", "/db", { db: { ...d.db, scenarios: d.db.scenarios.map((x) => (x.id === "scNovo" ? { ...x, title: "Meu v2" } : x)) }, baseRev: d.rev });
+      assert.equal(store._doc().db.scenarios.find((x) => x.id === "scNovo").status, "pendente", "alteração volta para aprovação");
+      d = (await call("doc", "GET", "/db")).j;
+      await call("doc", "PUT", "/db", { db: { ...d.db, scenarios: [] }, baseRev: d.rev }); assert.deepEqual(store._doc().db.scenarios.map((x) => x.id), ["scMH", "scPCR", "scOutro"], "apaga só o próprio");
+    }
     // reservas: docente cria (pendente) e altera só as próprias
     let d = (await call("doc", "GET", "/db")).j.db;
     const alheia = { id: "rA", title: "Do admin", start: "2026-12-01T10:00", end: "2026-12-01T11:00", status: "aprovada", createdByEmail: "ana@x.br" };
@@ -80,6 +98,8 @@ test("banco central: revisão, 409, recorte do estudante e vídeos", async () =>
     d = (await call("doc", "GET", "/db")).j;
     await call("doc", "PUT", "/db", { db: { ...d.db, reservations: [] }, baseRev: d.rev }); // tenta apagar tudo
     rs = store._doc().db.reservations; assert.deepEqual(rs.map((x) => x.id), ["rA"], "apaga só a própria");
+    const masked = (await call("doc", "GET", "/db")).j.db.reservations.find((x) => x.id === "rA");
+    assert.equal(masked.title, "Reservado"); assert.equal(masked.notes, undefined); assert.equal(masked.courseId, undefined);
     // vídeos
     assert.equal((await call("est", "PUT", "/media/m1/0", Buffer.from("abc"), true)).status, 403);
     assert.equal((await call("adm", "PUT", "/media/m1/0", Buffer.from("abc"), true)).status, 200);
