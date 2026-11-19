@@ -98,8 +98,13 @@ function createStore({ dataDir, need }) {
     const img = new Map((server || []).map((x) => [x.id, x.image]));
     return (incoming || []).map((x) => { const y = { ...x }; delete y.image; if (img.get(x.id)) y.image = img.get(x.id); return y; });
   }
+  /** foto do paciente simulado também é só do administrador */
+  function withServerPhotos(server, incoming) {
+    const ph = new Map((server || []).map((x) => [x.id, x.photo]));
+    return (incoming || []).map((x) => { const y = { ...x }; delete y.photo; if (ph.get(x.id)) y.photo = ph.get(x.id); return y; });
+  }
   function docenteWrite(keep, db, u) {
-    const out = { ...db,
+    const out = { ...db, patients: withServerPhotos(keep.patients, db.patients),
       sessions: mergeOwned(keep.sessions, db.sessions, u, false, false),
       scenarios: mergeOwned(keep.scenarios, withServerImages(keep.scenarios, db.scenarios), u, true, true),
       evaluations: mergeOwned(keep.evaluations, db.evaluations, u, true, true),

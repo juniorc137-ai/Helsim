@@ -227,7 +227,7 @@
       return `<div class="between"><h1 style="margin:0">Prontuário eletrônico</h1><div class="row">
         <select data-change="ehr-pt" aria-label="Paciente">${DB.patients.map((x) => opt(x.id, `${x.name} · ${x.unit || "sem setor"}`, p.id)).join("")}</select>
         <button class="btn primary" data-act="ehr-new">+ Paciente</button><button class="btn" data-act="ehr-edit">Editar paciente</button><button class="btn" data-act="ehr-del">Excluir</button></div></div>
-      <section class="ptb">
+      <section class="ptb${p.photo ? " has-photo" : ""}">${p.photo ? `<img class="ptphoto" src="${esc(p.photo)}" alt="Foto do paciente simulado ${esc(p.name)}">` : ""}
         <div><span>Paciente</span><b>${esc(p.name)}</b><i>${esc([p.age && p.age + " anos", p.sex, p.weight && p.weight + " kg"].filter(Boolean).join(" · "))}</i></div>
         <div><span>Atendimento / Prontuário</span><b class="mono">${esc(p.encounter)} / ${esc(p.record)}</b><i>${esc(p.diagnosis || "")}</i></div>
         <div><span>Acomodação</span><b>${esc(p.unit || "—")}${p.bed ? " · Leito " + esc(p.bed) : ""}</b><i>${sc ? "Cenário: " + esc(sc.title) : "Sem cenário vinculado"}</i></div>
@@ -336,9 +336,38 @@
         <label class="f"><span>Diagnóstico / hipótese</span><input name="diagnosis" value="${esc(p.diagnosis)}"></label>
         <label class="f"><span>Alergias (separe por vírgula; “Nega” se não houver)</span><input name="allergies" value="${esc(p.allergies)}"></label>`;
     }
+    // foto do paciente: só o administrador inclui; recorte 4:5, 480×600 px, JPEG (fica no banco com o prontuário)
+    let PT_IMG = "";
+    function shrinkPatientPhoto(file) {
+      return new Promise((ok, bad) => {
+        const img = new Image(), url = URL.createObjectURL(file);
+        img.onload = () => { const W = 480, H = 600, c = document.createElement("canvas"); c.width = W; c.height = H; const k = Math.max(W / img.width, H / img.height), w = img.width * k, h = img.height * k;
+          c.getContext("2d").drawImage(img, (W - w) / 2, (H - h) / 3, w, h); URL.revokeObjectURL(url); ok(c.toDataURL("image/jpeg", 0.82)); };
+        img.onerror = () => { URL.revokeObjectURL(url); bad(new Error("Não foi possível ler a imagem.")); };
+        img.src = url;
+      });
+    }
+    function patientPrompt(p) {
+      const who = [p.age && `${p.age} anos`, p.sex && p.sex.toLowerCase()].filter(Boolean).join(", ");
+      return `Fotografia realista, vertical 4:5, de um paciente simulado (ator ou manequim de simulação de alta fidelidade, nunca um paciente real) deitado em leito de ${p.unit || "UTI"} de um hospital-escola no Brasil${p.bed ? `, leito ${p.bed}` : ""}.` +
+        `${who ? ` Paciente: ${who}.` : ""}${p.diagnosis ? ` Quadro clínico: ${p.diagnosis}; expressão e aparência coerentes com o quadro, sem exageros.` : ""}` +
+        ` Cabeceira elevada a 30°, monitor multiparamétrico ao lado, acesso venoso periférico, oxímetro no dedo e pulseira de identificação sem texto legível. Iluminação hospitalar suave, paleta com azul-marinho e azul-claro.` +
+        ` Enquadramento do tronco para cima, rosto visível, olhar natural. Sem texto, letras, logotipos ou marcas; sem sangue, ferimentos expostos ou nudez; retratado com dignidade.`;
+    }
+    function patientPhotoBlock(p) {
+      if (!isAdmin()) return "";
+      return `<div class="f"><span>Foto do paciente (somente administrador)</span>
+        <div class="row" style="align-items:flex-start;gap:12px"><img id="pt-img-prev" class="ptphoto-prev" alt="" ${p.photo ? `src="${esc(p.photo)}"` : "hidden"}>
+        <div class="row" style="flex-direction:column;align-items:flex-start;gap:6px"><label class="btn sm">Escolher foto<input type="file" accept="image/*" data-change="pt-photo" hidden></label>
+        <button type="button" class="btn sm ghost" data-act="pt-photo-del">Remover foto</button>
+        <button type="button" class="btn sm" data-act="pt-prompt" title="Copia um prompt para criar a foto no Gemini">Prompt para o Gemini</button>
+        <span class="muted small">Recorte vertical 4:5. Use imagem gerada por IA ou de manequim/ator, nunca de paciente real.</span></div></div></div>`;
+    }
     function openPatient(p) {
       const isNew = !DB.patients.includes(p);
-      modal(isNew ? "Novo paciente simulado" : "Editar paciente", patientForm(p), { onSubmit: (fd) => {
+      PT_IMG = p.photo || "";
+      modal(isNew ? "Novo paciente simulado" : "Editar paciente", patientForm(p) + patientPhotoBlock(p), { onSubmit: (fd) => {
+        if (isAdmin()) { if (PT_IMG) p.photo = PT_IMG; else delete p.photo; }
         ["name", "scenarioId", "encounter", "record", "unit", "bed", "age", "sex", "weight", "clock", "diagnosis", "allergies"].forEach((k) => { p[k] = String(fd.get(k) || "").trim(); });
         p.name = p.name.toUpperCase() || "PACIENTE SIMULADO"; p.tolerance = Math.max(0, +fd.get("tolerance") || 0); p.rx.prescriber = String(fd.get("prescriber") || "").trim();
         if (isNew) { DB.patients.push(p); UI.ehrPt = p.id; UI.ehrTab = "rx"; }
@@ -772,6 +801,13 @@
     const A = {
       "ehr-tab": (b) => { UI.ehrTab = b.dataset.t; render(); },
       "ehr-new": () => openPatient(newPatient()),
+      "pt-photo-del": () => { if (!isAdmin()) return; PT_IMG = ""; const pv = document.getElementById("pt-img-prev"); if (pv) { pv.removeAttribute("src"); pv.hidden = true; } },
+      "pt-prompt": () => {
+        const f = document.getElementById("mform"), g = (n) => (f && f.querySelector(`[name=${n}]`) ? f.querySelector(`[name=${n}]`).value : "");
+        const txt = patientPrompt({ age: g("age"), sex: g("sex"), unit: g("unit"), bed: g("bed"), diagnosis: g("diagnosis") });
+        (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast("Prompt copiado. Cole no Gemini e depois use “Escolher foto”."), () => {});
+        const box = document.getElementById("pt-prompt-box"); if (box) box.value = txt; else document.getElementById("pt-img-prev").insertAdjacentHTML("beforebegin", `<textarea id="pt-prompt-box" readonly style="min-height:140px;font-size:12px;flex:1">${esc(txt)}</textarea>`);
+      },
       "ehr-edit": () => { const p = pt(); if (p) openPatient(p); },
       "ehr-del": async () => { const p = pt(); if (!p || !(await ask(`Excluir o prontuário de ${p.name}? Esta ação não pode ser desfeita.`, "Excluir"))) return; DB.patients = DB.patients.filter((x) => x !== p); UI.ehrPt = ""; save(); render(); toast("Prontuário excluído."); },
       "ehr-demo": () => { const n = root.hcDemoClinico(); save(); render(); toast(n ? `${n} paciente(s) de exemplo carregado(s).` : "Os pacientes de exemplo já estão cadastrados."); },
@@ -836,6 +872,8 @@
       "ehr-adm": (el) => { const p = pt(), d = dose(el.dataset.id); if (d) { administer(p, d, el.checked); render(); toast(el.checked ? `${itemOf(p, d.itemId).desc} checada às ${d.givenAt}.` : "Administração desfeita."); } },
       "ehr-resp": (el) => { const d = dose(el.dataset.id); if (d) { d.resp = el.value.trim(); save(); } },
       "ehr-livept": (el) => { UI.liveEhrPt = el.value; refreshLiveEhr(); },
+      "pt-photo": (el) => { const f = el.files[0]; el.value = ""; if (!f || !isAdmin()) return; if (f.size > 20e6) return toast("Imagem grande demais.");
+        shrinkPatientPhoto(f).then((d) => { PT_IMG = d; const pv = document.getElementById("pt-img-prev"); if (pv) { pv.src = d; pv.hidden = false; } }).catch((e) => toast(e.message)); },
       "lab-fcat": (el) => { UI.labCat = el.value; render(); },
       "lab-fst": (el) => { UI.labSt = el.value; render(); },
       "salas-date": (el) => { if (el.value) { UI.salasDay = el.value; render(); } },

@@ -69,6 +69,13 @@ test("banco central: revisão, 409, recorte do estudante e vídeos", async () =>
       assert.equal((await call("doc", "PUT", "/media/m1/0", Buffer.from("x"), true)).status, 403);
       assert.equal((await call("doc", "PUT", "/media/mB/0", Buffer.from("x"), true)).status, 200);
     }
+    // foto do paciente: só o administrador define
+    { let cur = store._doc(); const pid = cur.db.patients[0].id;
+      await call("adm", "PUT", "/db", { db: { ...cur.db, patients: cur.db.patients.map((p) => ({ ...p, photo: "data:image/jpeg;base64,ADM" })) }, baseRev: cur.rev });
+      const d = (await call("doc", "GET", "/db")).j;
+      await call("doc", "PUT", "/db", { db: { ...d.db, patients: d.db.patients.map((p) => ({ ...p, photo: "data:image/jpeg;base64,DOC", name: "Editado" })) }, baseRev: d.rev });
+      const p = store._doc().db.patients.find((x) => x.id === pid); assert.equal(p.photo, "data:image/jpeg;base64,ADM", "docente não troca a foto"); assert.equal(p.name, "Editado");
+    }
     // áreas do conhecimento e aprovação de cenários
     { let cur = store._doc();
       const db3 = { ...cur.db, people: [...cur.db.people.filter((p) => p.email !== "bia@x.br"), { id: "pb", name: "Bia", email: "bia@x.br", role: "docente", areas: ["Saúde mental"] }],
