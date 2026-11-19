@@ -331,6 +331,10 @@ body.combo.phide #pshow{display:block}
     </div>
     <div class="pane"    id="p-vi2">
       <div class="vlist">
+        <div class="vrow"><div class="vrh"><span class="vrlb">Som do pulso</span></div>
+          <div class="qa"><select id="psel" class="sel" style="flex:1" onchange="setPulseKind(this.value)"></select><button class="ib" onclick="unlockAudio();pulseBeep()">▶ Ouvir</button></div>
+          <div class="vrh" style="margin-top:6px"><span class="vrlb">Volume do pulso</span></div>
+          <input id="pvol" type="range" min="0" max="1.5" step="0.05" style="accent-color:var(--h-accent)" oninput="setPulseVol(this.value)" onchange="pulseBeep()"/></div>
         <div class="vrow"><div class="vrh"><span class="vrlb">FC (bpm)</span><span class="vrn" id="dhr" style="color:#00e676">72</span></div>
           <input id="shr" type="range" min="0" max="260" value="72" style="accent-color:#00e676" oninput="onSl('hr',this.value)"/></div>
         <div class="vrow"><div class="vrh"><span class="vrlb">SpO₂ (%)</span><span class="vrn" id="dsp" style="color:#40c4ff">98</span></div>
@@ -499,8 +503,10 @@ function mkPleth(hr,sp){
 class Eng{
   constructor(mode){this.mode=mode;this.rh="sinusal";this.hr=72;this.sp=98;this.b=new Float32Array(0);this.p=0;this._r();}
   cfg(rh,hr,sp){this.rh=rh;this.hr=hr;this.sp=sp;}
-  _r(){this.b=this.mode==="e"?mkBeat(this.rh,this.hr):mkPleth(this.hr,this.sp);this.p=0;}
-  next(){if(this.p>=this.b.length)this._r();const v=this.b[this.p++];return isNaN(v)?0:v;}
+  _r(){this.b=this.mode==="e"?mkBeat(this.rh,this.hr):mkPleth(this.hr,this.sp);this.p=0;
+    // posição da onda R: o bipe sai junto com o QRS desenhado (inclusive em ritmos irregulares)
+    if(this.mode==="e"){let m=0,ri=-1;for(let i=0;i<this.b.length;i++){const v=Math.abs(this.b[i]);if(v>m){m=v;ri=i;}}this.ri=m>.3?ri:-1;}}
+  next(){if(this.p>=this.b.length)this._r();if(this.mode==="e"&&this.p===this.ri&&typeof onQRS==="function")onQRS();const v=this.b[this.p++];return isNaN(v)?0:v;}
 }
 const EE=new Eng("e"),SE=new Eng("p");
 let rph=0;
@@ -618,19 +624,31 @@ function tone(freq,dur,vol){
     [1,2,3,4,5].forEach((h,k)=>{const o=ctx.createOscillator(),gh=ctx.createGain();o.type="sine";o.frequency.value=freq*h;gh.gain.value=[1,.5,.33,.22,.15][k];o.connect(gh);gh.connect(g);o.start(t);o.stop(t+dur+0.02);});
   }catch(e){}
 }
-// bipe do pulso: acompanha a FC e fica mais grave à medida que a SpO₂ cai (¼ de tom por ponto percentual)
-function pulseFreq(){const sp=Math.max(50,Math.min(100,ST.spo2||0));return 880*Math.pow(2,(sp-100)/24);}
-function startBeepLoop(){
-  stopBeepLoop();
-  function tick(){
-    const flat=noPulse(ST.rhythm);
-    const hr=(!flat&&ST.hr>0)?ST.hr:null;
-    if(hr&&!ST.frozen)beep(ST.spo2>0?pulseFreq():880,0.06,0.28,"sine");
-    beepTimer=setTimeout(tick,hr?Math.round(60000/hr):1500);
-  }
-  tick();
+// bipe do pulso (oxímetro): "bip" arredondado, ataque e final suaves; o tom cai 1 semitom por ponto de SpO₂ abaixo de 99%
+const PULSE_SOUNDS={monitor:{label:"Monitor (padrão)",base:932,dur:.095,mix:.25,vol:.3},classico:{label:"Clássico agudo",base:1175,dur:.06,mix:.45,vol:.26},suave:{label:"Suave",base:784,dur:.12,mix:.1,vol:.28}};
+let PULSE_VOL=(()=>{try{return +(localStorage.getItem("simclin.volume")||1);}catch(e){return 1;}})();
+function setPulseVol(v){PULSE_VOL=Math.max(0,Math.min(1.5,+v));try{localStorage.setItem("simclin.volume",PULSE_VOL);}catch(e){}}
+let PULSE_KIND=(()=>{try{return localStorage.getItem("simclin.pulso")||"monitor";}catch(e){return "monitor";}})();
+function setPulseKind(k){PULSE_KIND=PULSE_SOUNDS[k]?k:"monitor";try{localStorage.setItem("simclin.pulso",PULSE_KIND);}catch(e){}pulseBeep();}
+function pulseFreq(){const k=PULSE_SOUNDS[PULSE_KIND]||PULSE_SOUNDS.monitor,sp=Math.max(70,Math.min(99,ST.spo2||0));return k.base*Math.pow(2,(sp-99)/12);}
+function pulseBeep(){
+  try{
+    const k=PULSE_SOUNDS[PULSE_KIND]||PULSE_SOUNDS.monitor,ctx=getACtx();if(ctx.state==="suspended")ctx.resume();
+    const t=ctx.currentTime,f=ST.spo2>0?pulseFreq():k.base,g=ctx.createGain(),lp=ctx.createBiquadFilter();
+    lp.type="lowpass";lp.frequency.value=3200;lp.connect(ctx.destination);g.connect(lp);
+    const v=Math.max(0.0002,k.vol*PULSE_VOL);
+    g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(v,t+0.006);
+    g.gain.setValueAtTime(v,t+k.dur*0.35);g.gain.exponentialRampToValueAtTime(0.0001,t+k.dur);
+    const o1=ctx.createOscillator(),o2=ctx.createOscillator(),g2=ctx.createGain();
+    o1.type="sine";o1.frequency.value=f;o2.type="sine";o2.frequency.value=f*2;g2.gain.value=k.mix;
+    o1.connect(g);o2.connect(g2);g2.connect(g);o1.start(t);o2.start(t);o1.stop(t+k.dur+0.02);o2.stop(t+k.dur+0.02);
+  }catch(e){}
 }
-function stopBeepLoop(){if(beepTimer){clearTimeout(beepTimer);beepTimer=null;}}
+let pulseOn=false;
+function onQRS(){if(pulseOn&&!ST.frozen&&!noPulse(ST.rhythm)&&ST.hr>0&&ST.spo2>0)pulseBeep();}
+// sem monitor desenhando (modo só controle) não há bipe; com monitor, o bipe segue cada QRS
+function startBeepLoop(){pulseOn=true;beepTimer=1;}
+function stopBeepLoop(){pulseOn=false;beepTimer=null;}
 
 // prioridade do alarme: alta = risco imediato de vida; média = exige resposta rápida
 function alarmPriority(){
@@ -847,6 +865,7 @@ function apSc(s){push({...s});}
 function onSl(k,v){push({[k]:parseFloat(v)});}
 function onBP(k,v){push({[k]:parseInt(v)||0});}
 function togFreeze(){push({frozen:!ST.frozen});}
+document.addEventListener("DOMContentLoaded",()=>{const ps=$("psel");const pv=$("pvol");if(pv)pv.value=PULSE_VOL;if(ps){ps.innerHTML=Object.entries(PULSE_SOUNDS).map(([k,v])=>`<option value="${k}" ${k===PULSE_KIND?"selected":""}>${v.label}</option>`).join("");}});
 function togAlarms(){clearTimeout(window._silT);$("bsil").textContent="🔕 2 min";push({alarms:!ST.alarms});}
 // silenciar alarmes por 2 minutos (pausa de áudio, como no equipamento); o bipe do pulso continua
 function silence2(){
