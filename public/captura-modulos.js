@@ -157,15 +157,17 @@
     ICO.prontuario = '<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 3v3h6V3"/><path d="M12 10v6M9 13h6"/>';
     ICO.almox = '<path d="M3 21V7l9-4 9 4v14"/><path d="M7 21v-8h10v8"/><path d="M7 17h10"/>';
     ICO.salas = '<rect x="3" y="4" width="8" height="7" rx="1"/><rect x="13" y="4" width="8" height="7" rx="1"/><rect x="3" y="13" width="8" height="7" rx="1"/><rect x="13" y="13" width="8" height="7" rx="1"/>';
-    NAV.splice(NAV.length - 1, 0, ["Laboratório · restrito", [["prontuario", "Prontuário eletrônico", ["admin"]], ["almox", "Almoxarifado", ["admin"]], ["salas", "Ocupação das salas", ["admin"]]]]);
-    Object.assign(VIEW_LABEL, { prontuario: "Prontuário eletrônico", almox: "Almoxarifado (Helse Log)", salas: "Ocupação das salas" });
+    NAV.splice(NAV.length - 1, 0, ["Laboratório · restrito", [["prontuario", "Prontuário eletrônico", ["admin"]], ["simclin", "Monitor SimClin", ["admin"]], ["almox", "Almoxarifado", ["admin"]], ["salas", "Ocupação das salas", ["admin"]]]]);
+    NAV[0][1].push(["simclin", "Monitor SimClin", ["docente"]]);
+    ICO.simclin = '<rect x="2" y="4" width="20" height="14" rx="2"/><path d="M5 12h3l2-4 3 7 2-3h4"/><path d="M8 21h8"/>';
+    Object.assign(VIEW_LABEL, { simclin: "Monitor SimClin", prontuario: "Prontuário eletrônico", almox: "Almoxarifado (Helse Log)", salas: "Ocupação das salas" });
     root.HC_NAV_BADGE = {
       almox: () => { if (!isAdmin()) return ""; const n = (DB.stock || []).filter((i) => i.stock < i.min).length; return n ? `<span class="badge" title="Itens com estoque crítico">${n}</span>` : ""; },
     };
-    root.hcPainelExtra = () => {
-      if (!isAdmin()) return "";
-      const crit = (DB.stock || []).filter((i) => i.stock < i.min);
-      return crit.length ? `<div class="card"><span class="tag bad">${crit.length} item(ns) do almoxarifado abaixo do estoque mínimo</span> <button class="btn sm" data-act="go" data-v="almox">Ver almoxarifado</button></div>` : "";
+    root.hcAdminAlerts = () => {
+      if (!isAdmin()) return [];
+      const n = (DB.stock || []).filter((i) => i.stock < i.min).length;
+      return n ? [{ n, text: n > 1 ? "itens do almoxarifado abaixo do estoque mínimo" : "item do almoxarifado abaixo do estoque mínimo", view: "almox", btn: "Ver almoxarifado", bad: true }] : [];
     };
 
     // ═══════════════════════ PRONTUÁRIO ELETRÔNICO ═══════════════════════
@@ -225,7 +227,7 @@
       return `<div class="between"><h1 style="margin:0">Prontuário eletrônico</h1><div class="row">
         <select data-change="ehr-pt" aria-label="Paciente">${DB.patients.map((x) => opt(x.id, `${x.name} · ${x.unit || "sem setor"}`, p.id)).join("")}</select>
         <button class="btn primary" data-act="ehr-new">+ Paciente</button><button class="btn" data-act="ehr-edit">Editar paciente</button><button class="btn" data-act="ehr-del">Excluir</button></div></div>
-      <section class="ptb">
+      <section class="ptb${p.photo ? " has-photo" : ""}">${p.photo ? `<img class="ptphoto" src="${esc(p.photo)}" alt="Foto do paciente simulado ${esc(p.name)}" title="Clique para ampliar" data-act="pt-zoom">` : ""}
         <div><span>Paciente</span><b>${esc(p.name)}</b><i>${esc([p.age && p.age + " anos", p.sex, p.weight && p.weight + " kg"].filter(Boolean).join(" · "))}</i></div>
         <div><span>Atendimento / Prontuário</span><b class="mono">${esc(p.encounter)} / ${esc(p.record)}</b><i>${esc(p.diagnosis || "")}</i></div>
         <div><span>Acomodação</span><b>${esc(p.unit || "—")}${p.bed ? " · Leito " + esc(p.bed) : ""}</b><i>${sc ? "Cenário: " + esc(sc.title) : "Sem cenário vinculado"}</i></div>
@@ -334,9 +336,38 @@
         <label class="f"><span>Diagnóstico / hipótese</span><input name="diagnosis" value="${esc(p.diagnosis)}"></label>
         <label class="f"><span>Alergias (separe por vírgula; “Nega” se não houver)</span><input name="allergies" value="${esc(p.allergies)}"></label>`;
     }
+    // foto do paciente: só o administrador inclui; recorte 4:5, 480×600 px, JPEG (fica no banco com o prontuário)
+    let PT_IMG = "";
+    function shrinkPatientPhoto(file) {
+      return new Promise((ok, bad) => {
+        const img = new Image(), url = URL.createObjectURL(file);
+        img.onload = () => { const W = 480, H = 600, c = document.createElement("canvas"); c.width = W; c.height = H; const k = Math.max(W / img.width, H / img.height), w = img.width * k, h = img.height * k;
+          c.getContext("2d").drawImage(img, (W - w) / 2, (H - h) / 3, w, h); URL.revokeObjectURL(url); ok(c.toDataURL("image/jpeg", 0.82)); };
+        img.onerror = () => { URL.revokeObjectURL(url); bad(new Error("Não foi possível ler a imagem.")); };
+        img.src = url;
+      });
+    }
+    function patientPrompt(p) {
+      const who = [p.age && `${p.age} anos`, p.sex && p.sex.toLowerCase()].filter(Boolean).join(", ");
+      return `Fotografia realista, vertical 4:5, de um paciente simulado (ator ou manequim de simulação de alta fidelidade, nunca um paciente real) deitado em leito de ${p.unit || "UTI"} de um hospital-escola no Brasil${p.bed ? `, leito ${p.bed}` : ""}.` +
+        `${who ? ` Paciente: ${who}.` : ""}${p.diagnosis ? ` Quadro clínico: ${p.diagnosis}; expressão e aparência coerentes com o quadro, sem exageros.` : ""}` +
+        ` Cabeceira elevada a 30°, monitor multiparamétrico ao lado, acesso venoso periférico, oxímetro no dedo e pulseira de identificação sem texto legível. Iluminação hospitalar suave, paleta com azul-marinho e azul-claro.` +
+        ` Enquadramento do tronco para cima, rosto visível, olhar natural. Sem texto, letras, logotipos ou marcas; sem sangue, ferimentos expostos ou nudez; retratado com dignidade.`;
+    }
+    function patientPhotoBlock(p) {
+      if (!isAdmin()) return "";
+      return `<div class="f"><span>Foto do paciente (somente administrador)</span>
+        <div class="row" style="align-items:flex-start;gap:12px"><img id="pt-img-prev" class="ptphoto-prev" alt="" ${p.photo ? `src="${esc(p.photo)}"` : "hidden"}>
+        <div class="row" style="flex-direction:column;align-items:flex-start;gap:6px"><label class="btn sm">Escolher foto<input type="file" accept="image/*" data-change="pt-photo" hidden></label>
+        <button type="button" class="btn sm ghost" data-act="pt-photo-del">Remover foto</button>
+        <button type="button" class="btn sm" data-act="pt-prompt" title="Copia um prompt para criar a foto no Gemini">Prompt para o Gemini</button>
+        <span class="muted small">Recorte vertical 4:5. Use imagem gerada por IA ou de manequim/ator, nunca de paciente real.</span></div></div></div>`;
+    }
     function openPatient(p) {
       const isNew = !DB.patients.includes(p);
-      modal(isNew ? "Novo paciente simulado" : "Editar paciente", patientForm(p), { onSubmit: (fd) => {
+      PT_IMG = p.photo || "";
+      modal(isNew ? "Novo paciente simulado" : "Editar paciente", patientForm(p) + patientPhotoBlock(p), { onSubmit: (fd) => {
+        if (isAdmin()) { if (PT_IMG) p.photo = PT_IMG; else delete p.photo; }
         ["name", "scenarioId", "encounter", "record", "unit", "bed", "age", "sex", "weight", "clock", "diagnosis", "allergies"].forEach((k) => { p[k] = String(fd.get(k) || "").trim(); });
         p.name = p.name.toUpperCase() || "PACIENTE SIMULADO"; p.tolerance = Math.max(0, +fd.get("tolerance") || 0); p.rx.prescriber = String(fd.get("prescriber") || "").trim();
         if (isNew) { DB.patients.push(p); UI.ehrPt = p.id; UI.ehrTab = "rx"; }
@@ -698,7 +729,7 @@
           ${rooms.map((r) => `<div class="hg-c">${hours.map((h) => `<i style="top:${((h - H0) / (H1 - H0)) * 100}%"></i>`).join("")}${nowTop != null ? `<b class="now" style="top:${nowTop}%"></b>` : ""}
             ${r.list.map((o) => `<button type="button" class="hg-b ${o.res.status === "pendente" ? "pend" : ""}" style="top:${pos(o).l}%;height:${pos(o).w}%;--c:${esc(o.res.color || "#2F7CC1")}" data-act="res-open" data-id="${o.res.id}" data-idx="${o.index}" title="${esc(o.res.title)}"><b>${fmtHM(o.start)}–${fmtHM(o.end)}</b> ${esc(o.res.title)}</button>`).join("")}</div>`).join("")}</div>`;
       }
-      return head + `<div class="rooms">${rooms.map((r) => `<section class="room" style="--c:${esc((r.list[0] || {}).res ? r.list[0].res.color || "#2F7CC1" : "#2F7CC1")}">
+      return head + `<div class="rooms">${rooms.map((r) => `<section class="room" style="--c:${esc((r.list[0] || {}).res ? r.list[0].res.color || "#2F7CC1" : "#2F7CC1")}">${r.l.photo ? `<img class="room-img" src="${esc(r.l.photo)}" alt="Foto da sala ${esc(r.l.name)}" loading="lazy">` : ""}
         <div class="between" style="margin:0;align-items:flex-start"><div><b>${esc(r.l.name)}</b><br><span class="muted small">${(r.l.cameras || []).length} câmera(s) fixa(s) · ${Math.round(r.occ * 100)}% do dia ocupado</span></div><span class="tag ${r.st[1]}">${esc(r.st[0])}</span></div>
         <div class="mtl" title="${H0}h às ${H1}h">${r.list.map((o) => `<i style="left:${pos(o).l}%;width:${pos(o).w}%;background:${esc(o.res.color || "#2F7CC1")}" title="${fmtHM(o.start)}–${fmtHM(o.end)} · ${esc(o.res.title)}"></i>`).join("")}${today && now > w0 && now < w1 ? `<b style="left:${((now - w0) / (w1 - w0)) * 100}%"></b>` : ""}</div>
         <div class="mtl-l"><span>${H0}h</span><span>${Math.round((H0 + H1) / 2)}h</span><span>${H1}h</span></div>
@@ -770,6 +801,14 @@
     const A = {
       "ehr-tab": (b) => { UI.ehrTab = b.dataset.t; render(); },
       "ehr-new": () => openPatient(newPatient()),
+      "pt-zoom": (b) => { const z = document.createElement("div"); z.className = "ptzoom"; z.innerHTML = `<img src="${b.getAttribute("src")}" alt="${esc(b.alt)}">`; z.onclick = () => z.remove(); document.body.appendChild(z); },
+      "pt-photo-del": () => { if (!isAdmin()) return; PT_IMG = ""; const pv = document.getElementById("pt-img-prev"); if (pv) { pv.removeAttribute("src"); pv.hidden = true; } },
+      "pt-prompt": () => {
+        const f = document.getElementById("mform"), g = (n) => (f && f.querySelector(`[name=${n}]`) ? f.querySelector(`[name=${n}]`).value : "");
+        const txt = patientPrompt({ age: g("age"), sex: g("sex"), unit: g("unit"), bed: g("bed"), diagnosis: g("diagnosis") });
+        (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast("Prompt copiado. Cole no Gemini e depois use “Escolher foto”."), () => {});
+        const box = document.getElementById("pt-prompt-box"); if (box) box.value = txt; else document.getElementById("pt-img-prev").insertAdjacentHTML("beforebegin", `<textarea id="pt-prompt-box" readonly style="min-height:140px;font-size:12px;flex:1">${esc(txt)}</textarea>`);
+      },
       "ehr-edit": () => { const p = pt(); if (p) openPatient(p); },
       "ehr-del": async () => { const p = pt(); if (!p || !(await ask(`Excluir o prontuário de ${p.name}? Esta ação não pode ser desfeita.`, "Excluir"))) return; DB.patients = DB.patients.filter((x) => x !== p); UI.ehrPt = ""; save(); render(); toast("Prontuário excluído."); },
       "ehr-demo": () => { const n = root.hcDemoClinico(); save(); render(); toast(n ? `${n} paciente(s) de exemplo carregado(s).` : "Os pacientes de exemplo já estão cadastrados."); },
@@ -834,6 +873,8 @@
       "ehr-adm": (el) => { const p = pt(), d = dose(el.dataset.id); if (d) { administer(p, d, el.checked); render(); toast(el.checked ? `${itemOf(p, d.itemId).desc} checada às ${d.givenAt}.` : "Administração desfeita."); } },
       "ehr-resp": (el) => { const d = dose(el.dataset.id); if (d) { d.resp = el.value.trim(); save(); } },
       "ehr-livept": (el) => { UI.liveEhrPt = el.value; refreshLiveEhr(); },
+      "pt-photo": (el) => { const f = el.files[0]; el.value = ""; if (!f || !isAdmin()) return; if (f.size > 20e6) return toast("Imagem grande demais.");
+        shrinkPatientPhoto(f).then((d) => { PT_IMG = d; const pv = document.getElementById("pt-img-prev"); if (pv) { pv.src = d; pv.hidden = false; } }).catch((e) => toast(e.message)); },
       "lab-fcat": (el) => { UI.labCat = el.value; render(); },
       "lab-fst": (el) => { UI.labSt = el.value; render(); },
       "salas-date": (el) => { if (el.value) { UI.salasDay = el.value; render(); } },
@@ -851,15 +892,16 @@
       if (!r.ok) { const err = new Error(j.error || `Erro ${r.status}`); err.status = r.status; throw err; }
       return j;
     }
-    // só o administrador alterna perfis (para conferir a visão do docente/estudante); os demais ficam presos ao próprio
-    const allowed = (role) => !AU.user || (AU.user.role === "admin" ? RANK[role] <= RANK.admin : role === AU.user.role);
+    // com login, ninguém alterna perfis: cada conta fica presa ao próprio perfil e ao próprio nome (a troca só existe na demonstração sem login)
+    const canSwitch = () => false;
+    const allowed = (role) => !AU.user || (canSwitch() ? RANK[role] <= RANK.admin : role === AU.user.role);
     root.hcAuthGuard = () => { if (AU.on && AU.user && !allowed(UI.role)) UI.role = AU.user.role; };
     root.hcAuthLock = () => {
       if (!AU.on || !AU.user) return;
       $$("#role option").forEach((o) => { o.disabled = !allowed(o.value); o.hidden = !allowed(o.value); });
-      $("#role").disabled = AU.user.role !== "admin";
-      { const fixed = AU.user.role !== "admin", rl = $("#role") && $("#role").closest("label"), mw = $("#me-wrap");
-        if (rl) rl.hidden = fixed; if (fixed && mw) mw.style.display = "none"; }
+      $("#role").disabled = !canSwitch();
+      { const fixed = !canSwitch(), rl = $("#role") && $("#role").closest("label"), mw = $("#me-wrap");
+        if (rl) { rl.hidden = fixed; rl.style.display = fixed ? "none" : ""; } const tb = $(".work > .toolbar"); if (tb) tb.style.display = fixed ? "none" : ""; if (fixed && mw) mw.style.display = "none"; }
       if (UI.role === AU.user.role) {
         let p = DB.people.find((x) => (x.email || "").toLowerCase() === AU.user.email);
         if (!p) { p = { id: C.uid("p"), name: AU.user.name, email: AU.user.email, role: AU.user.role }; DB.people.push(p); save(); }
@@ -870,6 +912,7 @@
       const ctx = $(".topbar .ctx");
       if (ctx && !$("#tb-logout")) ctx.insertAdjacentHTML("beforeend", `<button type="button" class="tb-chip" id="tb-logout" data-act="auth-logout" title="Sair">Sair</button>`);
       if (root.hcPaintAvatar) setTimeout(root.hcPaintAvatar, 0);
+      if (AU.user.role === "admin" && AU._docFor !== AU.user.id) { AU._docFor = AU.user.id; setTimeout(() => root.hcCheckDocRequests && root.hcCheckDocRequests(), 0); }
       const av = $("#tb-avatar"); if (av) { av.textContent = AU.user.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase(); av.title = `${AU.user.name} · ${AU.user.email} · ${ROLES[AU.user.role]}`; }
     };
 
@@ -878,7 +921,7 @@
     function screen(mode, msg = "", email = "") {
       if (!box) { box = document.createElement("div"); box.id = "auth"; document.body.appendChild(box); }
       box.hidden = false;
-      const head = `<div class="au-logo"><span class="tb-logo"></span><b>HELSIM</b></div>`;
+      const head = `<div class="au-logo"><span class="tb-logo"></span><b>HEL<span class="sim">SIM</span></b></div>`;
       const err = msg ? `<div class="au-msg ${/enviad|chegar|criad/i.test(msg) ? "ok" : ""}" role="alert">${esc(msg)}</div>` : "";
       const forms = {
         login: `<h2>Entrar</h2>${err}<form data-au="login"><label class="f"><span>E-mail</span><input name="email" type="email" autocomplete="username" required value="${esc(email)}"></label>
@@ -1050,10 +1093,21 @@
       ? `<section class="card"><div class="between"><h2 style="margin:0">Usuários e acesso</h2><span class="row" style="gap:6px"><button class="btn" data-act="au-testmail">Testar e-mail</button><button class="btn primary" data-act="au-new">+ Usuário</button></span></div><div id="au-users" class="muted">Carregando…</div>
         <p class="muted small" style="margin-top:8px">Novos cadastros entram como estudante; promova docentes aqui. “Nova senha” envia outra senha temporária e obriga a troca no próximo acesso. E-mail: ${AU.mail === "smtp" ? "SMTP configurado" : "modo de teste (data/outbox)"}.</p></section>`
       : `<section class="card"><h2>Modo de senhas</h2><p class="muted">${AU.on ? "Ativo. Você entrou como " + esc(AU.user ? AU.user.name : "") + "." : "Disponível quando o HELSIM roda pelo servidor (<code>npm start</code>): cadastro por e-mail, senha temporária enviada ao e-mail e troca obrigatória no primeiro acesso. Neste arquivo/link a troca de perfil continua livre."}</p></section>`);
+    // pedidos de perfil docente ficam nas contas (fora do banco): o administrador consulta ao entrar e a cada minuto
+    async function checkDocRequests() {
+      if (!AU.on || !AU.user || AU.user.role !== "admin") { root.HC_PEND_DOCENTES = 0; return; }
+      try { const { users } = await api("/users"); setPendDoc(users); } catch (e) {}
+    }
+    function setPendDoc(users) {
+      const n = users.filter((u) => u.requestedRole === "docente").length;
+      if (n !== (root.HC_PEND_DOCENTES || 0)) { root.HC_PEND_DOCENTES = n; const md = $("#modal"); if (!md || md.hidden) render(); }
+    }
+    setInterval(checkDocRequests, 60000);
+    root.hcCheckDocRequests = checkDocRequests;
     async function loadUsers() {
       const el = $("#au-users"); if (!el) return;
       try {
-        const { users } = await api("/users");
+        const { users } = await api("/users"); setPendDoc(users);
         el.className = ""; el.innerHTML = `<div class="tbl"><table><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Situação</th><th>Último acesso</th><th></th></tr>${users.map((u) => `<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td>
           <td><select data-au-role="${u.id}" ${u.id === AU.user.id ? "disabled" : ""}>${Object.keys(RANK).reverse().map((r) => opt(r, ROLES[r], u.role)).join("")}</select></td>
           <td>${u.mustChange ? '<span class="tag warn">aguardando troca de senha</span>' : '<span class="tag ok">ativo</span>'}${u.requestedRole === "docente" ? ` <span class="tag warn">pediu perfil docente</span> <button class="btn sm primary" data-act="au-approve" data-id="${u.id}" data-email="${esc(u.email)}" data-name="${esc(u.name)}">Aprovar docente</button> <button class="btn sm" data-act="au-deny" data-id="${u.id}">Recusar</button>` : ""}</td><td class="small">${u.lastLogin ? esc(fmtDT(u.lastLogin)) : "—"}</td>

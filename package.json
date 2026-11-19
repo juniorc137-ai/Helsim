@@ -8,8 +8,8 @@
     "test": "node --test"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "nodemailer": "^6.9.16",
+    "express": "^4.22.3",
+    "nodemailer": "^10.6.0",
     "ws": "^8.16.0"
   },
   "engines": {

@@ -76,8 +76,8 @@ button.tb-chip{cursor:pointer}
 .shell{display:grid;grid-template-columns:var(--side-w) minmax(0,1fr);min-height:calc(100vh - var(--top-h))}
 .side{background:var(--surface);border-right:1px solid var(--line);position:sticky;top:calc(var(--top-h) + env(safe-area-inset-top,0px));height:calc(100vh - var(--top-h) - env(safe-area-inset-top,0px));overflow-y:auto;display:flex;flex-direction:column;padding-left:env(safe-area-inset-left,0px)}
 .side .logo{display:flex;align-items:center;gap:12px;margin:18px 18px 10px;flex:none}
-.side .logo i{width:58px;height:58px;flex:none;background:var(--icon) center/contain no-repeat;border-radius:13px}
-.side .logo b{font:600 21px/1.05 var(--f-cond);color:var(--text);letter-spacing:.01em}
+.side .logo i{width:84px;height:84px;flex:none;background:var(--icon) center/contain no-repeat;border-radius:18px}
+.side .logo b{font:600 28px/1.05 var(--f-cond);color:var(--text);letter-spacing:.01em}
 .side .logo b .cap{display:block;font-size:19px;letter-spacing:.12em}
 #nav{display:flex;flex-direction:column}
 .navgrp{padding:10px 10px 4px}
@@ -158,6 +158,18 @@ tr.click{cursor:pointer}tr.click:hover td,tbody tr:hover td{background:var(--acc
 ul.plain{list-style:none}
 ul.plain li{padding:7px 0;border-bottom:1px solid var(--line)}
 ul.plain li:last-child{border-bottom:0}
+.upc{list-style:none;margin:0;padding:0}
+.upc li{display:grid;grid-template-columns:56px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.upc li:last-child{border-bottom:0}
+.upc .d{border-radius:10px;border:1px solid var(--line);text-align:center;padding:4px 0;line-height:1.1;border-left:4px solid var(--c,#2F7CC1)}
+.upc .d b{display:block;font-size:20px}.upc .d span{font-size:11px;text-transform:uppercase;color:var(--muted)}
+.upc .t{min-width:0}.upc .t b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.upc .t .muted{font-size:12.5px}
+@media (max-width:560px){.upc li{grid-template-columns:48px 1fr}.upc li .btn{grid-column:2;justify-self:start}}
+.alerts{border-left:4px solid var(--warn,#D97706)}
+.alerts ul{list-style:none;margin:8px 0 0;padding:0}
+.alerts li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--line)}
+.alerts li:first-child{border-top:0}
 .checks{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:4px 10px;max-height:220px;overflow:auto;padding:6px;border:1px solid var(--line);border-radius:4px;background:var(--surface-2)}
 .checks label{display:flex;gap:6px;align-items:center;font-size:13px}
 /* agenda */
@@ -168,7 +180,13 @@ ul.plain li:last-child{border-bottom:0}
 .cal .dc .dn{font-family:var(--f-mono);font-size:11.5px;color:var(--muted)}
 .cal .dc.out{background:var(--surface-2);opacity:.6}.cal .dc.today .dn{background:var(--accent);color:#fff;border-radius:3px;padding:0 6px}
 .chipev{display:block;margin-top:3px;padding:2px 5px;border-radius:3px;background:var(--accent-soft);color:var(--text);border-left:3px solid var(--accent);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scimg{display:block;width:calc(100% + 28px);margin:-12px -14px 10px;aspect-ratio:16/9;object-fit:cover;border-radius:var(--radius) var(--radius) 0 0;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.scimg-prev{width:100%;max-width:420px;aspect-ratio:16/9;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);display:block}
+#sc-dock{padding-bottom:14px}#sc-frame{display:block;width:100%;height:min(78vh,820px);border:1px solid var(--line);border-radius:10px;margin-top:10px;background:#030a03}
+.sim{color:var(--rec)}.topbar .sim{color:#FF4D40}
 .chipev.pend{border-left-style:dashed;background:var(--warn-bg)}
+#rtip{position:fixed;z-index:60;max-width:300px;background:var(--surface);color:var(--text);border:1px solid var(--line);border-left:4px solid var(--c,#2F7CC1);border-radius:10px;box-shadow:0 8px 24px rgba(15,23,42,.18);padding:10px 12px;font-size:13px;pointer-events:none}
+#rtip b{display:block;font-size:14px;margin-bottom:4px}#rtip div{margin-top:2px}#rtip .muted{font-size:12px}
 /* janelas */
 .modal{position:fixed;inset:0;background:rgba(8,18,32,.55);z-index:70;display:flex;align-items:flex-start;justify-content:center;padding:6vh 12px;overflow:auto}
 .modal[hidden]{display:none}
@@ -287,6 +305,11 @@ ul.plain li:last-child{border-bottom:0}
 .ptb{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr 1.25fr;gap:0;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:var(--radius);margin-bottom:12px}
 .ptb>div{padding:9px 12px;border-right:1px solid var(--line);min-width:0;display:flex;flex-direction:column;gap:2px}
 .ptb>div:last-child{border-right:0}
+.ptb.has-photo{grid-template-columns:260px repeat(3,minmax(0,1fr))}.ptb.has-photo>div{border-bottom:1px solid var(--line)}.ptphoto{grid-row:span 2;width:260px;height:100%;min-height:300px;contain:size;object-fit:cover;border-right:1px solid var(--line);display:block;cursor:zoom-in;border-radius:var(--radius) 0 0 var(--radius)}
+.ptzoom{position:fixed;inset:0;z-index:90;background:rgba(5,10,20,.85);display:grid;place-items:center;cursor:zoom-out}.ptzoom img{max-width:min(92vw,560px);max-height:90vh;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.ptphoto-prev{width:120px;height:150px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+@media(max-width:1100px){.ptb.has-photo{grid-template-columns:220px repeat(2,minmax(0,1fr))}.ptb.has-photo .ptphoto{grid-row:span 3;width:220px;min-height:275px}}
+@media(max-width:560px){.ptb.has-photo{grid-template-columns:1fr}.ptb.has-photo .ptphoto{grid-row:auto;width:100%;height:auto;aspect-ratio:4/5;max-height:60vh;border-right:0;border-radius:var(--radius) var(--radius) 0 0}}
 .ptb span{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em}
 .ptb b{font:600 14px var(--f-cond)}.ptb i{font-style:normal;font-size:12px;color:var(--muted)}
 .ptb .alg{color:#fff;background:var(--bad);border-radius:3px;padding:2px 8px;align-self:flex-start;font-size:12.5px}
@@ -315,7 +338,10 @@ tr.dose.atrasada td:first-child{box-shadow:inset 3px 0 var(--bad)}tr.dose.admini
 .lbl-prev .muted{color:#555}.qr{width:120px;height:120px;flex:none;background:#f3f4f6}
 /* ocupação das salas */
 .rooms{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
-.room{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--c,var(--accent));border-radius:var(--radius);padding:12px 14px}
+.room-img{display:block;width:calc(100% + 28px);margin:-12px -14px 10px;aspect-ratio:16/9;object-fit:cover;border-radius:0}
+.loc-thumb{width:56px;height:32px;object-fit:cover;border-radius:4px;border:1px solid var(--line)}
+.res-room{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;border:1px solid var(--line);margin:4px 0 8px}
+.room{overflow:hidden;background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--c,var(--accent));border-radius:var(--radius);padding:12px 14px}
 .mtl{position:relative;height:12px;background:var(--sunken);border-radius:3px;margin:10px 0 2px;overflow:hidden}
 .mtl i{position:absolute;top:0;bottom:0;border-radius:2px;opacity:.9}.mtl b{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--rec)}
 .mtl-l{display:flex;justify-content:space-between;font:10.5px var(--f-mono);color:var(--faint);margin-bottom:6px}
@@ -337,7 +363,7 @@ tr.dose.atrasada td:first-child{box-shadow:inset 3px 0 var(--bad)}tr.dose.admini
 <header class="topbar">
   <span class="tb-logo" role="img" aria-label="HELSIM"></span>
   <span class="sep" aria-hidden="true"></span>
-  <div class="mod"><b>HELSIM</b><span>Gravação, agenda e debriefing de simulação clínica</span></div>
+  <div class="mod"><b>HEL<span class="sim">SIM</span></b><span>Gravação, agenda e debriefing de simulação clínica</span></div>
   <div class="ctx">
     <span class="tb-chip hide-md" id="tb-inst"></span>
     <span class="tb-chip mono" id="tb-clock"></span>
@@ -348,7 +374,7 @@ tr.dose.atrasada td:first-child{box-shadow:inset 3px 0 var(--bad)}tr.dose.admini
 </header>
 <div class="shell">
   <aside class="side" aria-label="Módulos">
-    <div class="logo" role="img" aria-label="HELSIM"><i></i><b>HELSIM</b></div>
+    <div class="logo" role="img" aria-label="HELSIM"><i></i><b>HEL<span class="sim">SIM</span></b></div>
     <div id="nav"></div>
     <div class="foot">HELSIM v1.0 · dados locais<br>Helse Solutions</div>
   </aside>
@@ -364,6 +390,8 @@ tr.dose.atrasada td:first-child{box-shadow:inset 3px 0 var(--bad)}tr.dose.admini
         <span class="stamp" id="tb-stamp"></span>
       </div>
       <section id="main" class="view"><div class="empty">Carregando…</div></section>
+      <section id="sc-dock" class="card" hidden><div class="between"><h2 style="margin:0">SimClin · instrutor e monitor</h2><div class="row"><button type="button" class="btn sm" data-act="sc-dock-close" id="sc-dock-close">Fechar</button></div></div>
+        <iframe id="sc-frame" title="SimClin – monitor e instrutor" allow="fullscreen; autoplay"></iframe></section>
     </main>
     <footer class="statusbar" id="statusbar"></footer>
   </div>
@@ -564,7 +592,7 @@ function render() {
   if (!groups.some(([, items]) => items.some((n) => n[0] === UI.view)) && UI.view !== "sessao") UI.view = "painel";
   const pend = DB.reservations.filter((r) => r.status === "pendente").length;
   $("#nav").innerHTML = groups.map(([g, items]) => `<div class="navgrp"><span>${g}</span><nav class="nav">${items.map(([id, label]) =>
-    `<button ${UI.view === id || (UI.view === "sessao" && id === "sessoes") ? 'aria-current="page"' : ""} data-act="go" data-v="${id}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICO[id]}</svg>${label}${id === "agenda" && pend && isAdm() ? `<span class="badge" title="Reservas pendentes">${pend}</span>` : ""}${window.HC_NAV_BADGE && HC_NAV_BADGE[id] ? HC_NAV_BADGE[id]() : ""}</button>`).join("")}</nav></div>`).join("");
+    `<button ${UI.view === id || (UI.view === "sessao" && id === "sessoes") ? 'aria-current="page"' : ""} data-act="go" data-v="${id}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICO[id]}</svg>${label}${id === "agenda" && pend && isAdm() ? `<span class="badge" title="Reservas pendentes">${pend}</span>` : ""}${id === "painel" && isAdm() && adminAlerts().length ? `<span class="badge" title="Pendências do administrador">${adminAlerts().reduce((a, x) => a + x.n, 0)}</span>` : ""}${window.HC_NAV_BADGE && HC_NAV_BADGE[id] ? HC_NAV_BADGE[id]() : ""}</button>`).join("")}</nav></div>`).join("");
   $("#role").value = UI.role;
   const pool = DB.people.filter((p) => UI.role === "estudante" ? p.role === "estudante" : UI.role === "docente" ? p.role === "docente" : p.role === "admin" || p.role === "docente");
   if (UI.me && !pool.some((p) => p.id === UI.me)) UI.me = "";
@@ -575,7 +603,26 @@ function render() {
   if (AFTER[UI.view]) AFTER[UI.view]();
   chrome();
   if (window.hcAuthLock) hcAuthLock();
+  syncDock();
 }
+// SimClin embutido: fica fora de #main para não recarregar a cada atualização da tela (a gravação continua)
+const SCD = { open: false, room: "" };
+const simclinServed = () => /^https?:$/.test(location.protocol);
+function syncDock() {
+  const d = $("#sc-dock"); if (!d) return;
+  const show = UI.view === "simclin" || (UI.view === "aovivo" && SCD.open);
+  d.hidden = !show; $("#sc-dock-close").style.display = UI.view === "simclin" ? "none" : "";
+  if (show) loadDock(SCD.room);
+}
+function loadDock(room) {
+  const f = $("#sc-frame"); if (!f) return;
+  if (!room) room = SCD.room = String(Math.floor(1000 + Math.random() * 8999)); // código interno, só para ligar o simulador à gravação
+  const key = simclinServed() ? `index.html?sala=${room}&papel=ambos&embed=1` : "inline";
+  if (f.dataset.key === key) return; f.dataset.key = key;
+  if (simclinServed()) f.src = key; else if (window.HC_SIMCLIN_HTML) f.srcdoc = HC_SIMCLIN_HTML.replace("<head>", "<head><script>window.SC_EMBED=1<\/script>"); else f.srcdoc = "<p style='font:14px sans-serif;color:#ccc;padding:20px'>O SimClin abre aqui quando o HELSIM roda pelo servidor.</p>";
+}
+R.simclin = () => `<div class="between"><h1 style="margin:0">Monitor SimClin</h1></div>
+  <p class="muted small" style="margin:6px 0 0">Monitor e controle na mesma tela. Para gravar com o monitor, use em <b>Sessão ao vivo</b> o botão “Gravar com monitor SimClin”.</p>`;
 // Barra superior, trilha e barra de status (identidade Helse)
 function chrome() {
   const s = UI.view === "sessao" && byId("sessions", UI.sel);
@@ -644,32 +691,63 @@ function bars(obj, label = (k) => k, fmt = (v) => v) {
 }
 
 // ═════════════════════════════ PAINEL ═════════════════════════════════════
+// pendências que só o administrador resolve (aparecem no Painel e como número no menu)
+function adminAlerts() {
+  if (!isAdm()) return [];
+  const out = [], n = (k) => DB[k].filter((x) => x.status === "pendente").length;
+  const pr = n("reservations"), ps = n("scenarios"), pe = n("evaluations"), pd = window.HC_PEND_DOCENTES || 0;
+  if (pd) out.push({ n: pd, text: pd > 1 ? "pedidos de perfil docente para aprovar ou recusar" : "pedido de perfil docente para aprovar ou recusar", view: "config", btn: "Ver usuários" });
+  if (ps) out.push({ n: ps, text: ps > 1 ? "cenários criados por docentes aguardando aprovação" : "cenário criado por docente aguardando aprovação", view: "cenarios", btn: "Ver cenários" });
+  if (pe) out.push({ n: pe, text: pe > 1 ? "avaliações criadas por docentes aguardando aprovação" : "avaliação criada por docente aguardando aprovação", view: "avaliacoes", btn: "Ver avaliações" });
+  if (pr) out.push({ n: pr, text: pr > 1 ? "reservas aguardando aprovação" : "reserva aguardando aprovação", view: "agenda", btn: "Ver agenda" });
+  return out.concat(window.hcAdminAlerts ? hcAdminAlerts() : []);
+}
 R.painel = () => {
   const ses = visibleSessions(), u = C.usageReport(ses), now = Date.now();
   const nRes = ses.reduce((a, s) => a + (s.results || []).length, 0);
   const up = occurrencesBetween(now, now + 14 * DAY).slice(0, 8);
   const recent = [...ses].sort((a, b) => b.startedAt - a.startedAt).slice(0, 6);
-  const pend = UI.role === "admin" ? DB.reservations.filter((r) => r.status === "pendente").length : 0;
+  const alerts = adminAlerts(), WD = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"], MO = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
   return `<h1>Painel${DB.settings.institution ? " · " + esc(DB.settings.institution) : ""}</h1>
   ${!DB.sessions.length && UI.role === "admin" ? `<div class="card"><div class="between"><div><b>Comece por aqui.</b> <span class="muted">Carregue a biblioteca baseada em evidências: 5 cursos, 13 cenários e 24 avaliações e checklists construídos a partir de 24 artigos de <i>Clinical Simulation in Nursing</i> (2025), incluindo os padrões INACSL 2025, com agenda, estudantes e uma sessão de pré-eclâmpsia gravada.</span></div><button class="btn primary" data-act="demo">Carregar biblioteca</button></div></div>` : ""}
   ${window.hcPainelExtra ? hcPainelExtra() : ""}
-  ${pend ? `<div class="card"><span class="tag warn">${pend} reserva(s) aguardando aprovação</span> <button class="btn sm" data-act="go" data-v="agenda">Ver agenda</button></div>` : ""}
-  ${(() => { if (!isAdm()) return ""; const ps = DB.scenarios.filter((x) => x.status === "pendente").length, pe = DB.evaluations.filter((x) => x.status === "pendente").length;
-    return ps || pe ? `<div class="card"><span class="tag warn">Aguardando sua aprovação: ${ps} cenário(s) e ${pe} avaliação(ões) criados por docentes</span> ${ps ? `<button class="btn sm" data-act="go" data-v="cenarios">Ver cenários</button>` : ""} ${pe ? `<button class="btn sm" data-act="go" data-v="avaliacoes">Ver avaliações</button>` : ""}</div>` : ""; })()}
+  ${alerts.length ? `<section class="card alerts" role="alert"><h2 style="margin:0">Pendências do administrador</h2><ul>${alerts.map((a) => `<li><span><span class="tag ${a.bad ? "bad" : "warn"}">${a.n}</span> ${esc(a.text)}</span><button class="btn sm" data-act="go" data-v="${a.view}">${esc(a.btn)}</button></li>`).join("")}</ul></section>` : ""}
   <div class="kpis">${kpi("Sessões gravadas", u.sessions)}${kpi("Horas de simulação", fmtH(u.hours))}${kpi("Horas-participante", fmtH(u.personHours))}${kpi("Avaliações registradas", nRes)}</div>
   <div class="cols">
     <section class="card"><h2>Próximas reservas (14 dias)</h2>
-      ${up.length ? `<ul class="plain">${up.map((o) => `<li><span class="dot" style="background:${esc(o.res.color || "#2F7CC1")}"></span> <b>${fmtDate(o.start)} ${fmtHM(o.start)}–${fmtHM(o.end)}</b> ${esc(resTitle(o.res))} <span class="muted">· ${esc(nameOf("locations", o.res.locationId))}</span>
-        ${canEdit() && !hideRes(o.res) ? `<button class="btn sm rec-o" style="float:right" data-act="live-from-res" data-id="${o.res.id}">Iniciar sessão</button>` : ""}</li>`).join("")}</ul>` : `<div class="empty">Nenhuma reserva</div>`}
+      ${up.length ? `<ul class="upc">${up.map((o) => { const d = new Date(o.start); return `<li><div class="d" style="--c:${esc(o.res.color || "#2F7CC1")}"><span>${WD[d.getDay()]}</span><b>${d.getDate()}</b><span>${MO[d.getMonth()]}</span></div>
+        <div class="t"><b title="${esc(resTitle(o.res))}">${esc(resTitle(o.res))}</b><span class="muted">${fmtHM(o.start)}–${fmtHM(o.end)} · ${esc(nameOf("locations", o.res.locationId))}${o.res.status === "pendente" ? ' · <span class="tag warn">pendente</span>' : ""}</span></div>
+        ${canEdit() && !hideRes(o.res) ? `<button class="btn sm rec-o" data-act="live-from-res" data-id="${o.res.id}">Iniciar sessão</button>` : "<span></span>"}</li>`; }).join("")}</ul>` : `<div class="empty">Nenhuma reserva nos próximos 14 dias</div>`}
     </section>
     <section class="card"><h2>${UI.role === "estudante" ? "Minhas sessões" : "Sessões recentes"}</h2>
       ${recent.length ? `<ul class="plain">${recent.map((s) => `<li class="click" style="cursor:pointer" data-act="ses-open" data-id="${s.id}"><b>${esc(s.title)}</b><br><span class="muted small">${fmtDT(s.startedAt)} · ${C.fmtClock(s.duration)} · ${(s.annotations || []).length} anotações · ${(s.media || []).length} vídeo(s)</span></li>`).join("")}</ul>` : `<div class="empty">Nenhuma sessão gravada</div>`}
     </section>
   </div>
-  ${canEdit() ? `<div class="row"><button class="btn rec" data-act="go" data-v="aovivo">● Nova sessão ao vivo</button><button class="btn" data-act="res-new">+ Reserva</button><a class="btn" href="index.html">Abrir monitor/instrutor SimClin</a></div>` : ""}`;
+  ${canEdit() ? `<div class="row"><button class="btn rec" data-act="go" data-v="aovivo">● Nova sessão ao vivo</button><button class="btn" data-act="res-new">+ Reserva</button><button class="btn" data-act="go" data-v="${isAdm() ? "simclin" : "aovivo"}">Abrir monitor/instrutor SimClin</button></div>` : ""}`;
 };
 
 // ═════════════════════════════ AGENDA ═════════════════════════════════════
+// caixa de informações ao passar o mouse sobre uma reserva do calendário
+function resTipHTML(r, start, end) {
+  const d = new Date(start), when = `${d.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })} · ${fmtHM(start)}–${fmtHM(end)}`;
+  const line = (k, v) => (v ? `<div><span class="muted">${k}:</span> ${esc(v)}</div>` : "");
+  if (hideRes(r) || r.masked) return `<b>Reservado</b><div>${esc(when)}</div>${line("Sala", nameOf("locations", r.locationId))}`;
+  const who = r.createdBy || (DB.people.find((p) => (r.createdByEmail && (p.email || "").toLowerCase() === r.createdByEmail) || p.id === r.createdById) || {}).name;
+  const recs = (r.resourceIds || []).map((id) => nameOf("resources", id)).filter(Boolean).join(", ");
+  const st = { pendente: '<span class="tag warn">aguardando aprovação</span>', aprovada: '<span class="tag ok">aprovada</span>', negada: '<span class="tag bad">negada</span>' }[r.status] || "";
+  return `<b>${esc(resTitle(r))}</b><div>${esc(when)}</div>${line("Sala", nameOf("locations", r.locationId))}${line("Curso", r.courseId && nameOf("courses", r.courseId))}${line("Cenário", r.scenarioId && nameOf("scenarios", r.scenarioId))}${line("Recursos", recs)}${line("Reservado por", who)}${r.recur && r.recur.freq ? `<div class="muted">Reserva recorrente</div>` : ""}${st ? `<div style="margin-top:6px">${st}</div>` : ""}`;
+}
+document.addEventListener("mouseover", (e) => {
+  const c = e.target.closest && e.target.closest(".chipev"); let t = $("#rtip");
+  if (!c) { if (t) t.remove(); return; }
+  const r = byId("reservations", c.dataset.id); if (!r) return;
+  if (!t) { t = document.createElement("div"); t.id = "rtip"; t.setAttribute("role", "tooltip"); document.body.appendChild(t); }
+  t.style.setProperty("--c", r.color || "#2F7CC1"); t.innerHTML = resTipHTML(r, +c.dataset.s, +c.dataset.e);
+  const b = c.getBoundingClientRect(), w = t.offsetWidth, h = t.offsetHeight;
+  t.style.left = Math.max(8, Math.min(innerWidth - w - 8, b.left)) + "px";
+  t.style.top = (b.bottom + h + 8 < innerHeight ? b.bottom + 6 : Math.max(8, b.top - h - 6)) + "px";
+});
+document.addEventListener("scroll", () => { const t = $("#rtip"); if (t) t.remove(); }, true);
 R.agenda = () => {
   const m = new Date(UI.agMonth || Date.now()); m.setDate(1); m.setHours(0, 0, 0, 0); UI.agMonth = +m;
   const off = (m.getDay() + 6) % 7, g0 = new Date(m.getFullYear(), m.getMonth(), 1 - off);
@@ -680,7 +758,7 @@ R.agenda = () => {
     const d = new Date(g0.getFullYear(), g0.getMonth(), g0.getDate() + i), key = isoDate(+d);
     const evs = occ.filter((o) => isoDate(o.start) === key);
     cells.push(`<div class="dc ${d.getMonth() !== m.getMonth() ? "out" : ""} ${key === today ? "today" : ""}" ${canEdit() ? `data-act="res-new" data-date="${key}"` : ""}><span class="dn">${d.getDate()}</span>
-      ${evs.map((o) => `<span class="chipev ${o.res.status === "pendente" ? "pend" : ""}" style="border-left-color:${esc(o.res.color || "#2F7CC1")}" data-act="res-open" data-id="${o.res.id}" data-idx="${o.index}" title="${esc(resTitle(o.res))} · ${esc(nameOf("locations", o.res.locationId))}">${fmtHM(o.start)} ${esc(resTitle(o.res))}</span>`).join("")}</div>`);
+      ${evs.map((o) => `<span class="chipev ${o.res.status === "pendente" ? "pend" : ""}" style="border-left-color:${esc(o.res.color || "#2F7CC1")}" data-act="res-open" data-id="${o.res.id}" data-idx="${o.index}" data-s="${o.start}" data-e="${o.end}">${fmtHM(o.start)} ${esc(resTitle(o.res))}</span>`).join("")}</div>`);
   }
   const pend = DB.reservations.filter((r) => r.status === "pendente");
   return `<div class="between"><h1 style="margin:0">Agenda</h1>
@@ -699,7 +777,7 @@ function reservationForm(r, conflicts) {
   <div class="fg">
     <label class="f"><span>Curso</span><select name="courseId">${opts("courses", r.courseId)}</select></label>
     <label class="f"><span>Cenário</span><select name="scenarioId">${optList(usableScenarios(), r.scenarioId)}</select></label>
-    <label class="f"><span>Sala</span><select name="locationId">${opts("locations", r.locationId)}</select></label>
+    <label class="f"><span>Sala</span><select name="locationId" data-roomprev>${opts("locations", r.locationId)}</select></label>
     <label class="f"><span>Cor</span><input type="color" name="color" value="${esc(r.color || "#2F7CC1")}"></label>
     <label class="f"><span>Data</span><input type="date" name="date" value="${isoDate(t0)}" required></label>
     <div class="row"><label class="f"><span>Início</span><input type="time" name="t1" value="${isoTime(t0)}" required></label><label class="f"><span>Fim</span><input type="time" name="t2" value="${isoTime(t1)}" required></label></div>
@@ -813,10 +891,10 @@ function importRoster(text) {
 
 // ═════════════════════════════ CENÁRIOS ═══════════════════════════════════
 R.cenarios = () => `<div class="between"><h1 style="margin:0">Cenários</h1><div class="row">
-  ${window.SCENARIO_PROGRAMS && isAdm() ? `<button class="btn" data-act="sc-import">Importar cenários do motor SimClin</button>` : ""}<button class="btn primary" data-act="sc-new">+ Cenário</button></div></div>
+  ${window.SCENARIO_PROGRAMS && isAdm() ? `<button class="btn" data-act="sc-import">Importar cenários do motor SimClin</button>` : ""}${isAdm() ? `<button class="btn" data-act="sc-prompts" title="Baixa um arquivo com um prompt de imagem para cada cenário">Prompts de imagem (Gemini)</button>` : ""}<button class="btn primary" data-act="sc-new">+ Cenário</button></div></div>
   ${UI.role === "docente" ? `<p class="muted small" style="margin:-4px 0 10px">Aparecem aqui os cenários das suas áreas do conhecimento (${myAreas().length ? esc(myAreas().join("; ")) : "nenhuma área definida pelo administrador"}) e os que você criou. Cenários novos ou alterados só ficam disponíveis após aprovação do administrador.</p>` : ""}
   ${visibleScenarios().length ? `<div class="cols">${visibleScenarios().map((s) => `<section class="card click" style="cursor:pointer" data-act="sc-open" data-id="${s.id}">
-    <div class="between"><h2>${esc(s.title)}</h2>${approveBtns("scenarios", s)}</div>${statusTag(s)}${AR.scenarioArea(s) ? `<span class="tag">${esc(AR.scenarioArea(s))}</span>` : ""}<p class="muted small">${esc(s.simulator || "Sem simulador")} · ${(s.annotations || []).length} anotações pré-definidas · ${(s.evaluationIds || []).length} avaliação(ões)${+s.retentionDays ? ` · retenção ${s.retentionDays} dias` : ""}</p>
+    ${s.image ? `<img class="scimg" src="${esc(s.image)}" alt="Imagem ilustrativa do cenário ${esc(s.title)}" loading="lazy">` : ""}<div class="between"><h2>${esc(s.title)}</h2>${approveBtns("scenarios", s)}</div>${statusTag(s)}${AR.scenarioArea(s) ? `<span class="tag">${esc(AR.scenarioArea(s))}</span>` : ""}<p class="muted small">${esc(s.simulator || "Sem simulador")} · ${(s.annotations || []).length} anotações pré-definidas · ${(s.evaluationIds || []).length} avaliação(ões)${+s.retentionDays ? ` · retenção ${s.retentionDays} dias` : ""}</p>
     <p class="small">${esc(s.summary || "")}</p>
     ${(s.refs || []).length ? `<p class="small muted" style="margin-top:6px"><b>Base:</b> ${s.refs.map((r) => esc(shortRef(r))).join("; ")}</p>` : ""}
     <div class="row" style="margin-top:6px">${(s.annotations || []).slice(0, 8).map((a) => `<span class="tag" style="border-color:${esc(a.color)}">${esc(a.label)}</span>`).join("")}</div></section>`).join("")}</div>`
@@ -824,16 +902,100 @@ R.cenarios = () => `<div class="between"><h1 style="margin:0">Cenários</h1><div
   ${allRefs().length ? `<section class="card"><h2>Referências da biblioteca (${allRefs().length})</h2><ol class="small" style="padding-left:20px;display:grid;gap:6px">${allRefs().map((r) => `<li>${refHtml(r)}</li>`).join("")}</ol></section>` : ""}`;
 const allRefs = () => [...new Set([...visibleScenarios().flatMap((s) => s.refs || []), ...visibleEvals().flatMap((e) => e.refs || [])])].sort((a, b) => a.localeCompare(b, "pt-BR"));
 
+// prompt para criar a imagem do cenário em uma IA de imagens (Gemini): estilo único + dados do caso
+const IMG_STYLE = "Fotografia realista, horizontal 16:9, em um laboratório de simulação clínica de uma escola de enfermagem no Brasil, iluminação clínica suave, paleta com azul-marinho e azul-claro. Paciente representado por manequim de simulação de alta fidelidade ou por ator (paciente simulado), nunca um paciente real. Equipe diversa (gênero, idade e etnia), com uniformes privativos e crachás sem texto legível. Equipamentos coerentes com o caso. Sem texto, letras, logotipos ou marcas na imagem; sem sangue, ferimentos expostos ou nudez; pessoas retratadas com dignidade.";
+function geminiPrompt(s) {
+  const area = AR.scenarioArea(s), obj = (s.objectives || []).slice(0, 3).join("; ");
+  return `${IMG_STYLE}\n\nCena: ${s.title}.${s.summary ? " " + s.summary : ""}${s.simulator ? `\nRecursos visíveis: ${s.simulator}.` : ""}${area ? `\nÁrea: ${area}.` : ""}${obj ? `\nMostre a equipe no momento-chave do caso, coerente com estes objetivos: ${obj}.` : "\nMostre a equipe no momento-chave do caso."}\nEnquadramento: plano médio, ação em andamento, foco na equipe e no manequim/ator.`;
+}
+queueMicrotask(() => {
+  ACT["sc-prompt"] = () => {
+    const f = $("#mform"), t = f ? f.querySelector("[name=title]").value : "", sm = f ? f.querySelector("[name=summary]").value : "";
+    const cur = DB.scenarios.find((x) => x.title === t) || {};
+    const txt = geminiPrompt({ ...cur, title: t || cur.title || "Cenário", summary: sm, simulator: f ? f.querySelector("[name=simulator]").value : cur.simulator, area: f ? f.querySelector("[name=area]").value : cur.area });
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast("Prompt copiado. Cole no Gemini e depois use “Escolher imagem”."), () => {});
+    const box = $("#sc-prompt-box"); if (box) box.value = txt; else $("#sc-img-prev").insertAdjacentHTML("beforebegin", `<textarea id="sc-prompt-box" readonly style="min-height:150px;font-size:12px;margin-bottom:8px">${esc(txt)}</textarea>`);
+  };
+  ACT["sc-prompts"] = () => {
+    if (!isAdm()) return;
+    const list = DB.scenarios.filter(AR.isApproved);
+    download("prompts-imagens-cenarios.txt", `Prompts para criar no Gemini uma imagem para cada cenário do HELSIM (${list.length}).\nCole um prompt por conversa, baixe a imagem em paisagem e, no HELSIM, abra o cenário › Escolher imagem.\n\n` +
+      list.map((s, i) => `${String(i + 1).padStart(2, "0")}. ${s.title}${s.image ? " (já tem imagem)" : ""}\n${"-".repeat(60)}\n${geminiPrompt(s)}`).join("\n\n\n"));
+    toast(`${list.length} prompts baixados.`);
+  };
+});
+// imagem do cenário: recorte 16:9, 960 px, JPEG (fica no banco junto com o cenário)
+let SC_IMG = "";
+function shrinkScenarioImage(file) {
+  return new Promise((ok, bad) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => { const W = 960, H = 540, c = document.createElement("canvas"); c.width = W; c.height = H; const k = Math.max(W / img.width, H / img.height), w = img.width * k, h = img.height * k;
+      c.getContext("2d").drawImage(img, (W - w) / 2, (H - h) / 2, w, h); URL.revokeObjectURL(url); ok(c.toDataURL("image/jpeg", 0.82)); };
+    img.onerror = () => { URL.revokeObjectURL(url); bad(new Error("Não foi possível ler a imagem.")); };
+    img.src = url;
+  });
+}
+queueMicrotask(() => { CHG["sc-img"] = (el) => { const f = el.files[0]; el.value = ""; if (!f) return; if (f.size > 20e6) return toast("Imagem grande demais.");
+  shrinkScenarioImage(f).then((d) => { SC_IMG = d; const pv = $("#sc-img-prev"); if (pv) { pv.src = d; pv.hidden = false; } }).catch((e) => toast(e.message)); };
+ACT["sc-img-del"] = () => { SC_IMG = ""; const pv = $("#sc-img-prev"); if (pv) { pv.removeAttribute("src"); pv.hidden = true; } }; });
+// foto das salas (só administrador) e prompts para criar a imagem no Gemini
+const ROOM_STYLE = "Fotografia realista, horizontal 16:9, de um ambiente de um centro de simulação clínica universitário moderno no Brasil, inspirado em laboratórios de simulação de cursos de Enfermagem e Medicina: paredes claras, piso vinílico hospitalar, iluminação de teto difusa, câmeras discretas no teto e microfones para gravação do debriefing, paleta com azul-marinho e azul-claro. Ambiente limpo, organizado e pronto para a aula, sem pessoas ou com equipe ao fundo desfocada. Sem texto, letras, logotipos, nomes de instituição ou marcas de fabricantes; equipamentos genéricos.";
+function roomPrompt(l) {
+  const n = (l.name || "").toLowerCase();
+  const kind = /debrief/.test(n) ? "Sala de debriefing: mesa oval com cadeiras para 10 pessoas, tela grande na parede para rever o vídeo da simulação, quadro branco, ambiente acolhedor e silencioso."
+    : /habilidad|procedimento|treino/.test(n) ? "Sala de habilidades clínicas: bancadas com simuladores de tarefa (braço para punção venosa, torso para RCP, modelo de sondagem), pia para higiene das mãos, armários com insumos etiquetados por cores."
+    : /parto|obst/.test(n) ? "Sala de simulação obstétrica: leito PPP, simulador materno-fetal de alta fidelidade, berço aquecido para o recém-nascido, carrinho com materiais de parto."
+    : /pedi|neonat|crian/.test(n) ? "Sala de simulação pediátrica: berço e leito infantil, manequim pediátrico de alta fidelidade, monitor multiparamétrico, carrinho de emergência pediátrico com fita de Broselow genérica, decoração lúdica discreta."
+    : /uti|intensiv|cr[ií]tic/.test(n) ? "Box de UTI simulado: leito com cabeceira elevada, régua de gases, ventilador mecânico, bombas de infusão, monitor multiparamétrico e manequim de alta fidelidade intubado."
+    : /control/.test(n) ? "Sala de controle: bancada com computadores e monitores mostrando as câmeras da simulação, mesa de som, vidro espelhado com vista para a sala de simulação."
+    : "Sala de simulação de alta fidelidade: leito hospitalar com manequim de alta fidelidade, monitor multiparamétrico, régua de gases, carrinho de emergência, suporte de soro e, ao fundo, vidro espelhado da sala de controle.";
+  return `${ROOM_STYLE}\n\nAmbiente: ${l.name}. ${kind}\nEnquadramento: plano aberto, a partir da porta, mostrando o ambiente inteiro.`;
+}
+let LOC_IMG = "";
+function openRoomPhoto(id) {
+  const l = byId("locations", id); if (!l || !isAdm()) return;
+  LOC_IMG = l.photo || "";
+  modal(`Foto da sala · ${l.name}`, `<img id="loc-img-prev" class="scimg-prev" alt="" ${l.photo ? `src="${esc(l.photo)}"` : "hidden"}>
+    <textarea id="loc-prompt-box" readonly style="min-height:150px;font-size:12px;margin:8px 0">${esc(roomPrompt(l))}</textarea>
+    <div class="row"><button type="button" class="btn" data-act="loc-prompt-copy">Copiar prompt para o Gemini</button><label class="btn">Escolher imagem<input type="file" accept="image/*" data-change="loc-img" hidden></label><button type="button" class="btn ghost" data-act="loc-img-del">Remover foto</button></div>
+    <p class="muted small">Cole o prompt no Gemini, baixe a imagem em paisagem e use “Escolher imagem”. A foto aparece em Ocupação das salas e ao reservar.</p>`,
+    { onSubmit: () => { if (LOC_IMG) l.photo = LOC_IMG; else delete l.photo; save(); render(); toast("Foto da sala atualizada."); } });
+}
+queueMicrotask(() => {
+  ACT["loc-photo"] = (b) => openRoomPhoto(b.dataset.id);
+  ACT["loc-prompt-copy"] = () => { const t = ($("#loc-prompt-box") || {}).value || ""; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast("Prompt copiado."), () => {}); };
+  ACT["loc-img-del"] = () => { LOC_IMG = ""; const pv = $("#loc-img-prev"); if (pv) { pv.removeAttribute("src"); pv.hidden = true; } };
+  ACT["loc-prompts"] = () => { if (!isAdm()) return;
+    download("prompts-imagens-salas.txt", `Prompts para criar no Gemini uma imagem para cada sala do HELSIM (${DB.locations.length}).\nCole um prompt por conversa, baixe a imagem em paisagem e, no HELSIM, vá em Configurações › Salas e recursos › Foto.\n\n` +
+      DB.locations.map((l, i) => `${String(i + 1).padStart(2, "0")}. ${l.name}${l.photo ? " (já tem foto)" : ""}\n${"-".repeat(60)}\n${roomPrompt(l)}`).join("\n\n\n"));
+    toast(`${DB.locations.length} prompts baixados.`); };
+  CHG["loc-img"] = (el) => { const f = el.files[0]; el.value = ""; if (!f || !isAdm()) return; if (f.size > 20e6) return toast("Imagem grande demais.");
+    shrinkScenarioImage(f).then((d) => { LOC_IMG = d; const pv = $("#loc-img-prev"); if (pv) { pv.src = d; pv.hidden = false; } }).catch((e) => toast(e.message)); };
+});
+// prévia da foto da sala no formulário de reserva
+function roomPrev(sel) {
+  const l = byId("locations", sel.value), box = sel.closest("form") && sel.closest("form").querySelector("#res-room-prev");
+  let img = box || null;
+  if (!img) { img = document.createElement("img"); img.id = "res-room-prev"; img.className = "res-room"; img.alt = ""; const fg = sel.closest(".fg"); if (fg) fg.after(img); else return; }
+  if (l && l.photo) { img.src = l.photo; img.hidden = false; img.alt = `Foto da sala ${l.name}`; } else img.hidden = true;
+}
+document.addEventListener("change", (e) => { if (e.target.matches && e.target.matches("select[data-roomprev]")) roomPrev(e.target); });
+new MutationObserver(() => { const s = document.querySelector("select[data-roomprev]"); if (s && !s.dataset.pv) { s.dataset.pv = 1; roomPrev(s); } }).observe(document.documentElement, { childList: true, subtree: true });
 function openScenario(s) {
   const isNew = !DB.scenarios.includes(s);
-  if (!canEditSc(s)) return modal(s.title, `${AR.scenarioArea(s) ? `<p><span class="tag">${esc(AR.scenarioArea(s))}</span></p>` : ""}<p>${esc(s.summary || "")}</p>${(s.objectives || []).length ? `<h3>Objetivos</h3><ul style="margin-left:18px">${s.objectives.map((o) => `<li>${esc(o)}</li>`).join("")}</ul>` : ""}<p class="small muted">Cenário do administrador: use-o nas reservas e sessões; para adaptá-lo, duplique (a cópia vai para aprovação).</p>`,
+  if (!canEditSc(s)) return modal(s.title, `${s.image ? `<img class="scimg-prev" src="${esc(s.image)}" alt="" style="margin-bottom:10px">` : ""}${AR.scenarioArea(s) ? `<p><span class="tag">${esc(AR.scenarioArea(s))}</span></p>` : ""}<p>${esc(s.summary || "")}</p>${(s.objectives || []).length ? `<h3>Objetivos</h3><ul style="margin-left:18px">${s.objectives.map((o) => `<li>${esc(o)}</li>`).join("")}</ul>` : ""}<p class="small muted">Cenário do administrador: use-o nas reservas e sessões; para adaptá-lo, duplique (a cópia vai para aprovação).</p>`,
     { extra: `<button type="button" class="btn" data-act="sc-copy" data-id="${s.id}">Duplicar</button>` });
+  SC_IMG = s.image || "";
   const annTxt = (s.annotations || []).map((a) => `${a.label} | ${a.cat || ""} | ${a.color || ""}`).join("\n");
   modal(isNew ? "Novo cenário" : "Editar cenário", `<label class="f"><span>Título</span><input name="title" required value="${esc(s.title || "")}"></label>
     <div class="fg"><label class="f"><span>Simulador / manequim</span><input name="simulator" value="${esc(s.simulator || "")}" placeholder="ex.: SimClin (monitor) + manequim adulto"></label>
     <label class="f"><span>Retenção dos vídeos (dias; 0 = política global)</span><input type="number" min="0" name="retentionDays" value="${esc(s.retentionDays || 0)}"></label></div>
     <label class="f"><span>Área do conhecimento</span><select name="area">${opt("", "—", AR.scenarioArea(s))}${AR.AREAS.map((a) => opt(a, a, AR.scenarioArea(s))).join("")}</select></label>
     ${!isAdm() ? `<p class="small muted">Ao salvar, o cenário vai para aprovação do administrador e só você e ele o veem.</p>` : ""}
+    ${isAdm() ? `<div class="f"><span>Imagem ilustrativa do cenário (opcional, só o administrador)</span><img id="sc-img-prev" class="scimg-prev" alt="" src="${esc(s.image || "")}" ${s.image ? "" : "hidden"}>
+      <div class="row" style="margin-top:6px"><label class="btn">Escolher imagem<input type="file" accept="image/png,image/jpeg,image/webp" data-change="sc-img" hidden></label><button type="button" class="btn" data-act="sc-img-del">Remover imagem</button></div>
+      <span class="muted small" style="font-weight:400">A imagem é recortada em 16:9 e reduzida para 960 px de largura. Para criá-la no Gemini, use “Prompt para o Gemini”.</span>
+      <button type="button" class="btn sm" data-act="sc-prompt" style="margin-top:6px;align-self:flex-start">Prompt para o Gemini</button></div>` : ""}
     <label class="f"><span>Resumo do caso</span><textarea name="summary">${esc(s.summary || "")}</textarea></label>
     <label class="f"><span>Objetivos de aprendizagem (um por linha)</span><textarea name="objectives">${esc((s.objectives || []).join("\n"))}</textarea></label>
     <label class="f"><span>Anotações pré-definidas — uma por linha: <code>Rótulo | Categoria | #cor</code>. As nove primeiras ganham atalhos 1–9 na gravação.</span><textarea name="ann" style="min-height:140px;font-family:var(--mono);font-size:12px">${esc(annTxt)}</textarea></label>
@@ -843,6 +1005,7 @@ function openScenario(s) {
     onSubmit: (fd) => {
       const annotations = fd.get("ann").split("\n").map((l) => l.split("|").map((x) => x.trim())).filter((p) => p[0])
         .map(([label, cat, color]) => ({ id: C.uid("a"), label, cat: cat || "Geral", color: /^#[0-9a-f]{3,8}$/i.test(color || "") ? color : colorFor(cat || label) }));
+      if (isAdm()) { if (SC_IMG) s.image = SC_IMG; else delete s.image; }
       Object.assign(s, { area: fd.get("area") || "", title: fd.get("title").trim() || "Cenário", simulator: fd.get("simulator").trim(), retentionDays: +fd.get("retentionDays") || 0,
         summary: fd.get("summary").trim(), objectives: fd.get("objectives").split("\n").map((x) => x.trim()).filter(Boolean), annotations, evaluationIds: fd.getAll("evaluationIds"), refs: fd.get("refs").split("\n").map((x) => x.trim()).filter(Boolean) });
       stampApproval(s, isNew); if (isNew) DB.scenarios.push(s); save(); render(); if (!isAdm()) toast("Cenário enviado para aprovação do administrador.");
@@ -978,9 +1141,9 @@ function liveSetupHtml() {
         <span class="small">Os participantes foram informados e consentiram com a gravação de imagem e voz para fins educacionais, com uso restrito ao debriefing e prazo de retenção definido (LGPD, Lei 13.709/2018, arts. 7º e 11).</span></label>
     </section>
     <section class="card"><h2>2. Ligação com o simulador</h2>
-      <p class="muted small">Entre na mesma sala de 4 dígitos usada pelo instrutor no SimClin. Sinais vitais, mudanças de estado e intervenções registradas no roteiro entram na linha do tempo da gravação.</p>
-      <div class="row"><input id="lv-room" inputmode="numeric" maxlength="4" placeholder="0000" style="width:90px;font:18px var(--mono);text-align:center" value="${esc((LIVE.sim || {}).room || "")}">
-        <button class="btn" data-act="sim-connect" ${served ? "" : "disabled"}>Conectar</button><button class="btn ghost" data-act="sim-close">Desligar</button><span id="sim-status" class="tag"></span></div>
+      <p class="muted small">O simulador abre logo abaixo, já ligado à gravação: sinais vitais, mudanças de estado e intervenções registradas no roteiro entram na linha do tempo.</p>
+      <div class="row"><button class="btn primary" data-act="sc-rec" title="Abre o simulador aqui embaixo, ligado à gravação">Gravar com monitor SimClin</button>
+        <button class="btn ghost" data-act="sim-close">Desligar</button><span id="sim-status" class="tag"></span></div>
       ${served ? "" : `<p class="muted small">Disponível quando a página é aberta pelo servidor SimClin (npm start).</p>`}
       <div id="sim-vitals" style="margin-top:10px"></div>
     </section>
@@ -1244,7 +1407,7 @@ async function recStart() {
   LIVE.recorders.forEach((r) => r.start(2000));
   LIVE.recording = true;
   if (LIVE.sim && LIVE.sim.vitals) C.pushSample(ses.samples, 0, LIVE.sim.vitals, 0);
-  if (LIVE.sim && LIVE.sim.status === "conectado") addAnn({ label: `Simulador ligado (sala ${LIVE.sim.room})`, cat: "Sistema", source: "simulador" });
+  if (LIVE.sim && LIVE.sim.status === "conectado") addAnn({ label: "Simulador ligado", cat: "Sistema", source: "simulador" });
   LIVE.timer = setInterval(liveTick, 250);
   kvPut("draft", ses).catch(() => {});
   render();
@@ -1308,7 +1471,7 @@ function simConnect(room) {
   simClose();
   let ws; try { ws = new WebSocket(url); } catch (e) { return toast("Endereço WebSocket inválido."); }
   const sim = LIVE.sim = { ws, room, status: "conectando", vitals: null, retry: 0 };
-  ws.onopen = () => { ws.send(JSON.stringify({ type: "join", room, role: "captura" })); sim.status = "conectado"; renderSim(); };
+  ws.onopen = () => { ws.send(JSON.stringify({ type: "join", room, role: "captura", token: (() => { try { return localStorage.getItem("hc-auth") || ""; } catch (e) { return ""; } })() })); sim.status = "conectado"; renderSim(); };
   ws.onmessage = (e) => {
     let m; try { m = JSON.parse(e.data); } catch (x) { return; }
     if (m.type === "state" && m.state) simState(m.state);
@@ -1343,7 +1506,7 @@ function vitalsHtml(v) {
 function renderSim() {
   const st = $("#sim-status"), sv = $("#sim-vitals");
   const s = LIVE.sim;
-  if (st) { st.textContent = s ? `${s.status} · sala ${s.room}` : "desligado"; st.className = "tag " + (s && s.status === "conectado" ? "ok" : s ? "warn" : ""); }
+  if (st) { st.textContent = s ? (s.status === "conectado" ? "simulador ligado" : s.status) : "desligado"; st.className = "tag " + (s && s.status === "conectado" ? "ok" : s ? "warn" : ""); }
   if (sv) sv.innerHTML = vitalsHtml(s && s.vitals);
 }
 
@@ -1685,8 +1848,8 @@ R.config = () => `<h1>Configurações</h1>
     <h2 style="margin-top:14px">Cópia de segurança</h2><p class="muted small">O arquivo JSON contém cadastros, agenda, sessões, anotações e avaliações (sem os vídeos; baixe-os em cada sessão).</p>
     <div class="row"><button class="btn" data-act="backup">Exportar backup</button><label class="btn">Restaurar backup<input type="file" accept=".json,application/json" data-change="restore" hidden></label></div>
     <h2 style="margin-top:14px">Dados</h2><div class="row"><button class="btn" data-act="demo">Carregar biblioteca de exemplo</button><button class="btn danger" data-act="wipe">Apagar tudo</button></div></section></div>
-  <section class="card"><div class="between"><h2 style="margin:0">Salas e recursos</h2><div class="row"><button class="btn" data-act="loc-new">+ Sala</button><button class="btn" data-act="resrc-new">+ Recurso</button></div></div>
-    <div class="cols"><ul class="plain">${DB.locations.map((l) => `<li class="between" style="margin:0"><span>${esc(l.name)}${(l.cameras || []).length ? ` <span class="tag info">${l.cameras.length} câmera(s)</span>` : ""}</span><span class="row"><button class="btn sm" data-act="loc-cams" data-id="${l.id}">Câmeras</button><button class="btn sm" data-act="loc-del" data-id="${l.id}">✕</button></span></li>`).join("") || `<li class="muted">Sem salas</li>`}</ul>
+  <section class="card"><div class="between"><h2 style="margin:0">Salas e recursos</h2><div class="row">${isAdm() ? `<button class="btn" data-act="loc-prompts" title="Baixa um prompt de imagem para cada sala">Prompts de imagem das salas (Gemini)</button>` : ""}<button class="btn" data-act="loc-new">+ Sala</button><button class="btn" data-act="resrc-new">+ Recurso</button></div></div>
+    <div class="cols"><ul class="plain">${DB.locations.map((l) => `<li class="between" style="margin:0"><span>${esc(l.name)}${(l.cameras || []).length ? ` <span class="tag info">${l.cameras.length} câmera(s)</span>` : ""}</span><span class="row">${l.photo ? `<img class="loc-thumb" src="${esc(l.photo)}" alt="">` : ""}<button class="btn sm" data-act="loc-photo" data-id="${l.id}">Foto</button><button class="btn sm" data-act="loc-cams" data-id="${l.id}">Câmeras</button><button class="btn sm" data-act="loc-del" data-id="${l.id}">✕</button></span></li>`).join("") || `<li class="muted">Sem salas</li>`}</ul>
     <ul class="plain">${DB.resources.map((r) => `<li class="between" style="margin:0">${esc(r.name)} <span class="tag">${r.kind === "capital" ? "permanente" : "insumo"}</span><button class="btn sm" data-act="resrc-del" data-id="${r.id}">✕</button></li>`).join("") || `<li class="muted">Sem recursos</li>`}</ul></div></section>`;
 AFTER.config = async () => {
   const el = $("#st-est"); if (!el) return;
@@ -1880,6 +2043,15 @@ const ACT = {
   "src-test": () => addSource({ label: "Fonte de teste " + (LIVE.sources.length + 1), kind: "teste", stream: testStream("CÂMERA " + (LIVE.sources.length + 1)) }),
   "src-del": (b) => { const s = LIVE.sources.find((x) => x.id === b.dataset.id); if (s) stopStream(s.stream); LIVE.sources = LIVE.sources.filter((x) => x !== s); render(); },
   "sim-connect": () => simConnect(($("#lv-room") || {}).value || ""),
+  "sc-rec": () => {
+    let room = SCD.room || String(Math.floor(1000 + Math.random() * 8999));
+    SCD.open = true; SCD.room = room; syncDock();
+    if (simclinServed()) setTimeout(() => simConnect(room), 900);
+    setTimeout(() => $("#sc-dock").scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    toast("Simulador aberto e ligado à gravação.");
+  },
+  "sc-dock-close": () => { SCD.open = false; syncDock(); },
+  "sc-dock-win": () => { const w = window.open(simclinServed() ? `index.html${SCD.room ? `?sala=${SCD.room}` : ""}` : "", "_blank"); if (w && !simclinServed() && window.HC_SIMCLIN_HTML) { w.document.write(HC_SIMCLIN_HTML); w.document.close(); } },
   "sim-close": () => simClose(),
   "rec-start": () => recStart(),
   "rec-stop": () => recStop(),

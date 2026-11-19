@@ -80,8 +80,8 @@ function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, app
     const u = db.users.find((x) => x.id === s.userId);
     return u ? { ...s, key: k, user: u } : null;
   }
-  function limited(req, max = 5, win = 15 * 60 * 1000) {
-    const ip = req.ip || "?", now = Date.now(), l = (hits.get(ip) || []).filter((t) => now - t < win);
+  function limited(req, max = 5, win = 15 * 60 * 1000, kind = "") {
+    const ip = (req.ip || "?") + kind, now = Date.now(), l = (hits.get(ip) || []).filter((t) => now - t < win);
     l.push(now); hits.set(ip, l); return l.length > max;
   }
   function setTemp(u) { const pw = tempPassword(); u.salt = crypto.randomBytes(16).toString("hex"); u.hash = hashPw(pw, u.salt); u.mustChange = true; u.tempExpires = Date.now() + TEMP_TTL; u.failed = 0; u.lockedUntil = 0; return pw; }
@@ -119,6 +119,8 @@ function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, app
   });
 
   r.post("/login", (req, res) => {
+    // além do bloqueio por conta, limite por endereço de rede (evita tentativa em massa contra várias contas)
+    if (limited(req, 30, 15 * 60 * 1000, "#login")) return res.status(429).json({ error: "Muitas tentativas deste computador. Aguarde 15 minutos." });
     const u = find(req.body.email), pw = String(req.body.password || "");
     const fail = (msg = "E-mail ou senha incorretos.") => res.status(401).json({ error: msg });
     if (!u) { hashPw(pw, "x"); return fail(); }
@@ -190,7 +192,14 @@ function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, app
     if (u.id === req.auth.user.id) return res.status(400).json({ error: "Você não pode excluir a própria conta." });
     db.users = db.users.filter((x) => x !== u); persist(); for (const [k, s] of sessions) if (s.userId === u.id) sessions.delete(k); res.json({ ok: true });
   });
-  return { router: r, need, _db: () => db };
+  /** usuário de um token com acesso completo (usado pela ligação em tempo real do simulador) */
+  function userForToken(t) {
+    if (!t) return null;
+    const k = crypto.createHash("sha256").update(String(t)).digest("hex"), s = sessions.get(k);
+    if (!s || s.exp < Date.now() || s.scope !== "full") return null;
+    return db.users.find((x) => x.id === s.userId) || null;
+  }
+  return { router: r, need, userForToken, _db: () => db };
 }
 
 /** SMTP pelas variáveis SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM (e SMTP_SECURE=1 para a porta 465). */
