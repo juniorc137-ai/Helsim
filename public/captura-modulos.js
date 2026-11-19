@@ -162,10 +162,10 @@
     root.HC_NAV_BADGE = {
       almox: () => { if (!isAdmin()) return ""; const n = (DB.stock || []).filter((i) => i.stock < i.min).length; return n ? `<span class="badge" title="Itens com estoque crítico">${n}</span>` : ""; },
     };
-    root.hcPainelExtra = () => {
-      if (!isAdmin()) return "";
-      const crit = (DB.stock || []).filter((i) => i.stock < i.min);
-      return crit.length ? `<div class="card"><span class="tag bad">${crit.length} item(ns) do almoxarifado abaixo do estoque mínimo</span> <button class="btn sm" data-act="go" data-v="almox">Ver almoxarifado</button></div>` : "";
+    root.hcAdminAlerts = () => {
+      if (!isAdmin()) return [];
+      const n = (DB.stock || []).filter((i) => i.stock < i.min).length;
+      return n ? [{ n, text: n > 1 ? "itens do almoxarifado abaixo do estoque mínimo" : "item do almoxarifado abaixo do estoque mínimo", view: "almox", btn: "Ver almoxarifado", bad: true }] : [];
     };
 
     // ═══════════════════════ PRONTUÁRIO ELETRÔNICO ═══════════════════════
@@ -871,6 +871,7 @@
       const ctx = $(".topbar .ctx");
       if (ctx && !$("#tb-logout")) ctx.insertAdjacentHTML("beforeend", `<button type="button" class="tb-chip" id="tb-logout" data-act="auth-logout" title="Sair">Sair</button>`);
       if (root.hcPaintAvatar) setTimeout(root.hcPaintAvatar, 0);
+      if (AU.user.role === "admin" && AU._docFor !== AU.user.id) { AU._docFor = AU.user.id; setTimeout(() => root.hcCheckDocRequests && root.hcCheckDocRequests(), 0); }
       const av = $("#tb-avatar"); if (av) { av.textContent = AU.user.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase(); av.title = `${AU.user.name} · ${AU.user.email} · ${ROLES[AU.user.role]}`; }
     };
 
@@ -1051,10 +1052,21 @@
       ? `<section class="card"><div class="between"><h2 style="margin:0">Usuários e acesso</h2><span class="row" style="gap:6px"><button class="btn" data-act="au-testmail">Testar e-mail</button><button class="btn primary" data-act="au-new">+ Usuário</button></span></div><div id="au-users" class="muted">Carregando…</div>
         <p class="muted small" style="margin-top:8px">Novos cadastros entram como estudante; promova docentes aqui. “Nova senha” envia outra senha temporária e obriga a troca no próximo acesso. E-mail: ${AU.mail === "smtp" ? "SMTP configurado" : "modo de teste (data/outbox)"}.</p></section>`
       : `<section class="card"><h2>Modo de senhas</h2><p class="muted">${AU.on ? "Ativo. Você entrou como " + esc(AU.user ? AU.user.name : "") + "." : "Disponível quando o HELSIM roda pelo servidor (<code>npm start</code>): cadastro por e-mail, senha temporária enviada ao e-mail e troca obrigatória no primeiro acesso. Neste arquivo/link a troca de perfil continua livre."}</p></section>`);
+    // pedidos de perfil docente ficam nas contas (fora do banco): o administrador consulta ao entrar e a cada minuto
+    async function checkDocRequests() {
+      if (!AU.on || !AU.user || AU.user.role !== "admin") { root.HC_PEND_DOCENTES = 0; return; }
+      try { const { users } = await api("/users"); setPendDoc(users); } catch (e) {}
+    }
+    function setPendDoc(users) {
+      const n = users.filter((u) => u.requestedRole === "docente").length;
+      if (n !== (root.HC_PEND_DOCENTES || 0)) { root.HC_PEND_DOCENTES = n; const md = $("#modal"); if (!md || md.hidden) render(); }
+    }
+    setInterval(checkDocRequests, 60000);
+    root.hcCheckDocRequests = checkDocRequests;
     async function loadUsers() {
       const el = $("#au-users"); if (!el) return;
       try {
-        const { users } = await api("/users");
+        const { users } = await api("/users"); setPendDoc(users);
         el.className = ""; el.innerHTML = `<div class="tbl"><table><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Situação</th><th>Último acesso</th><th></th></tr>${users.map((u) => `<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td>
           <td><select data-au-role="${u.id}" ${u.id === AU.user.id ? "disabled" : ""}>${Object.keys(RANK).reverse().map((r) => opt(r, ROLES[r], u.role)).join("")}</select></td>
           <td>${u.mustChange ? '<span class="tag warn">aguardando troca de senha</span>' : '<span class="tag ok">ativo</span>'}${u.requestedRole === "docente" ? ` <span class="tag warn">pediu perfil docente</span> <button class="btn sm primary" data-act="au-approve" data-id="${u.id}" data-email="${esc(u.email)}" data-name="${esc(u.name)}">Aprovar docente</button> <button class="btn sm" data-act="au-deny" data-id="${u.id}">Recusar</button>` : ""}</td><td class="small">${u.lastLogin ? esc(fmtDT(u.lastLogin)) : "—"}</td>

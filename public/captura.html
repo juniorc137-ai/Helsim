@@ -158,6 +158,18 @@ tr.click{cursor:pointer}tr.click:hover td,tbody tr:hover td{background:var(--acc
 ul.plain{list-style:none}
 ul.plain li{padding:7px 0;border-bottom:1px solid var(--line)}
 ul.plain li:last-child{border-bottom:0}
+.upc{list-style:none;margin:0;padding:0}
+.upc li{display:grid;grid-template-columns:56px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.upc li:last-child{border-bottom:0}
+.upc .d{border-radius:10px;border:1px solid var(--line);text-align:center;padding:4px 0;line-height:1.1;border-left:4px solid var(--c,#2F7CC1)}
+.upc .d b{display:block;font-size:20px}.upc .d span{font-size:11px;text-transform:uppercase;color:var(--muted)}
+.upc .t{min-width:0}.upc .t b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.upc .t .muted{font-size:12.5px}
+@media (max-width:560px){.upc li{grid-template-columns:48px 1fr}.upc li .btn{grid-column:2;justify-self:start}}
+.alerts{border-left:4px solid var(--warn,#D97706)}
+.alerts ul{list-style:none;margin:8px 0 0;padding:0}
+.alerts li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--line)}
+.alerts li:first-child{border-top:0}
 .checks{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:4px 10px;max-height:220px;overflow:auto;padding:6px;border:1px solid var(--line);border-radius:4px;background:var(--surface-2)}
 .checks label{display:flex;gap:6px;align-items:center;font-size:13px}
 /* agenda */
@@ -564,7 +576,7 @@ function render() {
   if (!groups.some(([, items]) => items.some((n) => n[0] === UI.view)) && UI.view !== "sessao") UI.view = "painel";
   const pend = DB.reservations.filter((r) => r.status === "pendente").length;
   $("#nav").innerHTML = groups.map(([g, items]) => `<div class="navgrp"><span>${g}</span><nav class="nav">${items.map(([id, label]) =>
-    `<button ${UI.view === id || (UI.view === "sessao" && id === "sessoes") ? 'aria-current="page"' : ""} data-act="go" data-v="${id}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICO[id]}</svg>${label}${id === "agenda" && pend && isAdm() ? `<span class="badge" title="Reservas pendentes">${pend}</span>` : ""}${window.HC_NAV_BADGE && HC_NAV_BADGE[id] ? HC_NAV_BADGE[id]() : ""}</button>`).join("")}</nav></div>`).join("");
+    `<button ${UI.view === id || (UI.view === "sessao" && id === "sessoes") ? 'aria-current="page"' : ""} data-act="go" data-v="${id}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICO[id]}</svg>${label}${id === "agenda" && pend && isAdm() ? `<span class="badge" title="Reservas pendentes">${pend}</span>` : ""}${id === "painel" && isAdm() && adminAlerts().length ? `<span class="badge" title="Pendências do administrador">${adminAlerts().reduce((a, x) => a + x.n, 0)}</span>` : ""}${window.HC_NAV_BADGE && HC_NAV_BADGE[id] ? HC_NAV_BADGE[id]() : ""}</button>`).join("")}</nav></div>`).join("");
   $("#role").value = UI.role;
   const pool = DB.people.filter((p) => UI.role === "estudante" ? p.role === "estudante" : UI.role === "docente" ? p.role === "docente" : p.role === "admin" || p.role === "docente");
   if (UI.me && !pool.some((p) => p.id === UI.me)) UI.me = "";
@@ -644,23 +656,33 @@ function bars(obj, label = (k) => k, fmt = (v) => v) {
 }
 
 // ═════════════════════════════ PAINEL ═════════════════════════════════════
+// pendências que só o administrador resolve (aparecem no Painel e como número no menu)
+function adminAlerts() {
+  if (!isAdm()) return [];
+  const out = [], n = (k) => DB[k].filter((x) => x.status === "pendente").length;
+  const pr = n("reservations"), ps = n("scenarios"), pe = n("evaluations"), pd = window.HC_PEND_DOCENTES || 0;
+  if (pd) out.push({ n: pd, text: pd > 1 ? "pedidos de perfil docente para aprovar ou recusar" : "pedido de perfil docente para aprovar ou recusar", view: "config", btn: "Ver usuários" });
+  if (ps) out.push({ n: ps, text: ps > 1 ? "cenários criados por docentes aguardando aprovação" : "cenário criado por docente aguardando aprovação", view: "cenarios", btn: "Ver cenários" });
+  if (pe) out.push({ n: pe, text: pe > 1 ? "avaliações criadas por docentes aguardando aprovação" : "avaliação criada por docente aguardando aprovação", view: "avaliacoes", btn: "Ver avaliações" });
+  if (pr) out.push({ n: pr, text: pr > 1 ? "reservas aguardando aprovação" : "reserva aguardando aprovação", view: "agenda", btn: "Ver agenda" });
+  return out.concat(window.hcAdminAlerts ? hcAdminAlerts() : []);
+}
 R.painel = () => {
   const ses = visibleSessions(), u = C.usageReport(ses), now = Date.now();
   const nRes = ses.reduce((a, s) => a + (s.results || []).length, 0);
   const up = occurrencesBetween(now, now + 14 * DAY).slice(0, 8);
   const recent = [...ses].sort((a, b) => b.startedAt - a.startedAt).slice(0, 6);
-  const pend = UI.role === "admin" ? DB.reservations.filter((r) => r.status === "pendente").length : 0;
+  const alerts = adminAlerts(), WD = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"], MO = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
   return `<h1>Painel${DB.settings.institution ? " · " + esc(DB.settings.institution) : ""}</h1>
   ${!DB.sessions.length && UI.role === "admin" ? `<div class="card"><div class="between"><div><b>Comece por aqui.</b> <span class="muted">Carregue a biblioteca baseada em evidências: 5 cursos, 13 cenários e 24 avaliações e checklists construídos a partir de 24 artigos de <i>Clinical Simulation in Nursing</i> (2025), incluindo os padrões INACSL 2025, com agenda, estudantes e uma sessão de pré-eclâmpsia gravada.</span></div><button class="btn primary" data-act="demo">Carregar biblioteca</button></div></div>` : ""}
   ${window.hcPainelExtra ? hcPainelExtra() : ""}
-  ${pend ? `<div class="card"><span class="tag warn">${pend} reserva(s) aguardando aprovação</span> <button class="btn sm" data-act="go" data-v="agenda">Ver agenda</button></div>` : ""}
-  ${(() => { if (!isAdm()) return ""; const ps = DB.scenarios.filter((x) => x.status === "pendente").length, pe = DB.evaluations.filter((x) => x.status === "pendente").length;
-    return ps || pe ? `<div class="card"><span class="tag warn">Aguardando sua aprovação: ${ps} cenário(s) e ${pe} avaliação(ões) criados por docentes</span> ${ps ? `<button class="btn sm" data-act="go" data-v="cenarios">Ver cenários</button>` : ""} ${pe ? `<button class="btn sm" data-act="go" data-v="avaliacoes">Ver avaliações</button>` : ""}</div>` : ""; })()}
+  ${alerts.length ? `<section class="card alerts" role="alert"><h2 style="margin:0">Pendências do administrador</h2><ul>${alerts.map((a) => `<li><span><span class="tag ${a.bad ? "bad" : "warn"}">${a.n}</span> ${esc(a.text)}</span><button class="btn sm" data-act="go" data-v="${a.view}">${esc(a.btn)}</button></li>`).join("")}</ul></section>` : ""}
   <div class="kpis">${kpi("Sessões gravadas", u.sessions)}${kpi("Horas de simulação", fmtH(u.hours))}${kpi("Horas-participante", fmtH(u.personHours))}${kpi("Avaliações registradas", nRes)}</div>
   <div class="cols">
     <section class="card"><h2>Próximas reservas (14 dias)</h2>
-      ${up.length ? `<ul class="plain">${up.map((o) => `<li><span class="dot" style="background:${esc(o.res.color || "#2F7CC1")}"></span> <b>${fmtDate(o.start)} ${fmtHM(o.start)}–${fmtHM(o.end)}</b> ${esc(resTitle(o.res))} <span class="muted">· ${esc(nameOf("locations", o.res.locationId))}</span>
-        ${canEdit() && !hideRes(o.res) ? `<button class="btn sm rec-o" style="float:right" data-act="live-from-res" data-id="${o.res.id}">Iniciar sessão</button>` : ""}</li>`).join("")}</ul>` : `<div class="empty">Nenhuma reserva</div>`}
+      ${up.length ? `<ul class="upc">${up.map((o) => { const d = new Date(o.start); return `<li><div class="d" style="--c:${esc(o.res.color || "#2F7CC1")}"><span>${WD[d.getDay()]}</span><b>${d.getDate()}</b><span>${MO[d.getMonth()]}</span></div>
+        <div class="t"><b title="${esc(resTitle(o.res))}">${esc(resTitle(o.res))}</b><span class="muted">${fmtHM(o.start)}–${fmtHM(o.end)} · ${esc(nameOf("locations", o.res.locationId))}${o.res.status === "pendente" ? ' · <span class="tag warn">pendente</span>' : ""}</span></div>
+        ${canEdit() && !hideRes(o.res) ? `<button class="btn sm rec-o" data-act="live-from-res" data-id="${o.res.id}">Iniciar sessão</button>` : "<span></span>"}</li>`; }).join("")}</ul>` : `<div class="empty">Nenhuma reserva nos próximos 14 dias</div>`}
     </section>
     <section class="card"><h2>${UI.role === "estudante" ? "Minhas sessões" : "Sessões recentes"}</h2>
       ${recent.length ? `<ul class="plain">${recent.map((s) => `<li class="click" style="cursor:pointer" data-act="ses-open" data-id="${s.id}"><b>${esc(s.title)}</b><br><span class="muted small">${fmtDT(s.startedAt)} · ${C.fmtClock(s.duration)} · ${(s.annotations || []).length} anotações · ${(s.media || []).length} vídeo(s)</span></li>`).join("")}</ul>` : `<div class="empty">Nenhuma sessão gravada</div>`}
