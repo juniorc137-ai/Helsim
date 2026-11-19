@@ -308,6 +308,15 @@ ul.plain li:last-child{border-bottom:0}
 .ptb.has-photo{grid-template-columns:260px repeat(3,minmax(0,1fr))}.ptb.has-photo>div{border-bottom:1px solid var(--line)}.ptphoto{grid-row:span 2;width:260px;height:100%;min-height:300px;contain:size;object-fit:cover;border-right:1px solid var(--line);display:block;cursor:zoom-in;border-radius:var(--radius) 0 0 var(--radius)}
 .ptzoom{position:fixed;inset:0;z-index:90;background:rgba(5,10,20,.85);display:grid;place-items:center;cursor:zoom-out}.ptzoom img{max-width:min(92vw,560px);max-height:90vh;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
 .ptphoto-prev{width:120px;height:150px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.avwrap{display:grid;grid-template-columns:minmax(260px,420px) 1fr;gap:16px;align-items:start}.avwrap .avadm{grid-column:1/-1}
+.avstage{position:relative;aspect-ratio:3/4;background:#05101f;border-radius:var(--radius);overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.avstage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .6s ease}.avstage video.on{opacity:1}
+.avempty{position:absolute;inset:0;display:grid;place-items:center;color:#8ea3bf;font-size:14px;pointer-events:none}
+.avlabel{position:absolute;left:10px;bottom:10px;padding:3px 9px;border-radius:999px;background:rgba(5,16,31,.7);color:#fff;font-size:12px}.avlabel:empty{display:none}
+.avgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.avbtn{padding:14px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card);color:var(--ink);font:inherit;font-weight:600;cursor:pointer;text-align:left;min-height:54px}
+.avbtn:hover{border-color:var(--accent)}.avbtn.on{background:var(--accent);border-color:var(--accent);color:#fff}.avbtn.novid{opacity:.6;border-style:dashed}
+@media(max-width:900px){.avwrap{grid-template-columns:1fr}.avstage{max-width:420px;margin:0 auto;width:100%}}
 @media(max-width:1100px){.ptb.has-photo{grid-template-columns:220px repeat(2,minmax(0,1fr))}.ptb.has-photo .ptphoto{grid-row:span 3;width:220px;min-height:275px}}
 @media(max-width:560px){.ptb.has-photo{grid-template-columns:1fr}.ptb.has-photo .ptphoto{grid-row:auto;width:100%;height:auto;aspect-ratio:4/5;max-height:60vh;border-right:0;border-radius:var(--radius) var(--radius) 0 0}}
 .ptb span{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em}
