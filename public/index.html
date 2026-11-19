@@ -939,11 +939,13 @@ function connect(room,role,onOpen){
   ws=new WebSocket(wsUrl());
   ws.onopen=()=>{
     wsRetry=0;
-    ws.send(JSON.stringify({type:"join",room,role}));
+    let token="";try{token=localStorage.getItem("hc-auth")||"";}catch(e){}
+    ws.send(JSON.stringify({type:"join",room,role,token}));
     if(onOpen)onOpen();
   };
   ws.onmessage=e=>{
     let m;try{m=JSON.parse(e.data);}catch{return;}
+    if(m.type==="auth"){wsRetry=99;const c=$("cmsg");if(c)c.textContent=m.error;setDot("mdot","er");setDot("idot","er");authBanner(m.error);return;}
     if(m.type==="joined"){
       if(role==="instructor"){setDot("idot","on");setDot("idot2","on");setDot("mdot","on");$("cmsg").textContent=ROLE==="both"?"Monitor nesta tela · sala aberta para outros aparelhos":"Aguardando monitor…";}
       else{setDot("mdot","yw");}
@@ -961,6 +963,7 @@ function connect(room,role,onOpen){
   ws.onerror=()=>{};
 }
 
+function authBanner(t){let b=$("authb");if(!b){b=document.createElement("div");b.id="authb";b.style.cssText="position:fixed;left:50%;top:50px;transform:translateX(-50%);z-index:50;background:#E0161B;color:#fff;font:600 14px var(--f-sans,system-ui);padding:10px 16px;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.4)";document.body.appendChild(b);}b.textContent=t+" A tela funciona, mas não envia dados para outros aparelhos nem para a gravação.";}
 function push(patch,fromEngine){
   // Modo manual sobre o automático: ajustes do instrutor viram "override" no motor
   if(!fromEngine&&patch&&ENG&&ENG.started&&!ENG.finished)ENG.override(patch);

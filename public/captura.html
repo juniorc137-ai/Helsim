@@ -1424,7 +1424,7 @@ function simConnect(room) {
   simClose();
   let ws; try { ws = new WebSocket(url); } catch (e) { return toast("Endereço WebSocket inválido."); }
   const sim = LIVE.sim = { ws, room, status: "conectando", vitals: null, retry: 0 };
-  ws.onopen = () => { ws.send(JSON.stringify({ type: "join", room, role: "captura" })); sim.status = "conectado"; renderSim(); };
+  ws.onopen = () => { ws.send(JSON.stringify({ type: "join", room, role: "captura", token: (() => { try { return localStorage.getItem("hc-auth") || ""; } catch (e) { return ""; } })() })); sim.status = "conectado"; renderSim(); };
   ws.onmessage = (e) => {
     let m; try { m = JSON.parse(e.data); } catch (x) { return; }
     if (m.type === "state" && m.state) simState(m.state);

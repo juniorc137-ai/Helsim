@@ -15,15 +15,17 @@ const path = require("path");
 })();
 
 const app = express();
+app.disable("x-powered-by"); // não anuncia a tecnologia do servidor
 app.use(express.static(path.join(__dirname, "public")));
 
 // Modo de senhas do HELSIM (cadastro por e-mail + senha temporária + troca obrigatória)
 // e banco central (sincronização entre computadores; HC_SYNC=0 desliga)
 const { createAuth } = require("./auth");
 const { createStore } = require("./store");
+let auth = null;
 if (process.env.HC_AUTH !== "0") {
   const dataDir = process.env.HC_DATA_DIR || path.join(__dirname, "data");
-  const auth = createAuth({ dataDir, baseUrl: process.env.PUBLIC_URL || "" });
+  auth = createAuth({ dataDir, baseUrl: process.env.PUBLIC_URL || "" });
   app.use("/api/auth", auth.router);
   if (process.env.HC_SYNC !== "0") app.use("/api/data", createStore({ dataDir, need: auth.need }).router);
 }
@@ -54,6 +56,14 @@ wss.on("connection", (ws) => {
     if (msg.type === "join") {
       const { room, role } = msg;
       if (!room || !role) return;
+      // com o modo de senhas ligado, só entra quem tem login; controlar o simulador é só de docente e administrador
+      if (auth) {
+        const u = auth.userForToken(msg.token);
+        if (!u || (role === "instructor" && !["admin", "docente"].includes(u.role))) {
+          ws.send(JSON.stringify({ type: "auth", error: u ? "Apenas docente ou administrador controla o simulador." : "Entre no HELSIM para usar o simulador." }));
+          ws.close(4401); return;
+        }
+      }
 
       wsRoom = String(room).slice(0, 4);
       wsRole = role;
