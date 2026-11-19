@@ -224,6 +224,34 @@ pre{font-size:11px;color:#8b949e;white-space:pre-wrap;font-family:monospace}
 .hs-mini{display:inline-flex;align-items:center;gap:6px;font:700 15px var(--f-cond);color:var(--h-text)}
 .hs-mini i{width:22px;height:22px;border-radius:6px;background:var(--h-brand) center/70% no-repeat url("img/helsim-icone.png")}
 .hs-mini .sim{color:var(--h-rec)}
+/* ── controle com visual de equipamento: ícones de traço, densidade maior, um só acento ── */
+.ico{width:16px;height:16px;flex-shrink:0;vertical-align:-3px}
+.ib{display:inline-flex;align-items:center;gap:6px;border-radius:6px;padding:6px 10px;font-size:12.5px}
+.ib.danger{color:var(--h-bad);border-color:color-mix(in srgb,var(--h-bad) 45%,var(--h-line))}
+.ihdr{padding:8px 10px;gap:8px;flex-wrap:nowrap}
+.il{min-width:0;gap:8px}
+.rb{white-space:nowrap;padding:3px 9px;font-size:12px;letter-spacing:.12em;border-radius:6px}
+.iact{flex-wrap:nowrap;gap:4px;align-items:center}
+.ibi{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:30px;min-width:30px;padding:0 7px;border-radius:6px;border:1px solid var(--h-line);background:var(--h-surface2);color:var(--h-text);cursor:pointer;font:600 12px var(--f-mono)}
+.ibi:hover{border-color:var(--h-accent);color:var(--h-accent)}
+.ibi.af{border-color:var(--h-warn);color:var(--h-warn)}
+.ibi.aa{border-color:var(--h-bad);color:var(--h-bad);background:color-mix(in srgb,var(--h-bad) 10%,transparent)}
+.isep{width:1px;height:18px;background:var(--h-line);margin:0 2px}
+.cbar{padding:4px 10px;font:500 11px var(--f-sans);gap:6px}
+.tabs{padding:0 6px;gap:2px}
+.tab{flex:1;padding:9px 2px;font:600 12px var(--f-sans);letter-spacing:.01em;white-space:nowrap}
+.body{padding:12px}
+.ic{border-radius:8px;padding:12px;margin-bottom:10px}
+.ict{font:600 10.5px var(--f-sans);letter-spacing:.08em;text-transform:uppercase;color:var(--h-muted)!important;margin-bottom:8px}
+.ic{border-color:var(--h-line)!important}
+.scb{position:relative;padding:10px 10px 10px 16px;border-radius:6px;font:500 13px var(--f-sans)}
+.scb::before{content:"";position:absolute;left:6px;top:9px;bottom:9px;width:3px;border-radius:2px;background:var(--h-ok)}
+.scb.sev-y::before{background:#E5B300}.scb.sev-o::before{background:#F08A24}.scb.sev-r::before{background:var(--h-bad)}
+.rhb{border-radius:6px;font:500 13px var(--f-sans)}
+.eclk{font-family:var(--f-mono);color:var(--h-accent)}
+.msom{display:inline-flex;align-items:center;gap:5px}.msom .ico{width:13px;height:13px}
+.msil{display:none;align-items:center;gap:5px}.msil .ico{width:14px;height:14px}
+#pshow{display:none;align-items:center;gap:6px}
 /* ── MONITOR + CONTROLE: monitor ao fundo, controle flutuante arrastável ── */
 .only-combo{display:none!important}
 body.combo .only-combo{display:inline-flex!important}
@@ -231,14 +259,14 @@ body.combo #s2{inset:auto;width:420px;height:min(76vh,720px);min-width:300px;min
   box-shadow:0 18px 48px rgba(0,0,0,.45);overflow:hidden;resize:both;z-index:20}
 body.combo #s2 .ihdr{cursor:move;user-select:none;touch-action:none}
 body.combo #s2 .ihdr .ist{display:none}
-body.combo #s2 .tab{padding:8px 2px;font-size:12px}
+body.combo #s2 .tab{padding:9px 2px;font-size:12px}
 body.combo.pmin #s2{height:auto!important;resize:none}
 body.combo.pmin #s2 .cbar,body.combo.pmin #s2 .tabs,body.combo.pmin #s2 .body{display:none}
 body.combo.phide #s2{display:none!important}
 #pshow{position:fixed;left:14px;bottom:14px;z-index:21;display:none;background:var(--h-accent);color:#fff;border:0;border-radius:999px;padding:10px 16px;font:600 13px var(--f-sans);cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.35);opacity:.35;transition:opacity .2s}
 #pshow:hover,#pshow:focus-visible{opacity:1}
 @media (hover:none){#pshow{opacity:.8}}
-body.combo.phide #pshow{display:block}
+body.combo.phide #pshow{display:inline-flex}
 </style>
 </head>
 <body>
@@ -279,8 +307,8 @@ body.combo.phide #pshow{display:block}
     <div class="malms" id="malms"></div>
     <div class="mr">
       <span class="msil" id="msil"></span>
-      <span class="frb" id="mfrb">⏸ CONGELADO</span>
-      <button id="btn-som" class="msom" onclick="ativarSom()">🔇 SOM</button>
+      <span class="frb" id="mfrb">CONGELADO</span>
+      <button id="btn-som" class="msom" onclick="ativarSom()" title="Ativar o som"><i data-i="voloff"></i>SOM</button>
       <span class="clk"><span id="mdate"></span> <b id="mclk"></b></span>
     </div>
   </div>
@@ -318,7 +346,7 @@ body.combo.phide #pshow{display:block}
         <div class="plim">160<br>90</div>
         <div class="pv pv-bp" id="vbp">120/80</div>
         <div class="psub"><span id="vmap">(93)</span> · <span id="vpni">Manual --:--</span></div>
-        <button class="pnib" id="pnib" onclick="pniStart()">▶ Iniciar PNI</button>
+        <button class="pnib" id="pnib" onclick="pniStart()">Iniciar PNI</button>
       </div>
       <div class="pb" id="pb-rr" style="--c:var(--resp)">
         <div class="pt"><span>FR</span><span class="pu">rpm</span></div>
@@ -334,28 +362,29 @@ body.combo.phide #pshow{display:block}
   </div>
 </div>
 
-<button id="pshow" onclick="panelHide(false)" title="Mostrar o controle (tecla H)">👁 Mostrar controle</button>
+<button id="pshow" onclick="panelHide(false)" title="Mostrar o controle (tecla H)"><i data-i="eye"></i>Mostrar controle</button>
 <!-- INSTRUCTOR -->
 <div id="s2" class="scr">
   <div class="ihdr">
     <div class="il">
       <span class="hs-mini only-combo"><i></i><span>HEL<span class="sim">SIM</span></span></span>
-      <span class="ibk" onclick="goBack()">← Sair</span>
       <span class="rb" id="irl">SALA ----</span>
       <span class="dot" id="idot"></span>
     </div>
     <div class="ist">
       <span id="ist-rh" style="font-weight:bold">Sinusal Normal</span>
-      <span id="ist-hr">● 72 bpm</span>
+      <span id="ist-hr">72 bpm</span>
       <span id="ist-sp">SpO₂ 98%</span>
       <span id="ist-bp">PA 120/80</span>
     </div>
     <div class="iact">
-      <button class="ib" id="bfrz" onclick="togFreeze()">⏸ Congelar</button>
-      <button class="ib" id="balm" onclick="togAlarms()">🔔 Alarmes</button>
-      <button class="ib" id="bsil" onclick="silence2()" title="Silenciar os alarmes por 2 minutos">🔕 2 min</button>
-      <button class="ib only-combo" onclick="panelMin()" title="Recolher ou expandir o controle">▁</button>
-      <button class="ib only-combo" onclick="panelHide(true)" title="Esconder o controle (tecla H)">🙈 Esconder controle</button>
+      <button class="ibi" id="bfrz" onclick="togFreeze()" title="Congelar o monitor"><i data-i="pause"></i></button>
+      <button class="ibi" id="balm" onclick="togAlarms()" title="Alarmes ligados (clique para desligar)"><i data-i="bell"></i></button>
+      <button class="ibi wide" id="bsil" onclick="silence2()" title="Pausar o som dos alarmes por 2 minutos"><i data-i="timer"></i><span id="bsilt">2 min</span></button>
+      <span class="isep only-combo"></span>
+      <button class="ibi only-combo" onclick="panelMin()" title="Recolher ou expandir o controle"><i data-i="min"></i></button>
+      <button class="ibi only-combo" onclick="panelHide(true)" title="Esconder o controle (tecla H)"><i data-i="eyeoff"></i></button>
+      <button class="ibi" onclick="goBack()" title="Sair da sala"><i data-i="exit"></i></button>
     </div>
   </div>
   <div class="cbar">
@@ -373,13 +402,14 @@ body.combo.phide #pshow{display:block}
   <div class="body">
     <div class="pane on" id="p-ce2"><div class="scg" id="scg"></div></div>
     <div class="pane"    id="p-ri2">
-      <div style="font-size:11px;color:#8b949e;margin-bottom:10px;letter-spacing:1px">SELECIONAR RITMO</div>
+      <div class="ict muted">Selecionar ritmo</div>
       <div class="rhg" id="rhg"></div>
     </div>
     <div class="pane"    id="p-vi2">
       <div class="vlist">
         <div class="vrow"><div class="vrh"><span class="vrlb">Som do pulso</span></div>
-          <div class="qa"><select id="psel" class="sel" style="flex:1" onchange="setPulseKind(this.value)"></select><button class="ib" onclick="unlockAudio();pulseBeep()">▶ Ouvir</button></div>
+          <div class="qa"><select id="psel" class="sel" style="flex:1" onchange="setPulseKind(this.value)"></select><button class="ib" onclick="unlockAudio();pulseBeep()"><i data-i="vol"></i>Ouvir</button></div>
+          <div class="qa" style="margin-top:6px;align-items:center"><label class="ib" title="Use um arquivo de áudio que você tenha direito de usar (MP3, WAV ou OGG, até 1,5 MB)"><i data-i="up"></i>Arquivo de som próprio<input id="pfile" type="file" accept="audio/*" hidden onchange="loadPulseFile(this.files[0]);this.value=''"/></label><span class="muted" id="pfname" style="font-size:12px"></span></div>
           <div class="vrh" style="margin-top:6px"><span class="vrlb">Volume do pulso</span></div>
           <input id="pvol" type="range" min="0" max="1.5" step="0.05" style="accent-color:var(--h-accent)" oninput="setPulseVol(this.value)" onchange="pulseBeep()"/></div>
         <div class="vrow"><div class="vrh"><span class="vrlb">FC (bpm)</span><span class="vrn" id="dhr" style="color:#00e676">72</span></div>
@@ -402,9 +432,9 @@ body.combo.phide #pshow{display:block}
         <select id="scsel" class="sel" onchange="engLoad(this.value)"></select>
         <div id="scsum" class="muted"></div>
         <div class="qa" style="margin-top:12px">
-          <button class="ib" id="bstart" onclick="engStart()">▶ Iniciar</button>
-          <button class="ib" id="bpause" onclick="engPause()">⏸ Pausar</button>
-          <button class="ib" onclick="engReset()">↺ Reiniciar</button>
+          <button class="ib" id="bstart" onclick="engStart()"><i data-i="play"></i>Iniciar</button>
+          <button class="ib" id="bpause" onclick="engPause()"><i data-i="pause"></i>Pausar</button>
+          <button class="ib" onclick="engReset()"><i data-i="reset"></i>Reiniciar</button>
           <span class="eclk" id="eclock">00:00</span>
         </div>
       </div>
@@ -442,11 +472,11 @@ body.combo.phide #pshow{display:block}
         <div class="lg" id="elog"></div>
         <div class="cmt">
           <input id="ecmt" placeholder="Comentário do instrutor (Enter)" maxlength="500"/>
-          <button class="ib" onclick="engComment()">＋</button>
+          <button class="ib" onclick="engComment()" title="Adicionar comentário"><i data-i="plus"></i></button>
         </div>
         <div class="qa" style="margin-top:10px">
-          <button class="ib" onclick="engExport('csv')">⬇ Exportar CSV</button>
-          <button class="ib" onclick="engExport('json')">⬇ Exportar JSON</button>
+          <button class="ib" onclick="engExport('csv')"><i data-i="down"></i>Exportar CSV</button>
+          <button class="ib" onclick="engExport('json')"><i data-i="down"></i>Exportar JSON</button>
         </div>
       </div>
     </div>
@@ -455,17 +485,17 @@ body.combo.phide #pshow{display:block}
         <div class="ict" style="color:#58a6ff">Como usar em outro dispositivo</div>
         <div class="ib2">
           1. Acesse este mesmo site no dispositivo monitor.<br/>
-          2. Selecione <b>📟 MONITOR</b>.<br/>
+          2. Selecione <b>Só monitor</b>.<br/>
           3. Digite o código da sala:
           <div class="cdbox" id="icode">----</div>
-          4. Sincronização automática via WebSocket. ✓
+          4. Os sinais vitais são sincronizados automaticamente.
         </div>
       </div>
       <div class="ic" style="border:1px solid #58a6ff30">
         <div class="ict" style="color:#58a6ff">Ações Rápidas</div>
         <div class="qa">
-          <button class="ib" style="border-color:#ef5350;color:#ef5350" onclick="trigPCR()">⚡ PCR Imediato</button>
-          <button class="ib" style="border-color:#00e676;color:#00e676" onclick="apSc(SCENARIOS[0])">✅ Restaurar Estável</button>
+          <button class="ib danger" onclick="trigPCR()"><i data-i="zap"></i>PCR imediata</button>
+          <button class="ib" onclick="apSc(SCENARIOS[0])"><i data-i="reset"></i>Restaurar estável</button>
         </div>
       </div>
       <div class="ic" style="border:1px solid #21262d">
@@ -496,17 +526,39 @@ const RHYTHMS=[
   {id:"asystole",    label:"Assistolia",              color:"#546e7a",defHR:0  },
 ];
 const SCENARIOS=[
-  {label:"🟢 Estável",          rhythm:"sinusal",     hr:72, spo2:98,rr:16,temp:36.5,sbp:120,dbp:78},
-  {label:"🟡 Taquicardia",       rhythm:"tachycardia", hr:128,spo2:94,rr:22,temp:37.2,sbp:105,dbp:68},
-  {label:"🟡 Bradicardia",       rhythm:"bradycardia", hr:42, spo2:96,rr:14,temp:36.8,sbp:88, dbp:58},
-  {label:"🟠 Hipotensão",        rhythm:"sinusal",     hr:108,spo2:95,rr:20,temp:36.6,sbp:76, dbp:44},
-  {label:"🟠 FA c/ RVR",         rhythm:"afib",        hr:118,spo2:93,rr:20,temp:36.9,sbp:95, dbp:62},
-  {label:"🔴 TV c/ Pulso",       rhythm:"vt",          hr:172,spo2:88,rr:28,temp:37.0,sbp:82, dbp:50},
-  {label:"🔴 PCR – Assistolia",  rhythm:"asystole",    hr:0,  spo2:0, rr:0, temp:36.0,sbp:0,  dbp:0 },
-  {label:"🔴 Choque Séptico",    rhythm:"tachycardia", hr:124,spo2:91,rr:26,temp:38.9,sbp:78, dbp:45},
-  {label:"🔴 IAM c/ Supra",      rhythm:"sinusal",     hr:95, spo2:94,rr:22,temp:37.1,sbp:100,dbp:65},
-  {label:"🟢 Pós-PCR",           rhythm:"sinusal",     hr:88, spo2:96,rr:18,temp:36.4,sbp:110,dbp:70},
+  {sev:"g",label:"Estável",          rhythm:"sinusal",     hr:72, spo2:98,rr:16,temp:36.5,sbp:120,dbp:78},
+  {sev:"y",label:"Taquicardia",       rhythm:"tachycardia", hr:128,spo2:94,rr:22,temp:37.2,sbp:105,dbp:68},
+  {sev:"y",label:"Bradicardia",       rhythm:"bradycardia", hr:42, spo2:96,rr:14,temp:36.8,sbp:88, dbp:58},
+  {sev:"o",label:"Hipotensão",        rhythm:"sinusal",     hr:108,spo2:95,rr:20,temp:36.6,sbp:76, dbp:44},
+  {sev:"o",label:"FA c/ RVR",         rhythm:"afib",        hr:118,spo2:93,rr:20,temp:36.9,sbp:95, dbp:62},
+  {sev:"r",label:"TV c/ Pulso",       rhythm:"vt",          hr:172,spo2:88,rr:28,temp:37.0,sbp:82, dbp:50},
+  {sev:"r",label:"PCR – Assistolia",  rhythm:"asystole",    hr:0,  spo2:0, rr:0, temp:36.0,sbp:0,  dbp:0 },
+  {sev:"r",label:"Choque Séptico",    rhythm:"tachycardia", hr:124,spo2:91,rr:26,temp:38.9,sbp:78, dbp:45},
+  {sev:"r",label:"IAM c/ Supra",      rhythm:"sinusal",     hr:95, spo2:94,rr:22,temp:37.1,sbp:100,dbp:65},
+  {sev:"g",label:"Pós-PCR",           rhythm:"sinusal",     hr:88, spo2:96,rr:18,temp:36.4,sbp:110,dbp:70},
 ];
+
+// ícones de traço fino (desenho próprio), no estilo do HELSIM
+const ICONS={
+  pause:'<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>',
+  play:'<path d="M7 5v14l11-7z"/>',
+  bell:'<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  belloff:'<path d="M8.5 5.6A6 6 0 0 1 18 11v4"/><path d="M6 11v5l-1.5 2H17"/><path d="M10 20a2 2 0 0 0 4 0"/><path d="M3 3l18 18"/>',
+  timer:'<circle cx="12" cy="13" r="7"/><path d="M12 9v4l2.5 2"/><path d="M9.5 3h5"/>',
+  min:'<path d="M5 12h14"/>',
+  eye:'<path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  eyeoff:'<path d="M10.6 5.6A10.5 10.5 0 0 1 12 5.5C18.5 5.5 22 12 22 12a17 17 0 0 1-3 3.7M6.3 6.9C3.6 8.6 2 12 2 12s3.5 6.5 10 6.5c1.7 0 3.2-.4 4.5-1.1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="M3 3l18 18"/>',
+  exit:'<path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="M10 16l-4-4 4-4"/><path d="M6 12h10"/>',
+  reset:'<path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/>',
+  down:'<path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/>',
+  up:'<path d="M12 15V4"/><path d="M7 9l5-5 5 5"/><path d="M5 20h14"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  zap:'<path d="M13 3L5 14h6l-1 7 8-11h-6z"/>',
+  vol:'<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/>',
+  voloff:'<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9l4 6M21 9l-4 6"/>'
+};
+function ic(n){return `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]||""}</svg>`;}
+document.addEventListener("DOMContentLoaded",()=>document.querySelectorAll("i[data-i]").forEach(e=>e.outerHTML=ic(e.dataset.i)));
 
 // ════════════════════════════════════════════════════════
 // WAVEFORM ENGINE
@@ -651,7 +703,7 @@ function ativarSom(){
   setTimeout(()=>beep(1100,0.08,0.3,"sine"),120);
   // atualiza botão
   const b=document.getElementById("btn-som");
-  if(b){b.textContent="🔊 SOM";b.style.color="#00e676";b.style.borderColor="#004020";}
+  if(b){b.innerHTML=ic("vol")+"SOM";b.title="Som ativo";b.style.color="#2BFF5A";}
   // reinicia loop de beep
   stopBeepLoop(); stopAlarm();
   startBeepLoop();
@@ -682,15 +734,37 @@ function tone(freq,dur,vol){
   }catch(e){}
 }
 // bipe do pulso (oxímetro): "bip" arredondado, ataque e final suaves; o tom cai 1 semitom por ponto de SpO₂ abaixo de 99%
-const PULSE_SOUNDS={off:{label:"Desligado (só alarmes)",base:932,dur:.095,mix:.25,vol:.3},monitor:{label:"Monitor (padrão)",base:932,dur:.095,mix:.25,vol:.3},classico:{label:"Clássico agudo",base:1175,dur:.06,mix:.45,vol:.26},suave:{label:"Suave",base:784,dur:.12,mix:.1,vol:.28}};
+const PULSE_SOUNDS={off:{label:"Desligado (só alarmes)",base:932,dur:.095,mix:.25,vol:.3},arquivo:{label:"Arquivo de som próprio",base:932,dur:.095,mix:.25,vol:.3},monitor:{label:"Monitor (padrão)",base:932,dur:.095,mix:.25,vol:.3},classico:{label:"Clássico agudo",base:1175,dur:.06,mix:.45,vol:.26},suave:{label:"Suave",base:784,dur:.12,mix:.1,vol:.28}};
 let PULSE_VOL=(()=>{try{return +(localStorage.getItem("simclin.volume")||1);}catch(e){return 1;}})();
 function setPulseVol(v){PULSE_VOL=Math.max(0,Math.min(1.5,+v));try{localStorage.setItem("simclin.volume",PULSE_VOL);}catch(e){}}
 let PULSE_KIND=(()=>{try{return localStorage.getItem("simclin.bipe")||"off";}catch(e){return "off";}})();
 function setPulseKind(k){PULSE_KIND=PULSE_SOUNDS[k]?k:"off";try{localStorage.setItem("simclin.bipe",PULSE_KIND);}catch(e){}if(k!=="off")pulseBeep();}
 function pulseFreq(){const k=PULSE_SOUNDS[PULSE_KIND]||PULSE_SOUNDS.monitor,sp=Math.max(70,Math.min(99,ST.spo2||0));return k.base*Math.pow(2,(sp-99)/12);}
+// arquivo de som próprio: guardado neste navegador; o tom acompanha a SpO₂ (mais grave quando cai)
+const PFKEY="simclin.bipe.arquivo";let PULSE_BUF=null,PULSE_DEC=null;
+function pfName(){try{const n=localStorage.getItem(PFKEY+".nome");const e=document.getElementById("pfname");if(e)e.textContent=n?("Em uso: "+n):"";}catch(e){}}
+function decodePulse(url){try{PULSE_DEC=fetch(url).then(r=>r.arrayBuffer()).then(b=>getACtx().decodeAudioData(b)).then(buf=>{PULSE_BUF=buf;return buf;}).catch(()=>null);}catch(e){}return PULSE_DEC;}
+function loadPulseFile(f){
+  if(!f)return;if(f.size>1.5e6){alertBox("O arquivo tem mais de 1,5 MB. Use um trecho curto, só com um bipe.");return;}
+  const rd=new FileReader();rd.onload=()=>{unlockAudio();decodePulse(rd.result).then(buf=>{
+    if(!buf){alertBox("Não consegui ler esse arquivo de áudio. Tente MP3, WAV ou OGG.");return;}
+    try{localStorage.setItem(PFKEY,rd.result);localStorage.setItem(PFKEY+".nome",f.name);}catch(e){}
+    setPulseKind("arquivo");const ps=$("psel");if(ps)ps.value="arquivo";pfName();});};
+  rd.readAsDataURL(f);
+}
+function alertBox(t){const e=$("pfname");if(e){e.textContent=t;e.style.color="var(--h-bad)";setTimeout(()=>{e.style.color="";pfName();},5000);}}
+function pulseBeepFile(){
+  if(!PULSE_BUF){let u=null;try{u=localStorage.getItem(PFKEY);}catch(e){}if(u&&!PULSE_DEC)decodePulse(u);return !!u;}
+  try{const ctx=getACtx();if(ctx.state==="suspended")ctx.resume();
+    const src=ctx.createBufferSource(),g=ctx.createGain();src.buffer=PULSE_BUF;
+    const sp=Math.max(70,Math.min(99,ST.spo2||99));src.playbackRate.value=Math.pow(2,(sp-99)/12);
+    g.gain.value=Math.max(0,PULSE_VOL);src.connect(g);g.connect(ctx.destination);src.start();}catch(e){}
+  return true;
+}
 function pulseBeep(){
+  if(PULSE_KIND==="arquivo"&&pulseBeepFile())return;
   try{
-    const k=PULSE_SOUNDS[PULSE_KIND==="off"?"monitor":PULSE_KIND]||PULSE_SOUNDS.monitor,ctx=getACtx();if(ctx.state==="suspended")ctx.resume();
+    const k=PULSE_SOUNDS[PULSE_KIND==="off"||PULSE_KIND==="arquivo"?"monitor":PULSE_KIND]||PULSE_SOUNDS.monitor,ctx=getACtx();if(ctx.state==="suspended")ctx.resume();
     const t=ctx.currentTime,f=ST.spo2>0?pulseFreq():k.base,g=ctx.createGain(),lp=ctx.createBiquadFilter();
     lp.type="lowpass";lp.frequency.value=3200;lp.connect(ctx.destination);g.connect(lp);
     const v=Math.max(0.0002,k.vol*PULSE_VOL);
@@ -783,8 +857,8 @@ function render(patch){
     else { if(!beepTimer) startBeepLoop(); const pr=alarmPriority(); if(pr) startAlarm(pr); else stopAlarm(); }
   }
   if(ROLE==="instructor"||ROLE==="both"){
-    $("ist-rh").textContent=rh.label;$("ist-rh").style.color=rh.color;
-    $("ist-hr").textContent=`● ${flat?"---":ST.hr} bpm`;
+    $("ist-rh").textContent=rhLabel(rh);$("ist-rh").style.color=rh.color;
+    $("ist-hr").textContent=`${flat?"---":ST.hr} bpm`;
     $("ist-sp").textContent=`SpO₂ ${!ST.spo2?"---":ST.spo2}%`;
     $("ist-bp").textContent=`PA ${!ST.sbp?"---":ST.sbp}/${!ST.dbp?"---":ST.dbp}`;
     $("dhr").textContent=ST.hr;$("dsp").textContent=ST.spo2;
@@ -792,8 +866,8 @@ function render(patch){
     $("shr").value=ST.hr;$("ssp").value=ST.spo2;
     $("srr").value=ST.rr;$("stm").value=ST.temp;
     $("isbp").value=ST.sbp;$("idbp").value=ST.dbp;
-    $("bfrz").textContent=ST.frozen?"▶ Retomar":"⏸ Congelar";$("bfrz").className="ib"+(ST.frozen?" af":"");
-    $("balm").textContent=ST.alarms?"🔔 Alarmes":"🔕 Silenciado";$("balm").className="ib"+(ST.alarms?"":" aa");
+    $("bfrz").innerHTML=ic(ST.frozen?"play":"pause");$("bfrz").title=ST.frozen?"Retomar o monitor":"Congelar o monitor";$("bfrz").className="ibi"+(ST.frozen?" af":"");
+    $("balm").innerHTML=ic(ST.alarms?"bell":"belloff");$("balm").title=ST.alarms?"Alarmes ligados (clique para desligar)":"Alarmes desligados (clique para ligar)";$("balm").className="ibi"+(ST.alarms?"":" aa");
     $("sjson").textContent=JSON.stringify({ritmo:ST.rhythm,fc:ST.hr,spo2:ST.spo2,pa:`${ST.sbp}/${ST.dbp}`,fr:ST.rr,temp:ST.temp},null,2);
     buildRh();
   }
@@ -815,7 +889,7 @@ function pniStart(){
   const t=setInterval(()=>{
     if(!down&&cuff>=top)down=true;cuff=down?cuff-6:cuff+12;
     $("vbp").textContent=`${Math.max(0,cuff)}`;$("vpni").textContent="Manguito";
-    if(down&&cuff<=Math.max(30,(ST.dbp||60)-15)){clearInterval(t);pniBusy=false;pniLast="";pniShow();b.disabled=false;b.textContent="▶ Iniciar PNI";
+    if(down&&cuff<=Math.max(30,(ST.dbp||60)-15)){clearInterval(t);pniBusy=false;pniLast="";pniShow();b.disabled=false;b.textContent="Iniciar PNI";
       try{tone(1319,.12,.18);setTimeout(()=>tone(1319,.12,.18),180);}catch(e){}}
   },110);
 }
@@ -824,7 +898,7 @@ function silShow(){
   const e=$("msil");if(!e)return;
   if(ST.alarms){e.style.display="none";return;}
   const left=ST.silUntil?Math.max(0,Math.round((ST.silUntil-Date.now())/1000)):0;
-  e.textContent=left?`🔕 Alarmes pausados ${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}`:"🔕 Alarmes desligados";e.style.display="inline";
+  e.innerHTML=ic("belloff")+(left?`Alarmes pausados ${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}`:"Alarmes desligados");e.style.display="inline-flex";
 }
 setInterval(()=>{if(ROLE==="monitor"||ROLE==="both")silShow();},1000);
 
@@ -969,20 +1043,20 @@ function apSc(s){push({...s});}
 function onSl(k,v){push({[k]:parseFloat(v)});}
 function onBP(k,v){push({[k]:parseInt(v)||0});}
 function togFreeze(){push({frozen:!ST.frozen});}
-document.addEventListener("DOMContentLoaded",()=>{const ps=$("psel");const pv=$("pvol");if(pv)pv.value=PULSE_VOL;if(ps){ps.innerHTML=Object.entries(PULSE_SOUNDS).map(([k,v])=>`<option value="${k}" ${k===PULSE_KIND?"selected":""}>${v.label}</option>`).join("");}});
-function togAlarms(){clearTimeout(window._silT);clearInterval(window._silI);$("bsil").textContent="🔕 2 min";push({alarms:!ST.alarms,silUntil:0});}
+document.addEventListener("DOMContentLoaded",()=>{pfName();const ps=$("psel");const pv=$("pvol");if(pv)pv.value=PULSE_VOL;if(ps){ps.innerHTML=Object.entries(PULSE_SOUNDS).map(([k,v])=>`<option value="${k}" ${k===PULSE_KIND?"selected":""}>${v.label}</option>`).join("");}});
+function togAlarms(){clearTimeout(window._silT);clearInterval(window._silI);$("bsilt").textContent="2 min";$("bsil").classList.remove("af");push({alarms:!ST.alarms,silUntil:0});}
 // silenciar alarmes por 2 minutos (pausa de áudio, como no equipamento); o bipe do pulso continua
 function silence2(){
   clearTimeout(window._silT);clearInterval(window._silI);push({alarms:false,silUntil:Date.now()+120000});let left=120;
-  const b=$("bsil");b.textContent="🔕 2:00";
-  window._silI=setInterval(()=>{left--;b.textContent=`🔕 ${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}`;},1000);
-  window._silT=setTimeout(()=>{clearInterval(window._silI);b.textContent="🔕 2 min";push({alarms:true,silUntil:0});},120000);
+  const b=$("bsilt");b.textContent="2:00";$("bsil").classList.add("af");
+  window._silI=setInterval(()=>{left--;b.textContent=`${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}`;},1000);
+  window._silT=setTimeout(()=>{clearInterval(window._silI);b.textContent="2 min";$("bsil").classList.remove("af");push({alarms:true,silUntil:0});},120000);
 }
 function trigPCR(){push({rhythm:"asystole",hr:0,spo2:0,rr:0,sbp:0,dbp:0});}
 
 function buildSc(){
   const g=$("scg");g.innerHTML="";
-  SCENARIOS.forEach(s=>{const b=document.createElement("button");b.className="scb";b.textContent=s.label;b.onclick=()=>apSc(s);g.appendChild(b);});
+  SCENARIOS.forEach(s=>{const b=document.createElement("button");b.className="scb sev-"+(s.sev||"g");b.textContent=s.label;b.onclick=()=>apSc(s);g.appendChild(b);});
 }
 function buildRh(){
   const g=$("rhg");g.innerHTML="";
@@ -1070,7 +1144,7 @@ function renderEngLive(){
     const left=Math.max(0,t.duration-(ENG.t-t.t0));
     return `<span class="chip">${P[k].label} → ${t.to} (${SimEngine.fmtClock(left)})</span>`;}).join("")
     +(st&&st.timeout&&!ENG.finished?`<span class="chip">tempo-limite do estado: ${SimEngine.fmtClock(st.timeout.after-ENG.stateElapsed)}</span>`:"");
-  $("bstart").textContent=ENG.started&&!ENG.finished?"▶ Retomar":"▶ Iniciar";
+  $("bstart").innerHTML=ic("play")+(ENG.started&&!ENG.finished?"Retomar":"Iniciar");
   $("bstart").disabled=ENG.running||ENG.finished;$("bpause").disabled=!ENG.running;
 }
 function renderEng(){
