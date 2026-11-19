@@ -860,7 +860,7 @@
       $$("#role option").forEach((o) => { o.disabled = !allowed(o.value); o.hidden = !allowed(o.value); });
       $("#role").disabled = !canSwitch();
       { const fixed = !canSwitch(), rl = $("#role") && $("#role").closest("label"), mw = $("#me-wrap");
-        if (rl) { rl.hidden = fixed; rl.style.display = fixed ? "none" : ""; } if (fixed && mw) mw.style.display = "none"; }
+        if (rl) { rl.hidden = fixed; rl.style.display = fixed ? "none" : ""; } const tb = $(".work > .toolbar"); if (tb) tb.style.display = fixed ? "none" : ""; if (fixed && mw) mw.style.display = "none"; }
       if (UI.role === AU.user.role) {
         let p = DB.people.find((x) => (x.email || "").toLowerCase() === AU.user.email);
         if (!p) { p = { id: C.uid("p"), name: AU.user.name, email: AU.user.email, role: AU.user.role }; DB.people.push(p); save(); }
