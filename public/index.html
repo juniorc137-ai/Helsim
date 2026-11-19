@@ -210,7 +210,9 @@ body.combo #s2 .tab{padding:8px 2px;font-size:12px}
 body.combo.pmin #s2{height:auto!important;resize:none}
 body.combo.pmin #s2 .cbar,body.combo.pmin #s2 .tabs,body.combo.pmin #s2 .body{display:none}
 body.combo.phide #s2{display:none!important}
-#pshow{position:fixed;right:14px;bottom:14px;z-index:21;display:none;background:var(--h-accent);color:#fff;border:0;border-radius:999px;padding:10px 16px;font:600 13px var(--f-sans);cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+#pshow{position:fixed;right:14px;bottom:14px;z-index:21;display:none;background:var(--h-accent);color:#fff;border:0;border-radius:999px;padding:10px 16px;font:600 13px var(--f-sans);cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.35);opacity:.35;transition:opacity .2s}
+#pshow:hover,#pshow:focus-visible{opacity:1}
+@media (hover:none){#pshow{opacity:.8}}
 body.combo.phide #pshow{display:block}
 </style>
 </head>
@@ -285,7 +287,7 @@ body.combo.phide #pshow{display:block}
   </div>
 </div>
 
-<button id="pshow" onclick="panelHide(false)">Mostrar controle (H)</button>
+<button id="pshow" onclick="panelHide(false)" title="Mostrar o controle (tecla H)">👁 Mostrar controle</button>
 <!-- INSTRUCTOR -->
 <div id="s2" class="scr">
   <div class="ihdr">
@@ -306,7 +308,7 @@ body.combo.phide #pshow{display:block}
       <button class="ib" id="balm" onclick="togAlarms()">🔔 Alarmes</button>
       <button class="ib" id="bsil" onclick="silence2()" title="Silenciar os alarmes por 2 minutos">🔕 2 min</button>
       <button class="ib only-combo" onclick="panelMin()" title="Recolher ou expandir o controle">▁</button>
-      <button class="ib only-combo" onclick="panelHide(true)" title="Esconder o controle (tecla H)">Esconder</button>
+      <button class="ib only-combo" onclick="panelHide(true)" title="Esconder o controle (tecla H)">🙈 Esconder controle</button>
     </div>
   </div>
   <div class="cbar">
@@ -803,10 +805,10 @@ function panelRestore(){
   const p=$("s2"),o=pGet();
   if(o.w)p.style.width=Math.min(o.w,innerWidth-16)+"px";if(o.h)p.style.height=Math.min(o.h,innerHeight-16)+"px";
   p.style.left=(o.x!=null?o.x:Math.max(8,innerWidth-(o.w||420)-16))+"px";p.style.top=(o.y!=null?o.y:56)+"px";
-  document.body.classList.toggle("pmin",!!o.min);document.body.classList.remove("phide");pClamp();
+  document.body.classList.toggle("pmin",!!o.min);document.body.classList.toggle("phide",!!o.hide);pClamp();
 }
 function panelMin(){const m=!document.body.classList.contains("pmin");document.body.classList.toggle("pmin",m);pSet({min:m});pClamp();}
-function panelHide(h){document.body.classList.toggle("phide",h);}
+function panelHide(h){document.body.classList.toggle("phide",h);pSet({hide:!!h});}
 (function(){
   let d=null;
   document.addEventListener("pointerdown",e=>{
