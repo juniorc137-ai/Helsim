@@ -228,7 +228,13 @@ pre{font-size:11px;color:#8b949e;white-space:pre-wrap;font-family:monospace}
 .ico{width:16px;height:16px;flex-shrink:0;vertical-align:-3px}
 .ib{display:inline-flex;align-items:center;gap:6px;border-radius:6px;padding:6px 10px;font-size:12.5px}
 .ib.danger{color:var(--h-bad);border-color:color-mix(in srgb,var(--h-bad) 45%,var(--h-line))}
-.ihdr{padding:8px 10px;gap:8px;flex-wrap:nowrap}
+.ihdr{padding:8px 10px;gap:8px;flex-wrap:wrap;row-gap:8px}
+.iact{margin-left:auto}#bsil{white-space:nowrap}
+.tl{display:inline-flex;gap:8px;margin-right:4px;align-items:center}
+.tlb{width:13px;height:13px;border-radius:50%;border:0;padding:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.25)}
+.tlb svg{width:9px;height:9px;fill:none;stroke:rgba(0,0,0,.6);stroke-width:1.4;stroke-linecap:round;opacity:0}
+.tl:hover .tlb svg,.tlb:focus-visible svg{opacity:1}
+.tl-r{background:#FF5F57}.tl-y{background:#FEBC2E}.tl-g{background:#28C840}
 .il{min-width:0;gap:8px}
 .rb{white-space:nowrap;padding:3px 9px;font-size:12px;letter-spacing:.12em;border-radius:6px}
 .iact{flex-wrap:nowrap;gap:4px;align-items:center}
@@ -367,6 +373,7 @@ body.combo.phide #pshow{display:inline-flex}
 <div id="s2" class="scr">
   <div class="ihdr">
     <div class="il">
+      <span class="tl only-combo"><button class="tlb tl-r" onclick="panelHide(true)" title="Ocultar o controle (tecla H)" aria-label="Ocultar"><svg viewBox="0 0 10 10"><path d="M3 3l4 4M7 3l-4 4"/></svg></button><button class="tlb tl-y" onclick="panelMin()" title="Minimizar o controle" aria-label="Minimizar"><svg viewBox="0 0 10 10"><path d="M2.5 5h5"/></svg></button><button class="tlb tl-g" onclick="panelMax()" title="Expandir ou restaurar o tamanho" aria-label="Expandir"><svg viewBox="0 0 10 10"><path d="M3 6.5V3h3.5M7 3.5V7H3.5"/></svg></button></span>
       <span class="hs-mini only-combo"><i></i><span>HEL<span class="sim">SIM</span></span></span>
       <span class="rb" id="irl">SALA ----</span>
       <span class="dot" id="idot"></span>
@@ -381,9 +388,6 @@ body.combo.phide #pshow{display:inline-flex}
       <button class="ibi" id="bfrz" onclick="togFreeze()" title="Congelar o monitor"><i data-i="pause"></i></button>
       <button class="ibi" id="balm" onclick="togAlarms()" title="Alarmes ligados (clique para desligar)"><i data-i="bell"></i></button>
       <button class="ibi wide" id="bsil" onclick="silence2()" title="Pausar o som dos alarmes por 2 minutos"><i data-i="timer"></i><span id="bsilt">2 min</span></button>
-      <span class="isep only-combo"></span>
-      <button class="ibi only-combo" onclick="panelMin()" title="Recolher ou expandir o controle"><i data-i="min"></i></button>
-      <button class="ibi only-combo" onclick="panelHide(true)" title="Esconder o controle (tecla H)"><i data-i="eyeoff"></i></button>
       <button class="ibi" onclick="goBack()" title="Sair da sala"><i data-i="exit"></i></button>
     </div>
   </div>
@@ -1016,6 +1020,11 @@ function panelRestore(){
   document.body.classList.toggle("pmin",!!o.min);document.body.classList.toggle("phide",!!o.hide);pClamp();
 }
 function panelMin(){const m=!document.body.classList.contains("pmin");document.body.classList.toggle("pmin",m);pSet({min:m});pClamp();}
+function panelMax(){const p=$("s2"),o=pGet();
+  if(o.max){p.style.width=(o.pw||420)+"px";p.style.height=(o.ph||Math.round(innerHeight*.76))+"px";pSet({max:false});}
+  else{const r=p.getBoundingClientRect();pSet({max:true,pw:Math.round(r.width),ph:Math.round(r.height)});document.body.classList.remove("pmin");pSet({min:false});
+    p.style.top="8px";p.style.height=(innerHeight-16)+"px";p.style.width=Math.min(Math.max(r.width,520),innerWidth-16)+"px";}
+  pClamp();}
 function panelHide(h){document.body.classList.toggle("phide",h);pSet({hide:!!h});}
 (function(){
   let d=null;
