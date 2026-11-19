@@ -1607,9 +1607,41 @@ function printSession(s) {
 }
 
 // ═════════════════════════════ RELATÓRIOS ═════════════════════════════════
+// docentes de uma sessão: quem a criou (se for docente) ou, sem isso, os docentes do curso
+function sessionTeachers(s) {
+  const own = s.ownerEmail ? DB.people.find((p) => (p.email || "").toLowerCase() === s.ownerEmail) : s.ownerId ? byId("people", s.ownerId) : null;
+  if (own && own.role === "docente") return [own.id];
+  return ((byId("courses", s.courseId) || {}).facultyIds || []).filter((id) => (byId("people", id) || {}).role === "docente");
+}
+// sessões do relatório: as que o perfil pode ver, filtradas por turma, estudante e (admin) docente
+function repSessions() {
+  return visibleSessions().filter((s) => (!UI.repCourse || s.courseId === UI.repCourse) && (!UI.repStudent || (s.participantIds || []).includes(UI.repStudent))
+    && (!isAdm() || !UI.repTeacher || sessionTeachers(s).includes(UI.repTeacher)));
+}
+function teacherReport(ses) {
+  const rows = new Map();
+  for (const s of ses) for (const t of sessionTeachers(s)) {
+    if (!rows.has(t)) rows.set(t, { id: t, sessions: 0, hours: 0, students: new Set(), scores: [] });
+    const row = rows.get(t); row.sessions++; row.hours += (s.duration || 0) / 3600; (s.participantIds || []).forEach((x) => row.students.add(x));
+    for (const r of s.results || []) { const ev = byId("evaluations", r.evaluationId); if (!ev) continue; const sc = C.scoreEvaluation(ev, r.answers); if (sc.pct !== null) row.scores.push(sc.pct); }
+  }
+  return [...rows.values()].map((r) => ({ ...r, name: nameOf("people", r.id), students: r.students.size, mean: r.scores.length ? Math.round((r.scores.reduce((a, b) => a + b, 0) / r.scores.length) * 10) / 10 : null }))
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+}
 R.relatorios = () => {
-  const ses = visibleSessions().filter((s) => !UI.repCourse || s.courseId === UI.repCourse);
-  const u = C.usageReport(ses), lr = C.learnerReport(ses, DB.evaluations, DB.people), ar = C.annotationReport(ses);
+  const base = visibleSessions();
+  const courses = isAdm() ? DB.courses : DB.courses.filter((c) => base.some((s) => s.courseId === c.id));
+  if (UI.repCourse && !courses.some((c) => c.id === UI.repCourse)) UI.repCourse = "";
+  const stuIds = new Set(base.filter((s) => !UI.repCourse || s.courseId === UI.repCourse).flatMap((s) => s.participantIds || []));
+  const students = DB.people.filter((p) => stuIds.has(p.id)).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  if (UI.repStudent && !stuIds.has(UI.repStudent)) UI.repStudent = "";
+  const teachers = isAdm() ? DB.people.filter((p) => p.role === "docente").sort((a, b) => a.name.localeCompare(b.name, "pt-BR")) : [];
+  const ses = repSessions();
+  const u = C.usageReport(ses), lr = C.learnerReport(ses, DB.evaluations, DB.people).filter((r) => !UI.repStudent || r.personId === UI.repStudent), ar = C.annotationReport(ses);
+  const tr = isAdm() ? teacherReport(ses) : [];
+  const stuRows = UI.repStudent ? ses.flatMap((s) => (s.results || []).filter((r) => r.subjectId === UI.repStudent || r.subjectId === "equipe").map((r) => {
+    const ev = byId("evaluations", r.evaluationId); const sc = ev ? C.scoreEvaluation(ev, r.answers) : null;
+    return { s, ev, sc, team: r.subjectId === "equipe" }; })).sort((a, b) => b.s.startedAt - a.s.startedAt) : [];
   const ev = visibleEvals().find((x) => x.id === UI.repEval) || visibleEvals()[0];
   let items = "";
   if (ev) {
@@ -1619,12 +1651,19 @@ R.relatorios = () => {
       const pct = vals.length && m ? Math.round((vals.reduce((a, b) => a + b, 0) / (vals.length * m)) * 100) : null;
       return `<tr><td>${esc(it.text)}${it.critical ? ` <span class="tag bad">crítico</span>` : ""}</td><td>${esc(ITEM_KINDS[it.kind])}</td><td>${vals.length}</td><td style="min-width:150px">${pct === null ? "—" : `<div class="bars"><div class="b" style="grid-template-columns:1fr 50px;margin:0"><div class="t"><i style="width:${pct}%;background:${pct < 60 ? "var(--bad)" : pct < 80 ? "var(--warn)" : "var(--acc)"}"></i></div><span class="v">${pct}%</span></div></div>`}</td></tr>`; }).join("")}</table></div>`;
   }
-  return `<div class="between"><h1 style="margin:0">Relatórios</h1><div class="row"><select data-change="rep-course">${opt("", "Todos os cursos", UI.repCourse)}${DB.courses.map((c) => opt(c.id, c.title, UI.repCourse)).join("")}</select>
+  return `<div class="between"><h1 style="margin:0">Relatórios</h1><div class="row">${isAdm() ? `<select data-change="rep-teacher" aria-label="Docente">${opt("", "Todos os docentes", UI.repTeacher)}${teachers.map((p) => opt(p.id, p.name, UI.repTeacher)).join("")}</select>` : ""}<select data-change="rep-course" aria-label="Turma">${opt("", isAdm() ? "Todas as turmas" : "Todas as minhas turmas", UI.repCourse)}${courses.map((c) => opt(c.id, c.title, UI.repCourse)).join("")}</select>
+    <select data-change="rep-student" aria-label="Estudante">${opt("", "Todos os estudantes", UI.repStudent)}${students.map((p) => opt(p.id, p.name, UI.repStudent)).join("")}</select>
     <button class="btn" data-act="rep-usage">Uso (CSV)</button><button class="btn" data-act="rep-learners">Desempenho (CSV)</button><button class="btn" data-act="rep-results">Resultados detalhados (CSV)</button></div></div>
+  ${isAdm() ? "" : `<p class="muted small">Relatório das suas aulas e simulações. Filtre por turma ou por estudante.</p>`}
   <div class="kpis">${kpi("Sessões", u.sessions)}${kpi("Horas de simulação", fmtH(u.hours))}${kpi("Horas-participante", fmtH(u.personHours))}${kpi("Estudantes avaliados", lr.length)}</div>
   <div class="cols3"><section class="card"><h2>Horas por sala</h2>${bars(u.location, (k) => nameOf("locations", k), fmtH)}</section>
     <section class="card"><h2>Horas por curso</h2>${bars(u.course, (k) => nameOf("courses", k), fmtH)}</section>
     <section class="card"><h2>Horas por mês</h2>${bars(u.month, (k) => k, fmtH)}</section></div>
+  ${isAdm() ? `<section class="card"><h2>Relatório por docente</h2>${tr.length ? `<div class="tbl"><table><tr><th>Docente</th><th>Sessões</th><th>Horas de simulação</th><th>Estudantes</th><th>Média das avaliações (%)</th><th></th></tr>
+    ${tr.map((r) => `<tr><td>${esc(r.name)}</td><td>${r.sessions}</td><td>${fmtH(r.hours)}</td><td>${r.students}</td><td>${r.mean === null ? "—" : `<b>${r.mean}</b>`}</td><td><button class="btn sm" data-act="rep-pick-teacher" data-id="${r.id}">Ver só este docente</button></td></tr>`).join("")}</table></div>` : `<div class="empty">Nenhuma sessão com docente identificado</div>`}
+    <p class="muted small" style="margin-top:6px">A sessão conta para quem a criou; sessões criadas pelo administrador contam para os docentes do curso.</p></section>` : ""}
+  ${UI.repStudent ? `<section class="card"><h2>Histórico de ${esc(nameOf("people", UI.repStudent))}</h2>${stuRows.length ? `<div class="tbl"><table><tr><th>Data</th><th>Sessão</th><th>Turma</th><th>Instrumento</th><th>Resultado (%)</th><th>Item crítico</th></tr>
+    ${stuRows.map((x) => `<tr><td>${fmtDate(x.s.startedAt)}</td><td>${esc(x.s.title)}</td><td>${esc(nameOf("courses", x.s.courseId))}</td><td>${esc(x.ev ? x.ev.title : "—")}${x.team ? ' <span class="tag">equipe</span>' : ""}</td><td><b>${x.sc && x.sc.pct !== null ? x.sc.pct : "—"}</b></td><td>${x.sc && x.sc.criticalMissed.length ? `<span class="tag bad">${x.sc.criticalMissed.length}</span>` : "0"}</td></tr>`).join("")}</table></div>` : `<div class="empty">Sem avaliações registradas para este estudante</div>`}</section>` : ""}
   <section class="card"><h2>Desempenho por estudante</h2>${lr.length ? `<div class="tbl"><table><tr><th>Estudante</th><th>Sessões</th><th>Avaliações</th><th>Média (%)</th><th>Mínimo (%)</th><th>Com item crítico</th></tr>
     ${lr.map((r) => `<tr><td>${esc(r.name)}</td><td>${r.sessions}</td><td>${r.evaluations}</td><td><b>${r.mean}</b></td><td>${r.min}</td><td>${r.critical ? `<span class="tag bad">${r.critical}</span>` : "0"}</td></tr>`).join("")}</table></div>` : `<div class="empty">Sem avaliações pontuadas</div>`}
     <p class="muted small" style="margin-top:6px">Avaliações de equipe são atribuídas a todos os participantes da sessão.</p></section>
@@ -1885,12 +1924,13 @@ const ACT = {
       <div class="f"><span>Participantes</span><div class="checks">${DB.people.filter((p) => p.role === "estudante" || p.role === "pe").map((p) => `<label><input type="checkbox" name="pids" value="${p.id}" ${(s.participantIds || []).includes(p.id) ? "checked" : ""}> ${esc(p.name)}</label>`).join("")}</div></div>`,
       { onSubmit: (fd) => { Object.assign(s, { title: fd.get("title").trim() || s.title, courseId: fd.get("courseId"), scenarioId: fd.get("scenarioId"), locationId: fd.get("locationId"), participantIds: fd.getAll("pids") }); save(); render(); } }); },
   // relatórios
-  "rep-usage": () => { const ses = visibleSessions().filter((s) => !UI.repCourse || s.courseId === UI.repCourse);
+  "rep-pick-teacher": (b) => { UI.repTeacher = b.dataset.id; render(); },
+  "rep-usage": () => { const ses = repSessions();
     download("uso-simulacao.csv", C.toCSV(ses.map((s) => ({ data: fmtDT(s.startedAt), titulo: s.title, curso: nameOf("courses", s.courseId), cenario: nameOf("scenarios", s.scenarioId), sala: nameOf("locations", s.locationId), duracao_min: (s.duration / 60).toFixed(1), participantes: (s.participantIds || []).length, horas_participante: ((s.duration / 3600) * (s.participantIds || []).length).toFixed(2), anotacoes: (s.annotations || []).filter((a) => a.source !== "simulador").length, avaliacoes: (s.results || []).length }))), "text/csv;charset=utf-8"); },
-  "rep-learners": () => { const ses = visibleSessions().filter((s) => !UI.repCourse || s.courseId === UI.repCourse);
+  "rep-learners": () => { const ses = repSessions();
     download("desempenho-estudantes.csv", C.toCSV(C.learnerReport(ses, DB.evaluations, DB.people).map((r) => ({ estudante: r.name, email: (byId("people", r.personId) || {}).email || "", sessoes: r.sessions, avaliacoes: r.evaluations, media_pct: r.mean, minimo_pct: r.min, com_item_critico: r.critical }))), "text/csv;charset=utf-8"); },
   "rep-results": () => { const rows = [];
-    for (const s of visibleSessions().filter((x) => !UI.repCourse || x.courseId === UI.repCourse)) for (const r of s.results || []) { const ev = byId("evaluations", r.evaluationId); if (!ev) continue; const sc = C.scoreEvaluation(ev, r.answers);
+    for (const s of repSessions()) for (const r of s.results || []) { if (UI.repStudent && r.subjectId !== UI.repStudent && r.subjectId !== "equipe") continue; const ev = byId("evaluations", r.evaluationId); if (!ev) continue; const sc = C.scoreEvaluation(ev, r.answers);
       rows.push({ sessao: s.title, data: fmtDT(s.startedAt), instrumento: ev.title, tipo: ev.type, avaliado: r.subjectId === "equipe" ? "Equipe" : nameOf("people", r.subjectId), email: (byId("people", r.subjectId) || {}).email || "", avaliador: r.evaluator || "", pontos: sc.points, maximo: sc.max, pct: sc.pct ?? "", criticos_nao_cumpridos: sc.criticalMissed.join(" | ") }); }
     download("resultados-avaliacoes.csv", C.toCSV(rows), "text/csv;charset=utf-8"); },
   // configurações
@@ -1932,6 +1972,8 @@ const CHG = {
   "pb-rate": (el) => { if (PB) { PB.rate = +el.value; syncVideos(true); } },
   "pb-layout": (el) => { UI.layout = el.value; savePrefs(); const p = $("#player"); p.className = p.className.replace(/lay-\w+/, "lay-" + UI.layout); },
   "rep-course": (el) => { UI.repCourse = el.value; render(); },
+  "rep-student": (el) => { UI.repStudent = el.value; render(); },
+  "rep-teacher": (el) => { UI.repTeacher = el.value; render(); },
   "rep-eval": (el) => { UI.repEval = el.value; render(); },
   "set": (el) => { DB.settings[el.name] = el.type === "number" ? +el.value || 0 : el.value.trim(); save(); },
   "pm-role": (el) => { const t = $("#pm-tab-a"); if (t) t.hidden = el.value !== "docente"; },
