@@ -157,8 +157,10 @@
     ICO.prontuario = '<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 3v3h6V3"/><path d="M12 10v6M9 13h6"/>';
     ICO.almox = '<path d="M3 21V7l9-4 9 4v14"/><path d="M7 21v-8h10v8"/><path d="M7 17h10"/>';
     ICO.salas = '<rect x="3" y="4" width="8" height="7" rx="1"/><rect x="13" y="4" width="8" height="7" rx="1"/><rect x="3" y="13" width="8" height="7" rx="1"/><rect x="13" y="13" width="8" height="7" rx="1"/>';
-    NAV.splice(NAV.length - 1, 0, ["Laboratório · restrito", [["prontuario", "Prontuário eletrônico", ["admin"]], ["almox", "Almoxarifado", ["admin"]], ["salas", "Ocupação das salas", ["admin"]]]]);
-    Object.assign(VIEW_LABEL, { prontuario: "Prontuário eletrônico", almox: "Almoxarifado (Helse Log)", salas: "Ocupação das salas" });
+    NAV.splice(NAV.length - 1, 0, ["Laboratório · restrito", [["prontuario", "Prontuário eletrônico", ["admin"]], ["simclin", "Monitor SimClin", ["admin"]], ["almox", "Almoxarifado", ["admin"]], ["salas", "Ocupação das salas", ["admin"]]]]);
+    NAV[0][1].push(["simclin", "Monitor SimClin", ["docente"]]);
+    ICO.simclin = '<rect x="2" y="4" width="20" height="14" rx="2"/><path d="M5 12h3l2-4 3 7 2-3h4"/><path d="M8 21h8"/>';
+    Object.assign(VIEW_LABEL, { simclin: "Monitor SimClin", prontuario: "Prontuário eletrônico", almox: "Almoxarifado (Helse Log)", salas: "Ocupação das salas" });
     root.HC_NAV_BADGE = {
       almox: () => { if (!isAdmin()) return ""; const n = (DB.stock || []).filter((i) => i.stock < i.min).length; return n ? `<span class="badge" title="Itens com estoque crítico">${n}</span>` : ""; },
     };
@@ -880,7 +882,7 @@
     function screen(mode, msg = "", email = "") {
       if (!box) { box = document.createElement("div"); box.id = "auth"; document.body.appendChild(box); }
       box.hidden = false;
-      const head = `<div class="au-logo"><span class="tb-logo"></span><b>HELSIM</b></div>`;
+      const head = `<div class="au-logo"><span class="tb-logo"></span><b>HEL<span class="sim">SIM</span></b></div>`;
       const err = msg ? `<div class="au-msg ${/enviad|chegar|criad/i.test(msg) ? "ok" : ""}" role="alert">${esc(msg)}</div>` : "";
       const forms = {
         login: `<h2>Entrar</h2>${err}<form data-au="login"><label class="f"><span>E-mail</span><input name="email" type="email" autocomplete="username" required value="${esc(email)}"></label>

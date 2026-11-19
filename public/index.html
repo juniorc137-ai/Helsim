@@ -696,6 +696,10 @@ function enter(role){
   }
 }
 
+// dentro do HELSIM (iframe) o atalho para o HELSIM não faz sentido
+try{if(window.self!==window.top)document.addEventListener("DOMContentLoaded",()=>{const c=document.querySelector("a.lb.cap");if(c)c.style.display="none";});}catch(e){}
+// aberto pelo HELSIM: ?sala=1234 preenche o código; &papel=instrutor já entra como instrutor
+(function(){try{const q=new URLSearchParams(location.search),s=q.get("sala");if(s&&/^\d{4}$/.test(s)){const go=()=>{$("ri").value=s;if(q.get("papel")==="instrutor")enter("instructor");};if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",go);else setTimeout(go,0);}}catch(e){}})();
 function goBack(){
   if(raf){cancelAnimationFrame(raf);raf=null;}
   stopBeepLoop(); stopAlarm(); stopEngTimer();
