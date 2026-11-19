@@ -1090,7 +1090,7 @@
     // Configurações › Usuários e acesso (administrador)
     const origConfig = R.config, origAfter = AFTER.config;
     R.config = () => origConfig() + (AU.on && AU.user && AU.user.role === "admin" && UI.role === "admin"
-      ? `<section class="card"><div class="between"><h2 style="margin:0">Usuários e acesso</h2><span class="row" style="gap:6px"><button class="btn" data-act="au-testmail">Testar e-mail</button><button class="btn primary" data-act="au-new">+ Usuário</button></span></div><div id="au-users" class="muted">Carregando…</div>
+      ? `<section class="card"><div class="between"><h2 style="margin:0">Usuários e acesso</h2><span class="row" style="gap:6px"><button class="btn" data-act="au-testmail">Testar e-mail</button><button class="btn" data-act="au-tempnew">+ Acesso temporário</button><button class="btn primary" data-act="au-new">+ Usuário</button></span></div><div id="au-users" class="muted">Carregando…</div>
         <p class="muted small" style="margin-top:8px">Novos cadastros entram como estudante; promova docentes aqui. “Nova senha” envia outra senha temporária e obriga a troca no próximo acesso. E-mail: ${AU.mail === "smtp" ? "SMTP configurado" : "modo de teste (data/outbox)"}.</p></section>`
       : `<section class="card"><h2>Modo de senhas</h2><p class="muted">${AU.on ? "Ativo. Você entrou como " + esc(AU.user ? AU.user.name : "") + "." : "Disponível quando o HELSIM roda pelo servidor (<code>npm start</code>): cadastro por e-mail, senha temporária enviada ao e-mail e troca obrigatória no primeiro acesso. Neste arquivo/link a troca de perfil continua livre."}</p></section>`);
     // pedidos de perfil docente ficam nas contas (fora do banco): o administrador consulta ao entrar e a cada minuto
@@ -1110,7 +1110,7 @@
         const { users } = await api("/users"); setPendDoc(users);
         el.className = ""; el.innerHTML = `<div class="tbl"><table><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Situação</th><th>Último acesso</th><th></th></tr>${users.map((u) => `<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td>
           <td><select data-au-role="${u.id}" ${u.id === AU.user.id ? "disabled" : ""}>${Object.keys(RANK).reverse().map((r) => opt(r, ROLES[r], u.role)).join("")}</select></td>
-          <td>${u.mustChange ? '<span class="tag warn">aguardando troca de senha</span>' : '<span class="tag ok">ativo</span>'}${u.requestedRole === "docente" ? ` <span class="tag warn">pediu perfil docente</span> <button class="btn sm primary" data-act="au-approve" data-id="${u.id}" data-email="${esc(u.email)}" data-name="${esc(u.name)}">Aprovar docente</button> <button class="btn sm" data-act="au-deny" data-id="${u.id}">Recusar</button>` : ""}</td><td class="small">${u.lastLogin ? esc(fmtDT(u.lastLogin)) : "—"}</td>
+          <td>${u.accessUntil ? (u.accessUntil > Date.now() ? `<span class="tag warn">temporário até ${esc(fmtDT(u.accessUntil))}</span>` : '<span class="tag bad">acesso expirado</span>') : u.mustChange ? '<span class="tag warn">aguardando troca de senha</span>' : '<span class="tag ok">ativo</span>'}${u.requestedRole === "docente" ? ` <span class="tag warn">pediu perfil docente</span> <button class="btn sm primary" data-act="au-approve" data-id="${u.id}" data-email="${esc(u.email)}" data-name="${esc(u.name)}">Aprovar docente</button> <button class="btn sm" data-act="au-deny" data-id="${u.id}">Recusar</button>` : ""}</td><td class="small">${u.lastLogin ? esc(fmtDT(u.lastLogin)) : "—"}</td>
           <td class="row" style="gap:4px">${u.role === "docente" ? `<button class="btn sm" data-act="au-areas" data-email="${esc(u.email)}" data-name="${esc(u.name)}">Áreas</button>` : ""}<button class="btn sm" data-act="au-reset" data-id="${u.id}">Nova senha</button>${u.id === AU.user.id ? "" : `<button class="btn sm" data-act="au-del" data-id="${u.id}">Excluir</button>`}</td></tr>`).join("")}</table></div>`;
         $$("[data-au-role]", el).forEach((s) => { s.onchange = async () => { try { await api(`/users/${s.dataset.auRole}/role`, { role: s.value }); toast("Perfil atualizado."); } catch (e) { toast(e.message); loadUsers(); } }; });
       } catch (e) { el.textContent = e.message; }
@@ -1131,6 +1131,18 @@
         Object.assign(p, { role: body.role, areas: body.role === "docente" ? fd.getAll("areas") : p.areas || [] }); save();
         toast("Usuário cadastrado; senha temporária enviada."); loadUsers();
       } }));
+    // acesso temporário: senha única mostrada uma vez ao administrador, sem troca obrigatória
+    ACT["au-tempnew"] = adminOnly(() => modal("Acesso temporário", `<label class="f"><span>Nome</span><input name="name" required></label><label class="f"><span>E-mail</span><input name="email" type="email" required></label>
+      <div class="row" style="gap:10px"><label class="f" style="flex:1"><span>Perfil</span><select name="role">${opt("estudante", ROLES.estudante)}${opt("docente", ROLES.docente)}${opt("admin", ROLES.admin)}</select></label><label class="f" style="width:140px"><span>Validade (horas)</span><input name="hours" type="number" min="1" max="168" value="48" required></label></div>
+      <p class="muted small">Gera uma senha única, sem troca no primeiro acesso. Ela aparece uma só vez para você repassar; depois do prazo o acesso para de funcionar sozinho.</p>`,
+      { submit: "Gerar acesso", onSubmit: async (fd) => {
+        let j; try { j = await api("/users/temporary", { name: fd.get("name"), email: fd.get("email"), role: fd.get("role"), hours: Number(fd.get("hours")) }); } catch (e) { toast(e.message); return false; }
+        loadUsers();
+        setTimeout(() => modal("Senha do acesso temporário", `<p>E-mail: <b>${esc(j.user.email)}</b><br>Válido até: <b>${esc(fmtDT(j.user.accessUntil))}</b></p>
+          <label class="f"><span>Senha (aparece só agora)</span><input readonly value="${esc(j.password)}" style="font-family:var(--mono,monospace);font-size:18px" onclick="this.select()"></label>
+          <button type="button" class="btn" data-act="au-tempcopy" data-pw="${esc(j.password)}">Copiar senha</button>`, { submit: "Fechar", onSubmit: () => {} }), 0);
+      } }));
+    ACT["au-tempcopy"] = (b) => { navigator.clipboard.writeText(b.dataset.pw).then(() => toast("Senha copiada."), () => toast("Selecione a senha e copie.")); };
     // a escolha do perfil mostra a aba de áreas (no cadastro de usuário e no de pessoa)
     const origPmRole = CHG["pm-role"];
     CHG["pm-role"] = (el) => { const a = $("[data-pm-areas]"); if (a) a.hidden = el.value !== "docente"; if (origPmRole) origPmRole(el); };

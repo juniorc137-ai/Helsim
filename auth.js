@@ -65,11 +65,16 @@ function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, app
     const text = `Olá, ${u.name || u.email}.\n\n${reason === "reset" ? "Foi gerada uma nova senha temporária" : "Seu cadastro no " + appName + " foi criado"}.\n\nE-mail: ${u.email}\nSenha temporária: ${pw}\n\nEla vale por 24 horas e só serve para o primeiro acesso: o sistema vai pedir que você cadastre uma senha definitiva (mínimo de 10 caracteres, com letras e números).${link}\n\nSe você não pediu este acesso, ignore esta mensagem.\n\n${appName} · Helse Solutions`;
     await transport.send({ to: u.email, subject: `${appName}: sua senha temporária`, text });
   }
-  const pub = (u) => ({ id: u.id, email: u.email, name: u.name, role: u.role, requestedRole: u.requestedRole || "", mustChange: !!u.mustChange, createdAt: u.createdAt, lastLogin: u.lastLogin || null, photo: u.photo || "" });
+  const pub = (u) => ({ id: u.id, email: u.email, name: u.name, role: u.role, requestedRole: u.requestedRole || "", mustChange: !!u.mustChange, accessUntil: until(u), createdAt: u.createdAt, lastLogin: u.lastLogin || null, photo: u.photo || "" });
   const find = (email) => db.users.find((u) => u.email === String(email || "").trim().toLowerCase());
+  // acesso temporário: depois de accessUntil a conta não entra mais e as sessões abertas caem
+  // (expiresAt: nome usado por contas temporárias criadas antes desta versão)
+  const until = (u) => (u && (u.accessUntil || u.expiresAt)) || 0;
+  const expired = (u) => !!(until(u) && until(u) <= Date.now());
   function issue(u, scope) {
     const token = crypto.randomBytes(32).toString("base64url");
-    sessions.set(crypto.createHash("sha256").update(token).digest("hex"), { userId: u.id, scope, exp: Date.now() + SESSION_TTL });
+    const exp = Math.min(Date.now() + SESSION_TTL, until(u) || Infinity);
+    sessions.set(crypto.createHash("sha256").update(token).digest("hex"), { userId: u.id, scope, exp });
     return token;
   }
   function session(req) {
@@ -78,6 +83,7 @@ function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, app
     const k = crypto.createHash("sha256").update(t).digest("hex"), s = sessions.get(k);
     if (!s || s.exp < Date.now()) { sessions.delete(k); return null; }
     const u = db.users.find((x) => x.id === s.userId);
+    if (expired(u)) { sessions.delete(k); return null; }
     return u ? { ...s, key: k, user: u } : null;
   }
   function limited(req, max = 5, win = 15 * 60 * 1000, kind = "") {
@@ -114,7 +120,7 @@ function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, app
   r.post("/forgot", async (req, res) => {
     if (limited(req)) return res.status(429).json({ error: "Muitas tentativas. Aguarde 15 minutos." });
     const u = find(req.body.email);
-    if (u) { const pw = setTemp(u); persist(); for (const [k, s] of sessions) if (s.userId === u.id) sessions.delete(k); sendTemp(u, pw, "reset").catch((e) => console.error("[auth] falha ao enviar e-mail:", e.message)); }
+    if (u && !until(u)) { const pw = setTemp(u); persist(); for (const [k, s] of sessions) if (s.userId === u.id) sessions.delete(k); sendTemp(u, pw, "reset").catch((e) => console.error("[auth] falha ao enviar e-mail:", e.message)); }
     res.json({ ok: true, message: GENERIC });
   });
 
@@ -126,6 +132,7 @@ function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, app
     if (!u) { hashPw(pw, "x"); return fail(); }
     if (u.lockedUntil && u.lockedUntil > Date.now()) return fail(`Acesso bloqueado por excesso de tentativas. Tente após ${new Date(u.lockedUntil).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.`);
     if (!checkPw(pw, u)) { u.failed = (u.failed || 0) + 1; if (u.failed >= MAX_FAIL) { u.lockedUntil = Date.now() + LOCK_MS; u.failed = 0; } persist(); return fail(); }
+    if (expired(u)) return fail("Este acesso temporário expirou. Fale com o administrador.");
     if (u.mustChange && u.tempExpires < Date.now()) return fail("A senha temporária expirou. Use “Esqueci minha senha” para receber outra.");
     u.failed = 0; u.lockedUntil = 0; u.lastLogin = Date.now(); persist();
     res.json({ token: issue(u, u.mustChange ? "change" : "full"), user: pub(u) });
@@ -168,7 +175,8 @@ function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, app
   r.post("/users/:id/role", need("admin"), (req, res) => {
     const u = db.users.find((x) => x.id === req.params.id), role = req.body.role;
     if (!u || !ROLES.includes(role)) return res.status(400).json({ error: "Usuário ou perfil inválido." });
-    if (u.role === "admin" && role !== "admin" && db.users.filter((x) => x.role === "admin").length === 1) return res.status(400).json({ error: "O sistema precisa de ao menos um administrador." });
+    if (u.role === "admin" && role !== "admin" && db.users.filter((x) => x.role === "admin" && !until(x)).length <= 1 && !until(u)) return res.status(400).json({ error: "O sistema precisa de ao menos um administrador." });
+    if (role === "admin" && expired(u)) return res.status(400).json({ error: "Este acesso temporário já expirou." });
     u.role = role; if (role === u.requestedRole || role === "admin") delete u.requestedRole; persist(); res.json({ user: pub(u) });
   });
   r.post("/users/:id/deny-request", need("admin"), (req, res) => {
@@ -187,6 +195,29 @@ function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, app
     const u = { id: crypto.randomUUID(), email, name, role, createdAt: Date.now() }; const pw = setTemp(u); db.users.push(u); persist();
     try { await sendTemp(u, pw, "new"); res.json({ user: pub(u) }); } catch (e) { res.status(502).json({ error: "Usuário criado, mas o e-mail falhou: " + e.message, user: pub(u) }); }
   });
+  // administrador cria um acesso temporário: senha única, sem troca obrigatória, válida por algumas horas.
+  // A senha volta só nesta resposta (não é enviada por e-mail nem fica guardada em texto).
+  r.post("/users/temporary", need("admin"), (req, res) => {
+    const email = String(req.body.email || "").trim().toLowerCase(), name = String(req.body.name || "").trim().slice(0, 120), role = ROLES.includes(req.body.role) ? req.body.role : "estudante";
+    const hours = Math.round(Number(req.body.hours) || 48);
+    if (!validEmail(email) || !name) return res.status(400).json({ error: "Informe nome e e-mail válidos." });
+    if (hours < 1 || hours > 168) return res.status(400).json({ error: "A validade deve ficar entre 1 e 168 horas." });
+    const r0 = createTemporary({ email, name, role, hours });
+    if (r0.error) return res.status(409).json({ error: r0.error });
+    res.json({ user: pub(r0.user), password: r0.password });
+  });
+  function createTemporary({ email, name, role = "estudante", hours = 48 }) {
+    email = String(email || "").trim().toLowerCase();
+    let u = find(email);
+    if (u && !until(u)) return { error: "Este e-mail já tem uma conta permanente." };
+    if (!u) { u = { id: crypto.randomUUID(), email, createdAt: Date.now() }; db.users.push(u); }
+    const pw = tempPassword(14);
+    Object.assign(u, { name: String(name || email).slice(0, 120), role, salt: crypto.randomBytes(16).toString("hex"), mustChange: false, tempExpires: 0, failed: 0, lockedUntil: 0, accessUntil: Date.now() + hours * 3600 * 1000 });
+    u.hash = hashPw(pw, u.salt); delete u.requestedRole;
+    for (const [k, s] of sessions) if (s.userId === u.id) sessions.delete(k);
+    persist();
+    return { user: u, password: pw };
+  }
   r.delete("/users/:id", need("admin"), (req, res) => {
     const u = db.users.find((x) => x.id === req.params.id); if (!u) return res.status(404).json({ error: "Usuário não encontrado." });
     if (u.id === req.auth.user.id) return res.status(400).json({ error: "Você não pode excluir a própria conta." });
@@ -197,9 +228,10 @@ function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, app
     if (!t) return null;
     const k = crypto.createHash("sha256").update(String(t)).digest("hex"), s = sessions.get(k);
     if (!s || s.exp < Date.now() || s.scope !== "full") return null;
-    return db.users.find((x) => x.id === s.userId) || null;
+    const u = db.users.find((x) => x.id === s.userId) || null;
+    return expired(u) ? null : u;
   }
-  return { router: r, need, userForToken, _db: () => db };
+  return { router: r, need, userForToken, createTemporary, _db: () => db };
 }
 
 /** SMTP pelas variáveis SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM (e SMTP_SECURE=1 para a porta 465). */
