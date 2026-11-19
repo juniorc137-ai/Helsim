@@ -734,7 +734,7 @@ function tone(freq,dur,vol){
   }catch(e){}
 }
 // bipe do pulso (oxímetro): "bip" arredondado, ataque e final suaves; o tom cai 1 semitom por ponto de SpO₂ abaixo de 99%
-const PULSE_SOUNDS={off:{label:"Desligado (só alarmes)",base:932,dur:.095,mix:.25,vol:.3},arquivo:{label:"Arquivo de som próprio",base:932,dur:.095,mix:.25,vol:.3},monitor:{label:"Monitor (padrão)",base:932,dur:.095,mix:.25,vol:.3},classico:{label:"Clássico agudo",base:1175,dur:.06,mix:.45,vol:.26},suave:{label:"Suave",base:784,dur:.12,mix:.1,vol:.28}};
+const PULSE_SOUNDS={off:{label:"Desligado (só alarmes)",base:932,dur:.095,mix:.25,vol:.3},lab:{label:"Monitor do laboratório",base:545,dur:.19,harm:[1,0,.315,0,.063,0,.01],atk:.025,rel:.035,vol:.32},monitor:{label:"Monitor agudo",base:932,dur:.095,mix:.25,vol:.3},classico:{label:"Clássico agudo",base:1175,dur:.06,mix:.45,vol:.26},suave:{label:"Suave",base:784,dur:.12,mix:.1,vol:.28},arquivo:{label:"Arquivo de som próprio",base:932,dur:.095,mix:.25,vol:.3}};
 let PULSE_VOL=(()=>{try{return +(localStorage.getItem("simclin.volume")||1);}catch(e){return 1;}})();
 function setPulseVol(v){PULSE_VOL=Math.max(0,Math.min(1.5,+v));try{localStorage.setItem("simclin.volume",PULSE_VOL);}catch(e){}}
 let PULSE_KIND=(()=>{try{return localStorage.getItem("simclin.bipe")||"off";}catch(e){return "off";}})();
@@ -761,8 +761,21 @@ function pulseBeepFile(){
     g.gain.value=Math.max(0,PULSE_VOL);src.connect(g);g.connect(ctx.destination);src.start();}catch(e){}
   return true;
 }
+// som recriado a partir das medidas da gravação do monitor do laboratório (tom ~545 Hz com 3º e 5º harmônicos,
+// ataque ~25 ms, ~160 ms de duração com leve queda, final de ~35 ms); sintetizado, sem usar o áudio original
+function pulseBeepHarm(k){
+  try{const ctx=getACtx();if(ctx.state==="suspended")ctx.resume();
+    const t=ctx.currentTime,f=ST.spo2>0?k.base*Math.pow(2,(Math.max(70,Math.min(99,ST.spo2))-99)/12):k.base,g=ctx.createGain(),lp=ctx.createBiquadFilter();
+    lp.type="lowpass";lp.frequency.value=4500;lp.connect(ctx.destination);g.connect(lp);
+    const v=Math.max(0.0002,k.vol*PULSE_VOL),end=t+k.dur;
+    g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(v,t+k.atk);
+    g.gain.linearRampToValueAtTime(v*.82,end-k.rel);g.gain.exponentialRampToValueAtTime(0.0001,end);
+    k.harm.forEach((a,i)=>{if(!a)return;const o=ctx.createOscillator(),gh=ctx.createGain();o.type="sine";o.frequency.value=f*(i+1);gh.gain.value=a;o.connect(gh);gh.connect(g);o.start(t);o.stop(end+0.02);});
+  }catch(e){}
+}
 function pulseBeep(){
   if(PULSE_KIND==="arquivo"&&pulseBeepFile())return;
+  if(PULSE_SOUNDS[PULSE_KIND]&&PULSE_SOUNDS[PULSE_KIND].harm)return pulseBeepHarm(PULSE_SOUNDS[PULSE_KIND]);
   try{
     const k=PULSE_SOUNDS[PULSE_KIND==="off"||PULSE_KIND==="arquivo"?"monitor":PULSE_KIND]||PULSE_SOUNDS.monitor,ctx=getACtx();if(ctx.state==="suspended")ctx.resume();
     const t=ctx.currentTime,f=ST.spo2>0?pulseFreq():k.base,g=ctx.createGain(),lp=ctx.createBiquadFilter();
