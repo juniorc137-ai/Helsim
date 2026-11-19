@@ -376,6 +376,7 @@ tr.dose.atrasada td:first-child{box-shadow:inset 3px 0 var(--bad)}tr.dose.admini
 <script src="captura-core.js"></script>
 <script src="scenarios.js"></script>
 <script src="captura-biblioteca.js"></script>
+<script src="helsim-areas.js"></script>
 <script src="captura-modulos.js"></script>
 <script>
 "use strict";
@@ -470,6 +471,41 @@ function loadPrefs() { try { Object.assign(UI, JSON.parse(localStorage.getItem("
 function savePrefs() { try { const { view, role, me, layout, agLoc, theme } = UI; localStorage.setItem("captura-ui", JSON.stringify({ view, role, me, layout, agLoc, theme })); } catch (e) {} }
 const canEdit = () => UI.role !== "estudante";
 const meLabel = () => (UI.me && nameOf("people", UI.me)) || ROLES[UI.role];
+// Reservas: o administrador edita todas; o docente cria e edita só as que ele mesmo criou.
+const myEmail = () => (window.HC_AUTH && HC_AUTH.on && HC_AUTH.user ? HC_AUTH.user.email : "");
+const ownsRes = (r) => (myEmail() ? r.createdByEmail === myEmail() : !!UI.me && r.createdById === UI.me);
+const canEditRes = (r) => UI.role === "admin" || (UI.role === "docente" && (!DB.reservations.includes(r) || ownsRes(r)));
+const RES_KEYS = ["start", "end", "locationId", "resourceIds", "recur"];
+// Sessões e avaliações: o docente vê e altera só as que ele criou; pessoas só o administrador cadastra.
+const mine = (x) => (myEmail() ? x.ownerEmail === myEmail() : !!UI.me && x.ownerId === UI.me);
+const owner = () => ({ ownerEmail: myEmail(), ownerId: UI.me || "" });
+const isAdm = () => UI.role === "admin";
+const AR = window.HELSIM_AREAS;
+const myPerson = () => DB.people.find((p) => (myEmail() ? (p.email || "").toLowerCase() === myEmail() : p.id === UI.me));
+const myAreas = () => ((myPerson() || {}).areas || []);
+// Cenários: o docente vê os próprios e os do administrador aprovados nas áreas dele. Outros docentes não aparecem.
+const visibleScenarios = () => (UI.role !== "docente" ? DB.scenarios : DB.scenarios.filter((s) => mine(s) || (AR.isAdminItem(s) && AR.isApproved(s) && myAreas().includes(AR.scenarioArea(s)))));
+const usableScenarios = () => visibleScenarios().filter(AR.isApproved);
+const visibleEvals = () => {
+  if (UI.role !== "docente") return DB.evaluations;
+  const linked = new Set(visibleScenarios().flatMap((s) => s.evaluationIds || []));
+  return DB.evaluations.filter((e) => mine(e) || (AR.isAdminItem(e) && AR.isApproved(e) && linked.has(e.id)));
+};
+const usableEvals = () => visibleEvals().filter(AR.isApproved);
+const canEditEval = (e) => isAdm() || (UI.role === "docente" && (!DB.evaluations.includes(e) || mine(e)));
+const canEditSc = (s) => isAdm() || (UI.role === "docente" && (!DB.scenarios.includes(s) || mine(s)));
+/** Criação/edição de cenário ou avaliação: do administrador já entra aprovado; do docente vai para aprovação. */
+function stampApproval(x, isNew) {
+  if (isNew) Object.assign(x, owner(), { ownerRole: UI.role, status: isAdm() ? "aprovado" : "pendente" });
+  else if (!isAdm()) x.status = "pendente";
+}
+const STATUS_TAG = { pendente: '<span class="tag warn">aguardando aprovação</span>', recusado: '<span class="tag bad">recusado</span>' };
+const statusTag = (x) => STATUS_TAG[x.status] || "";
+const approveBtns = (col, x) => (isAdm() && x.status === "pendente" ? `<span class="row" style="gap:4px"><button type="button" class="btn sm primary" data-act="appr" data-col="${col}" data-id="${x.id}" data-s="aprovado">Aprovar</button><button type="button" class="btn sm" data-act="appr" data-col="${col}" data-id="${x.id}" data-s="recusado">Recusar</button></span>` : "");
+const optList = (list, sel, empty = "—") => opt("", empty, sel) + list.map((x) => opt(x.id, x.title || x.name, sel)).join("");
+// Reservas de outras pessoas: o docente vê só que o horário está ocupado.
+const hideRes = (r) => UI.role === "docente" && DB.reservations.includes(r) && !ownsRes(r);
+const resTitle = (r) => (hideRes(r) ? "Reservado" : r.title);
 
 function toast(msg, ms = 3200) {
   const t = $("#toast"); t.textContent = msg; t.style.display = "block";
@@ -509,8 +545,8 @@ const ICO = {
 };
 const NAV = [
   ["Operação", [["painel", "Painel", ALL], ["agenda", "Agenda", ALL], ["aovivo", "Sessão ao vivo", STAFF]]],
-  ["Debriefing e avaliação", [["sessoes", "Sessões e debriefing", ALL], ["avaliacoes", "Avaliações", STAFF], ["relatorios", "Relatórios", STAFF]]],
-  ["Cadastros", [["cursos", "Cursos e pessoas", STAFF], ["cenarios", "Cenários", STAFF]]],
+  ["Debriefing e avaliação", [["sessoes", "Sessões e debriefing", ALL], ["avaliacoes", "Avaliações", STAFF], ["cenarios", "Cenários", ["docente"]], ["relatorios", "Relatórios", STAFF]]],
+  ["Cadastros", [["cursos", "Cursos e pessoas", ["admin"]], ["cenarios", "Cenários", ["admin"]]]],
   ["Sistema", [["config", "Configurações", ["admin"]]]],
 ];
 const VIEW_LABEL = Object.fromEntries(NAV.flatMap(([, items]) => items.map(([id, label]) => [id, label])));
@@ -528,7 +564,7 @@ function render() {
   if (!groups.some(([, items]) => items.some((n) => n[0] === UI.view)) && UI.view !== "sessao") UI.view = "painel";
   const pend = DB.reservations.filter((r) => r.status === "pendente").length;
   $("#nav").innerHTML = groups.map(([g, items]) => `<div class="navgrp"><span>${g}</span><nav class="nav">${items.map(([id, label]) =>
-    `<button ${UI.view === id || (UI.view === "sessao" && id === "sessoes") ? 'aria-current="page"' : ""} data-act="go" data-v="${id}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICO[id]}</svg>${label}${id === "agenda" && pend && canEdit() ? `<span class="badge" title="Reservas pendentes">${pend}</span>` : ""}${window.HC_NAV_BADGE && HC_NAV_BADGE[id] ? HC_NAV_BADGE[id]() : ""}</button>`).join("")}</nav></div>`).join("");
+    `<button ${UI.view === id || (UI.view === "sessao" && id === "sessoes") ? 'aria-current="page"' : ""} data-act="go" data-v="${id}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICO[id]}</svg>${label}${id === "agenda" && pend && isAdm() ? `<span class="badge" title="Reservas pendentes">${pend}</span>` : ""}${window.HC_NAV_BADGE && HC_NAV_BADGE[id] ? HC_NAV_BADGE[id]() : ""}</button>`).join("")}</nav></div>`).join("");
   $("#role").value = UI.role;
   const pool = DB.people.filter((p) => UI.role === "estudante" ? p.role === "estudante" : UI.role === "docente" ? p.role === "docente" : p.role === "admin" || p.role === "docente");
   if (UI.me && !pool.some((p) => p.id === UI.me)) UI.me = "";
@@ -549,7 +585,8 @@ function chrome() {
   const st = $("#tb-status"); st.className = "tb-chip lvl " + (LIVE.recording ? "rec" : "ok"); st.textContent = LIVE.recording ? "Gravando" : "Pronto";
   const who = meLabel(); $("#tb-avatar").textContent = who.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "HC";
   $("#tb-avatar").title = `${who} · ${ROLES[UI.role]}`;
-  $("#tb-stamp").textContent = `${DB.sessions.length} sessões · ${DB.reservations.length} reservas · ${DB.people.length} pessoas`;
+  if (window.hcPaintAvatar) hcPaintAvatar();
+  $("#tb-stamp").textContent = `${visibleSessions().length} sessões · ${DB.reservations.length} reservas · ${DB.people.length} pessoas`;
   const sim = LIVE.sim && LIVE.sim.status === "conectado";
   $("#statusbar").innerHTML = `<span><i class="dot" style="background:var(--ok)"></i>Armazenamento ${window.HC_SYNC && HC_SYNC.on ? "central (servidor) + cópia local" : USE_MEM ? "em memória (não persiste)" : "local (IndexedDB)"}</span>${window.hcSyncStatus ? hcSyncStatus() : ""}
     <span><i class="dot" style="background:${sim ? "var(--ok)" : "var(--faint)"}"></i>Simulador ${sim ? "conectado · sala " + esc(LIVE.sim.room) : "desconectado"}</span>
@@ -587,7 +624,7 @@ document.addEventListener("submit", (e) => {
 
 // ── Utilidades de domínio ────────────────────────────────────────────────
 function visibleSessions() {
-  return UI.role === "estudante" ? DB.sessions.filter((s) => (s.participantIds || []).includes(UI.me)) : DB.sessions;
+  return UI.role === "estudante" ? DB.sessions.filter((s) => (s.participantIds || []).includes(UI.me)) : UI.role === "docente" ? DB.sessions.filter(mine) : DB.sessions;
 }
 function occurrencesBetween(a, b) {
   const out = [];
@@ -617,11 +654,13 @@ R.painel = () => {
   ${!DB.sessions.length && UI.role === "admin" ? `<div class="card"><div class="between"><div><b>Comece por aqui.</b> <span class="muted">Carregue a biblioteca baseada em evidências: 5 cursos, 13 cenários e 24 avaliações e checklists construídos a partir de 24 artigos de <i>Clinical Simulation in Nursing</i> (2025), incluindo os padrões INACSL 2025, com agenda, estudantes e uma sessão de pré-eclâmpsia gravada.</span></div><button class="btn primary" data-act="demo">Carregar biblioteca</button></div></div>` : ""}
   ${window.hcPainelExtra ? hcPainelExtra() : ""}
   ${pend ? `<div class="card"><span class="tag warn">${pend} reserva(s) aguardando aprovação</span> <button class="btn sm" data-act="go" data-v="agenda">Ver agenda</button></div>` : ""}
+  ${(() => { if (!isAdm()) return ""; const ps = DB.scenarios.filter((x) => x.status === "pendente").length, pe = DB.evaluations.filter((x) => x.status === "pendente").length;
+    return ps || pe ? `<div class="card"><span class="tag warn">Aguardando sua aprovação: ${ps} cenário(s) e ${pe} avaliação(ões) criados por docentes</span> ${ps ? `<button class="btn sm" data-act="go" data-v="cenarios">Ver cenários</button>` : ""} ${pe ? `<button class="btn sm" data-act="go" data-v="avaliacoes">Ver avaliações</button>` : ""}</div>` : ""; })()}
   <div class="kpis">${kpi("Sessões gravadas", u.sessions)}${kpi("Horas de simulação", fmtH(u.hours))}${kpi("Horas-participante", fmtH(u.personHours))}${kpi("Avaliações registradas", nRes)}</div>
   <div class="cols">
     <section class="card"><h2>Próximas reservas (14 dias)</h2>
-      ${up.length ? `<ul class="plain">${up.map((o) => `<li><span class="dot" style="background:${esc(o.res.color || "#2F7CC1")}"></span> <b>${fmtDate(o.start)} ${fmtHM(o.start)}–${fmtHM(o.end)}</b> ${esc(o.res.title)} <span class="muted">· ${esc(nameOf("locations", o.res.locationId))}</span>
-        ${canEdit() ? `<button class="btn sm rec-o" style="float:right" data-act="live-from-res" data-id="${o.res.id}">Iniciar sessão</button>` : ""}</li>`).join("")}</ul>` : `<div class="empty">Nenhuma reserva</div>`}
+      ${up.length ? `<ul class="plain">${up.map((o) => `<li><span class="dot" style="background:${esc(o.res.color || "#2F7CC1")}"></span> <b>${fmtDate(o.start)} ${fmtHM(o.start)}–${fmtHM(o.end)}</b> ${esc(resTitle(o.res))} <span class="muted">· ${esc(nameOf("locations", o.res.locationId))}</span>
+        ${canEdit() && !hideRes(o.res) ? `<button class="btn sm rec-o" style="float:right" data-act="live-from-res" data-id="${o.res.id}">Iniciar sessão</button>` : ""}</li>`).join("")}</ul>` : `<div class="empty">Nenhuma reserva</div>`}
     </section>
     <section class="card"><h2>${UI.role === "estudante" ? "Minhas sessões" : "Sessões recentes"}</h2>
       ${recent.length ? `<ul class="plain">${recent.map((s) => `<li class="click" style="cursor:pointer" data-act="ses-open" data-id="${s.id}"><b>${esc(s.title)}</b><br><span class="muted small">${fmtDT(s.startedAt)} · ${C.fmtClock(s.duration)} · ${(s.annotations || []).length} anotações · ${(s.media || []).length} vídeo(s)</span></li>`).join("")}</ul>` : `<div class="empty">Nenhuma sessão gravada</div>`}
@@ -641,7 +680,7 @@ R.agenda = () => {
     const d = new Date(g0.getFullYear(), g0.getMonth(), g0.getDate() + i), key = isoDate(+d);
     const evs = occ.filter((o) => isoDate(o.start) === key);
     cells.push(`<div class="dc ${d.getMonth() !== m.getMonth() ? "out" : ""} ${key === today ? "today" : ""}" ${canEdit() ? `data-act="res-new" data-date="${key}"` : ""}><span class="dn">${d.getDate()}</span>
-      ${evs.map((o) => `<span class="chipev ${o.res.status === "pendente" ? "pend" : ""}" style="border-left-color:${esc(o.res.color || "#2F7CC1")}" data-act="res-open" data-id="${o.res.id}" data-idx="${o.index}" title="${esc(o.res.title)} · ${esc(nameOf("locations", o.res.locationId))}">${fmtHM(o.start)} ${esc(o.res.title)}</span>`).join("")}</div>`);
+      ${evs.map((o) => `<span class="chipev ${o.res.status === "pendente" ? "pend" : ""}" style="border-left-color:${esc(o.res.color || "#2F7CC1")}" data-act="res-open" data-id="${o.res.id}" data-idx="${o.index}" title="${esc(resTitle(o.res))} · ${esc(nameOf("locations", o.res.locationId))}">${fmtHM(o.start)} ${esc(resTitle(o.res))}</span>`).join("")}</div>`);
   }
   const pend = DB.reservations.filter((r) => r.status === "pendente");
   return `<div class="between"><h1 style="margin:0">Agenda</h1>
@@ -659,7 +698,7 @@ function reservationForm(r, conflicts) {
   return `<div class="f"><span>Título (sugestão: código do curso + cenário)</span><input name="title" required value="${esc(r.title)}"></div>
   <div class="fg">
     <label class="f"><span>Curso</span><select name="courseId">${opts("courses", r.courseId)}</select></label>
-    <label class="f"><span>Cenário</span><select name="scenarioId">${opts("scenarios", r.scenarioId)}</select></label>
+    <label class="f"><span>Cenário</span><select name="scenarioId">${optList(usableScenarios(), r.scenarioId)}</select></label>
     <label class="f"><span>Sala</span><select name="locationId">${opts("locations", r.locationId)}</select></label>
     <label class="f"><span>Cor</span><input type="color" name="color" value="${esc(r.color || "#2F7CC1")}"></label>
     <label class="f"><span>Data</span><input type="date" name="date" value="${isoDate(t0)}" required></label>
@@ -675,9 +714,10 @@ function reservationForm(r, conflicts) {
 function openReservation(r, idx) {
   const isNew = !DB.reservations.includes(r);
   const recurring = !isNew && r.recur && r.recur.freq && r.recur.freq !== "nenhuma";
-  const readonly = !canEdit();
+  const readonly = !canEditRes(r);
   if (readonly) {
-    return modal(r.title, `<p>${esc(nameOf("locations", r.locationId))} · ${fmtDT(+new Date(r.start))}–${fmtHM(+new Date(r.end))}</p><p class="muted">${esc(nameOf("courses", r.courseId))} · ${esc(nameOf("scenarios", r.scenarioId))}</p><p>${esc(r.notes || "")}</p>`);
+    if (hideRes(r)) return modal("Horário reservado", `<p>${esc(nameOf("locations", r.locationId))} · ${fmtDT(+new Date(r.start))}–${fmtHM(+new Date(r.end))}</p><p class="small muted">Sala ocupada neste horário. Os detalhes das reservas de outras pessoas não são exibidos.</p>`);
+    return modal(r.title, `<p>${esc(nameOf("locations", r.locationId))} · ${fmtDT(+new Date(r.start))}–${fmtHM(+new Date(r.end))}</p><p class="muted">${esc(nameOf("courses", r.courseId))} · ${esc(nameOf("scenarios", r.scenarioId))}</p><p>${esc(r.notes || "")}</p><p class="small muted">Reservado por ${esc(r.createdBy || "—")} · ${esc(r.status || "aprovada")}${UI.role === "docente" ? ". Somente quem criou a reserva ou o administrador pode alterá-la." : ""}</p>`);
   }
   const submit = (fd) => {
     const date = fd.get("date"), s = new Date(`${date}T${fd.get("t1")}`), e = new Date(`${date}T${fd.get("t2")}`);
@@ -688,8 +728,8 @@ function openReservation(r, idx) {
     if (cand.recur.freq !== "nenhuma" && !cand.recur.until) { toast("Informe até quando a reserva se repete."); return false; }
     const conf = C.findConflicts(DB.reservations, cand, DB.resources);
     if (conf.length && !fd.get("override")) { show(cand, conf); return false; }
-    if (isNew) { cand.status = UI.role === "admin" ? "aprovada" : "pendente"; cand.createdBy = meLabel(); DB.reservations.push(cand); }
-    else Object.assign(r, cand);
+    if (isNew) { cand.status = UI.role === "admin" ? "aprovada" : "pendente"; cand.createdBy = meLabel(); cand.createdById = UI.me || ""; cand.createdByEmail = myEmail(); DB.reservations.push(cand); }
+    else { if (UI.role !== "admin" && RES_KEYS.some((k) => JSON.stringify(cand[k]) !== JSON.stringify(r[k]))) cand.status = "pendente"; Object.assign(r, cand); }
     save(); render(); toast(cand.status === "pendente" ? "Reserva enviada para aprovação." : "Reserva salva.");
   };
   const extra = isNew ? "" : `${r.scenarioId || r.locationId ? `<button type="button" class="btn rec-o" data-act="live-from-res" data-id="${r.id}">● Iniciar sessão</button>` : ""}
@@ -704,8 +744,8 @@ function newReservation(date) {
 }
 
 // ═════════════════════════════ CURSOS E PESSOAS ═══════════════════════════
-R.cursos = () => `<div class="between"><h1 style="margin:0">Cursos e pessoas</h1><div class="row"><button class="btn primary" data-act="course-new">+ Curso</button><button class="btn" data-act="person-new">+ Pessoa</button>
-  <label class="btn">Importar participantes (CSV)<input type="file" accept=".csv,text/csv" data-change="roster" hidden></label><button class="btn" data-act="people-csv">Exportar CSV</button></div></div>
+R.cursos = () => `<div class="between"><h1 style="margin:0">Cursos e pessoas</h1><div class="row"><button class="btn primary" data-act="course-new">+ Curso</button>${isAdm() ? `<button class="btn" data-act="person-new">+ Pessoa</button>
+  <label class="btn">Importar participantes (CSV)<input type="file" accept=".csv,text/csv" data-change="roster" hidden></label>` : ""}<button class="btn" data-act="people-csv">Exportar CSV</button></div></div>
   <section class="card"><h2>Cursos</h2>${DB.courses.length ? `<div class="tbl"><table><tr><th>Código</th><th>Curso</th><th>Período</th><th>Estudantes</th><th>Docentes</th><th>Sessões</th></tr>
     ${DB.courses.map((c) => `<tr class="click" data-act="course-open" data-id="${c.id}"><td>${esc(c.code)}</td><td>${esc(c.title)}</td><td>${esc(c.term || "")}</td><td>${(c.participantIds || []).length}</td><td>${(c.facultyIds || []).length}</td><td>${DB.sessions.filter((s) => s.courseId === c.id).length}</td></tr>`).join("")}</table></div>` : `<div class="empty">Nenhum curso</div>`}</section>
   <section class="card"><h2>Pessoas (${DB.people.length})</h2>${DB.people.length ? `<div class="tbl"><table><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Sessões</th></tr>
@@ -729,15 +769,23 @@ function openCourse(c) {
       if (isNew) DB.courses.push(c); save(); render();
     } });
 }
+/** Formulário de pessoa com a aba "Áreas do conhecimento" (usada para o docente). */
+function personTabs(p, dados) {
+  const doc = (p.role || "estudante") === "docente";
+  return `<div class="tabs" role="tablist"><button type="button" class="on" data-act="pm-tab" data-t="d">Dados</button><button type="button" data-act="pm-tab" data-t="a" ${doc ? "" : "hidden"} id="pm-tab-a">Áreas do conhecimento${(p.areas || []).length ? ` (${p.areas.length})` : ""}</button></div>
+    <div data-pm="d">${dados}</div>
+    <div data-pm="a" hidden><p class="muted small">O docente acessa os cenários de exemplo e os do administrador destas áreas.</p><div class="checks" style="display:grid;gap:6px">${AR.AREAS.map((a) => `<label><input type="checkbox" name="areas" value="${esc(a)}" ${(p.areas || []).includes(a) ? "checked" : ""}> ${esc(a)}</label>`).join("")}</div></div>`;
+}
 function openPerson(p) {
   const isNew = !DB.people.includes(p);
-  modal(isNew ? "Nova pessoa" : "Editar pessoa", `<label class="f"><span>Nome</span><input name="name" required value="${esc(p.name || "")}"></label>
+  if (!isAdm()) return modal(p.name || "Pessoa", `<p>${esc(p.email || "")}</p><p class="muted">${esc(ROLES[p.role] || p.role || "")}</p><p class="small muted">Somente o administrador cadastra ou altera pessoas.</p>`);
+  modal(isNew ? "Nova pessoa" : "Editar pessoa", personTabs(p, `<label class="f"><span>Nome</span><input name="name" required value="${esc(p.name || "")}"></label>
     <label class="f"><span>E-mail</span><input name="email" type="email" value="${esc(p.email || "")}"></label>
-    <label class="f"><span>Papel</span><select name="role">${Object.entries(ROLES).map(([k, v]) => opt(k, v, p.role || "estudante")).join("")}</select></label>`, {
+    <label class="f"><span>Papel</span><select name="role" data-change="pm-role">${Object.entries(ROLES).map(([k, v]) => opt(k, v, p.role || "estudante")).join("")}</select></label>`), {
     extra: isNew ? "" : `<button type="button" class="btn" data-act="person-del" data-id="${p.id}">Excluir</button>`,
     onSubmit: (fd) => {
       const name = fd.get("name").trim(); if (!name) { toast("Informe o nome."); return false; }
-      Object.assign(p, { name, email: fd.get("email").trim(), role: fd.get("role") });
+      Object.assign(p, { name, email: fd.get("email").trim(), role: fd.get("role"), areas: fd.getAll("areas") });
       if (isNew) DB.people.push(p); save(); render();
     } });
 }
@@ -765,34 +813,39 @@ function importRoster(text) {
 
 // ═════════════════════════════ CENÁRIOS ═══════════════════════════════════
 R.cenarios = () => `<div class="between"><h1 style="margin:0">Cenários</h1><div class="row">
-  ${window.SCENARIO_PROGRAMS ? `<button class="btn" data-act="sc-import">Importar cenários do motor SimClin</button>` : ""}<button class="btn primary" data-act="sc-new">+ Cenário</button></div></div>
-  ${DB.scenarios.length ? `<div class="cols">${DB.scenarios.map((s) => `<section class="card click" style="cursor:pointer" data-act="sc-open" data-id="${s.id}">
-    <h2>${esc(s.title)}</h2><p class="muted small">${esc(s.simulator || "Sem simulador")} · ${(s.annotations || []).length} anotações pré-definidas · ${(s.evaluationIds || []).length} avaliação(ões)${+s.retentionDays ? ` · retenção ${s.retentionDays} dias` : ""}</p>
+  ${window.SCENARIO_PROGRAMS && isAdm() ? `<button class="btn" data-act="sc-import">Importar cenários do motor SimClin</button>` : ""}<button class="btn primary" data-act="sc-new">+ Cenário</button></div></div>
+  ${UI.role === "docente" ? `<p class="muted small" style="margin:-4px 0 10px">Aparecem aqui os cenários das suas áreas do conhecimento (${myAreas().length ? esc(myAreas().join("; ")) : "nenhuma área definida pelo administrador"}) e os que você criou. Cenários novos ou alterados só ficam disponíveis após aprovação do administrador.</p>` : ""}
+  ${visibleScenarios().length ? `<div class="cols">${visibleScenarios().map((s) => `<section class="card click" style="cursor:pointer" data-act="sc-open" data-id="${s.id}">
+    <div class="between"><h2>${esc(s.title)}</h2>${approveBtns("scenarios", s)}</div>${statusTag(s)}${AR.scenarioArea(s) ? `<span class="tag">${esc(AR.scenarioArea(s))}</span>` : ""}<p class="muted small">${esc(s.simulator || "Sem simulador")} · ${(s.annotations || []).length} anotações pré-definidas · ${(s.evaluationIds || []).length} avaliação(ões)${+s.retentionDays ? ` · retenção ${s.retentionDays} dias` : ""}</p>
     <p class="small">${esc(s.summary || "")}</p>
     ${(s.refs || []).length ? `<p class="small muted" style="margin-top:6px"><b>Base:</b> ${s.refs.map((r) => esc(shortRef(r))).join("; ")}</p>` : ""}
     <div class="row" style="margin-top:6px">${(s.annotations || []).slice(0, 8).map((a) => `<span class="tag" style="border-color:${esc(a.color)}">${esc(a.label)}</span>`).join("")}</div></section>`).join("")}</div>`
-  : `<div class="empty">Nenhum cenário. Crie um ou importe os cenários programados do SimClin.</div>`}
+  : `<div class="empty">${UI.role === "docente" ? "Nenhum cenário disponível para as suas áreas. Crie um cenário ou peça ao administrador para definir suas áreas do conhecimento." : "Nenhum cenário. Crie um ou importe os cenários programados do SimClin."}</div>`}
   ${allRefs().length ? `<section class="card"><h2>Referências da biblioteca (${allRefs().length})</h2><ol class="small" style="padding-left:20px;display:grid;gap:6px">${allRefs().map((r) => `<li>${refHtml(r)}</li>`).join("")}</ol></section>` : ""}`;
-const allRefs = () => [...new Set([...DB.scenarios.flatMap((s) => s.refs || []), ...DB.evaluations.flatMap((e) => e.refs || [])])].sort((a, b) => a.localeCompare(b, "pt-BR"));
+const allRefs = () => [...new Set([...visibleScenarios().flatMap((s) => s.refs || []), ...visibleEvals().flatMap((e) => e.refs || [])])].sort((a, b) => a.localeCompare(b, "pt-BR"));
 
 function openScenario(s) {
   const isNew = !DB.scenarios.includes(s);
+  if (!canEditSc(s)) return modal(s.title, `${AR.scenarioArea(s) ? `<p><span class="tag">${esc(AR.scenarioArea(s))}</span></p>` : ""}<p>${esc(s.summary || "")}</p>${(s.objectives || []).length ? `<h3>Objetivos</h3><ul style="margin-left:18px">${s.objectives.map((o) => `<li>${esc(o)}</li>`).join("")}</ul>` : ""}<p class="small muted">Cenário do administrador: use-o nas reservas e sessões; para adaptá-lo, duplique (a cópia vai para aprovação).</p>`,
+    { extra: `<button type="button" class="btn" data-act="sc-copy" data-id="${s.id}">Duplicar</button>` });
   const annTxt = (s.annotations || []).map((a) => `${a.label} | ${a.cat || ""} | ${a.color || ""}`).join("\n");
   modal(isNew ? "Novo cenário" : "Editar cenário", `<label class="f"><span>Título</span><input name="title" required value="${esc(s.title || "")}"></label>
     <div class="fg"><label class="f"><span>Simulador / manequim</span><input name="simulator" value="${esc(s.simulator || "")}" placeholder="ex.: SimClin (monitor) + manequim adulto"></label>
     <label class="f"><span>Retenção dos vídeos (dias; 0 = política global)</span><input type="number" min="0" name="retentionDays" value="${esc(s.retentionDays || 0)}"></label></div>
+    <label class="f"><span>Área do conhecimento</span><select name="area">${opt("", "—", AR.scenarioArea(s))}${AR.AREAS.map((a) => opt(a, a, AR.scenarioArea(s))).join("")}</select></label>
+    ${!isAdm() ? `<p class="small muted">Ao salvar, o cenário vai para aprovação do administrador e só você e ele o veem.</p>` : ""}
     <label class="f"><span>Resumo do caso</span><textarea name="summary">${esc(s.summary || "")}</textarea></label>
     <label class="f"><span>Objetivos de aprendizagem (um por linha)</span><textarea name="objectives">${esc((s.objectives || []).join("\n"))}</textarea></label>
     <label class="f"><span>Anotações pré-definidas — uma por linha: <code>Rótulo | Categoria | #cor</code>. As nove primeiras ganham atalhos 1–9 na gravação.</span><textarea name="ann" style="min-height:140px;font-family:var(--mono);font-size:12px">${esc(annTxt)}</textarea></label>
     <label class="f"><span>Referências (uma por linha)</span><textarea name="refs" style="min-height:60px;font-size:12px">${esc((s.refs || []).join("\n"))}</textarea></label>
-    <div class="f"><span>Avaliações vinculadas</span><div class="checks">${DB.evaluations.map((e) => `<label><input type="checkbox" name="evaluationIds" value="${e.id}" ${(s.evaluationIds || []).includes(e.id) ? "checked" : ""}> ${esc(e.title)} <span class="muted small">(${esc(e.type)})</span></label>`).join("") || `<span class="muted">Nenhuma avaliação criada</span>`}</div></div>`, {
+    <div class="f"><span>Avaliações vinculadas</span><div class="checks">${visibleEvals().map((e) => `<label><input type="checkbox" name="evaluationIds" value="${e.id}" ${(s.evaluationIds || []).includes(e.id) ? "checked" : ""}> ${esc(e.title)} <span class="muted small">(${esc(e.type)})</span></label>`).join("") || `<span class="muted">Nenhuma avaliação criada</span>`}</div></div>`, {
     extra: isNew ? "" : `<button type="button" class="btn" data-act="sc-copy" data-id="${s.id}">Duplicar</button><button type="button" class="btn" data-act="sc-del" data-id="${s.id}">Excluir</button>`,
     onSubmit: (fd) => {
       const annotations = fd.get("ann").split("\n").map((l) => l.split("|").map((x) => x.trim())).filter((p) => p[0])
         .map(([label, cat, color]) => ({ id: C.uid("a"), label, cat: cat || "Geral", color: /^#[0-9a-f]{3,8}$/i.test(color || "") ? color : colorFor(cat || label) }));
-      Object.assign(s, { title: fd.get("title").trim() || "Cenário", simulator: fd.get("simulator").trim(), retentionDays: +fd.get("retentionDays") || 0,
+      Object.assign(s, { area: fd.get("area") || "", title: fd.get("title").trim() || "Cenário", simulator: fd.get("simulator").trim(), retentionDays: +fd.get("retentionDays") || 0,
         summary: fd.get("summary").trim(), objectives: fd.get("objectives").split("\n").map((x) => x.trim()).filter(Boolean), annotations, evaluationIds: fd.getAll("evaluationIds"), refs: fd.get("refs").split("\n").map((x) => x.trim()).filter(Boolean) });
-      if (isNew) DB.scenarios.push(s); save(); render();
+      stampApproval(s, isNew); if (isNew) DB.scenarios.push(s); save(); render(); if (!isAdm()) toast("Cenário enviado para aprovação do administrador.");
     } });
 }
 const CRM_MARKERS = [["Comunicação em alça fechada", "Trabalho em equipe"], ["Liderança clara", "Trabalho em equipe"], ["Pedido de ajuda", "Trabalho em equipe"],
@@ -813,9 +866,9 @@ function importEngineScenarios(quiet) {
 
 // ═════════════════════════════ AVALIAÇÕES ═════════════════════════════════
 R.avaliacoes = () => `<div class="between"><h1 style="margin:0">Avaliações</h1><button class="btn primary" data-act="ev-new">+ Avaliação</button></div>
-  ${DB.evaluations.length ? `<div class="tbl card"><table><tr><th>Título</th><th>Tipo</th><th>Itens</th><th>Pontos</th><th>Críticos</th><th>Respostas</th><th></th></tr>
-  ${DB.evaluations.map((e) => { const sc = C.scoreEvaluation(e, {}); const n = DB.sessions.reduce((a, s) => a + (s.results || []).filter((r) => r.evaluationId === e.id).length, 0);
-    return `<tr class="click" data-act="ev-open" data-id="${e.id}"><td>${esc(e.title)}${(e.refs || []).length ? `<span class="small muted" style="display:block">${e.refs.map((r) => esc(shortRef(r))).join("; ")}</span>` : ""}</td><td>${esc(EVAL_TYPES[e.type] || e.type)}</td><td>${e.items.length}</td><td>${sc.max}</td><td>${e.items.filter((i) => i.critical).length}</td><td>${n}</td>
+  ${visibleEvals().length ? `<div class="tbl card"><table><tr><th>Título</th><th>Tipo</th><th>Itens</th><th>Pontos</th><th>Críticos</th><th>Respostas</th><th></th></tr>
+  ${visibleEvals().map((e) => { const sc = C.scoreEvaluation(e, {}); const n = visibleSessions().reduce((a, s) => a + (s.results || []).filter((r) => r.evaluationId === e.id).length, 0);
+    return `<tr class="click" data-act="ev-open" data-id="${e.id}"><td>${esc(e.title)} ${statusTag(e)} ${approveBtns("evaluations", e)}${(e.refs || []).length ? `<span class="small muted" style="display:block">${e.refs.map((r) => esc(shortRef(r))).join("; ")}</span>` : ""}</td><td>${esc(EVAL_TYPES[e.type] || e.type)}</td><td>${e.items.length}</td><td>${sc.max}</td><td>${e.items.filter((i) => i.critical).length}</td><td>${n}</td>
     <td><button class="btn sm" data-act="ev-print" data-id="${e.id}">Imprimir</button></td></tr>`; }).join("")}</table></div>`
   : `<div class="empty">Nenhuma avaliação. Crie checklists de desempenho, escalas comportamentais, questionários pré/pós e formulários de reflexão.</div>`}
   <p class="muted small">Tipos: questionários <b>antes</b> e <b>após</b> a sessão e <b>reflexão</b> são respondidos pelo estudante; <b>avaliador</b> (individual) e <b>monitoramento</b> (equipe) são preenchidos pelo docente durante ou após a gravação. Itens críticos não cumpridos sinalizam o resultado.</p>`;
@@ -829,6 +882,7 @@ function itemRow(it) {
 }
 function openEvaluation(e) {
   const isNew = !DB.evaluations.includes(e);
+  if (!canEditEval(e)) return toast("Avaliação do administrador: pode ser aplicada nas sessões, mas não editada.");
   modal(isNew ? "Nova avaliação" : "Editar avaliação", `<label class="f"><span>Título</span><input name="title" required value="${esc(e.title || "")}"></label>
     <label class="f"><span>Tipo</span><select name="type">${Object.entries(EVAL_TYPES).map(([k, v]) => opt(k, v, e.type || "avaliador")).join("")}</select></label>
     <label class="f"><span>Instruções</span><textarea name="instructions" style="min-height:44px">${esc(e.instructions || "")}</textarea></label>
@@ -847,7 +901,7 @@ function openEvaluation(e) {
       }).filter((it) => it.text);
       if (!items.length) { toast("Inclua ao menos um item."); return false; }
       Object.assign(e, { title: fd.get("title").trim() || "Avaliação", type: fd.get("type"), instructions: fd.get("instructions").trim(), refs: fd.get("refs").split("\n").map((x) => x.trim()).filter(Boolean), items });
-      if (isNew) DB.evaluations.push(e); save(); render();
+      stampApproval(e, isNew); if (isNew) DB.evaluations.push(e); save(); render(); if (!isAdm()) toast("Avaliação enviada para aprovação do administrador.");
     } });
   if (!(e.items || []).length) $("#items").insertAdjacentHTML("beforeend", itemRow({}));
 }
@@ -917,7 +971,7 @@ function liveSetupHtml() {
     <section class="card"><h2>1. Dados da sessão</h2>
       <label class="f"><span>Título</span><input data-change="lv" name="title" value="${esc(s.title)}" placeholder="Padrão: data e hora"></label>
       <div class="fg"><label class="f"><span>Curso</span><select data-change="lv" name="courseId">${opts("courses", s.courseId)}</select></label>
-      <label class="f"><span>Cenário</span><select data-change="lv" name="scenarioId">${opts("scenarios", s.scenarioId)}</select></label>
+      <label class="f"><span>Cenário</span><select data-change="lv" name="scenarioId">${optList(usableScenarios(), s.scenarioId)}</select></label>
       <label class="f"><span>Sala</span><select data-change="lv" name="locationId">${opts("locations", s.locationId)}</select></label></div>
       <div class="f"><span>Participantes ${c ? "(herdados do curso)" : ""}</span><div class="checks">${pool.map((p) => `<label><input type="checkbox" data-change="lv-pid" value="${p.id}" ${s.pids.includes(p.id) ? "checked" : ""}> ${esc(p.name)}</label>`).join("") || `<span class="muted">Cadastre pessoas em Cursos e pessoas.</span>`}</div></div>
       <label class="row" style="align-items:flex-start;gap:8px;margin-top:6px"><input type="checkbox" data-change="lv-consent" ${s.consent ? "checked" : ""} style="margin-top:3px">
@@ -974,7 +1028,7 @@ function liveRecHtml() {
 }
 function liveEvals(ses) {
   const sc = byId("scenarios", ses.scenarioId);
-  const pool = sc && (sc.evaluationIds || []).length ? sc.evaluationIds.map((id) => byId("evaluations", id)).filter(Boolean) : DB.evaluations;
+  const pool = sc && (sc.evaluationIds || []).length ? sc.evaluationIds.map((id) => byId("evaluations", id)).filter((e) => e && AR.isApproved(e)) : usableEvals();
   return pool.filter((e) => e.type === "avaliador" || e.type === "monitor");
 }
 /** Biblioteca de anotações do cenário; sem cenário, os marcadores comportamentais genéricos. */
@@ -1168,7 +1222,7 @@ async function recStart() {
   LIVE.mic = mic;
   const ses = { id: C.uid("s"), title: s.title.trim() || "Sessão " + fmtDT(Date.now()), courseId: s.courseId, scenarioId: s.scenarioId, locationId: s.locationId,
     participantIds: [...s.pids], reservationId: s.reservationId, startedAt: Date.now(), duration: 0, media: [], annotations: [], samples: [], transcript: [], results: [],
-    notes: "", consent: true, createdBy: meLabel(), simRoom: LIVE.sim && LIVE.sim.status === "conectado" ? LIVE.sim.room : "" };
+    notes: "", consent: true, createdBy: meLabel(), ...owner(), simRoom: LIVE.sim && LIVE.sim.status === "conectado" ? LIVE.sim.room : "" };
   LIVE.session = ses; LIVE.t0 = performance.now(); LIVE.pending = []; LIVE.recorders = []; LIVE.storageErr = false;
   const plan = LIVE.sources.map((src, i) => ({ label: src.label, kind: src.kind, tracks: [...src.stream.getVideoTracks(), ...(i === 0 && mic ? mic.getAudioTracks() : [])], hasAudio: i === 0 && !!mic }));
   if (!plan.length && mic) plan.push({ label: "Áudio", kind: "audio", tracks: mic.getAudioTracks(), hasAudio: true, audioOnly: true });
@@ -1341,7 +1395,7 @@ R.sessoes = () => {
 // ═════════════════════════════ VISUALIZADOR / DEBRIEFING ══════════════════
 let PB = null;
 R.sessao = () => {
-  const s = byId("sessions", UI.sel);
+  const s = visibleSessions().find((x) => x.id === UI.sel);
   if (!s) return `<div class="empty">Sessão não encontrada. <button class="btn" data-act="go" data-v="sessoes">Voltar</button></div>`;
   const media = s.media || [];
   const main = Math.min(UI.main, Math.max(0, media.length - 1));
@@ -1389,7 +1443,7 @@ function vtabHtml(s) {
 }
 function allowedEvals(s) {
   const sc = byId("scenarios", s.scenarioId);
-  const pool = sc && (sc.evaluationIds || []).length ? sc.evaluationIds.map((id) => byId("evaluations", id)).filter(Boolean) : DB.evaluations;
+  const pool = sc && (sc.evaluationIds || []).length ? sc.evaluationIds.map((id) => byId("evaluations", id)).filter((e) => e && AR.isApproved(e)) : usableEvals();
   return UI.role === "estudante" ? pool.filter((e) => STUDENT_TYPES.includes(e.type)) : pool;
 }
 function sessionEvents(s) {
@@ -1553,10 +1607,42 @@ function printSession(s) {
 }
 
 // ═════════════════════════════ RELATÓRIOS ═════════════════════════════════
+// docentes de uma sessão: quem a criou (se for docente) ou, sem isso, os docentes do curso
+function sessionTeachers(s) {
+  const own = s.ownerEmail ? DB.people.find((p) => (p.email || "").toLowerCase() === s.ownerEmail) : s.ownerId ? byId("people", s.ownerId) : null;
+  if (own && own.role === "docente") return [own.id];
+  return ((byId("courses", s.courseId) || {}).facultyIds || []).filter((id) => (byId("people", id) || {}).role === "docente");
+}
+// sessões do relatório: as que o perfil pode ver, filtradas por turma, estudante e (admin) docente
+function repSessions() {
+  return visibleSessions().filter((s) => (!UI.repCourse || s.courseId === UI.repCourse) && (!UI.repStudent || (s.participantIds || []).includes(UI.repStudent))
+    && (!isAdm() || !UI.repTeacher || sessionTeachers(s).includes(UI.repTeacher)));
+}
+function teacherReport(ses) {
+  const rows = new Map();
+  for (const s of ses) for (const t of sessionTeachers(s)) {
+    if (!rows.has(t)) rows.set(t, { id: t, sessions: 0, hours: 0, students: new Set(), scores: [] });
+    const row = rows.get(t); row.sessions++; row.hours += (s.duration || 0) / 3600; (s.participantIds || []).forEach((x) => row.students.add(x));
+    for (const r of s.results || []) { const ev = byId("evaluations", r.evaluationId); if (!ev) continue; const sc = C.scoreEvaluation(ev, r.answers); if (sc.pct !== null) row.scores.push(sc.pct); }
+  }
+  return [...rows.values()].map((r) => ({ ...r, name: nameOf("people", r.id), students: r.students.size, mean: r.scores.length ? Math.round((r.scores.reduce((a, b) => a + b, 0) / r.scores.length) * 10) / 10 : null }))
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+}
 R.relatorios = () => {
-  const ses = DB.sessions.filter((s) => !UI.repCourse || s.courseId === UI.repCourse);
-  const u = C.usageReport(ses), lr = C.learnerReport(ses, DB.evaluations, DB.people), ar = C.annotationReport(ses);
-  const ev = byId("evaluations", UI.repEval) || DB.evaluations[0];
+  const base = visibleSessions();
+  const courses = isAdm() ? DB.courses : DB.courses.filter((c) => base.some((s) => s.courseId === c.id));
+  if (UI.repCourse && !courses.some((c) => c.id === UI.repCourse)) UI.repCourse = "";
+  const stuIds = new Set(base.filter((s) => !UI.repCourse || s.courseId === UI.repCourse).flatMap((s) => s.participantIds || []));
+  const students = DB.people.filter((p) => stuIds.has(p.id)).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  if (UI.repStudent && !stuIds.has(UI.repStudent)) UI.repStudent = "";
+  const teachers = isAdm() ? DB.people.filter((p) => p.role === "docente").sort((a, b) => a.name.localeCompare(b.name, "pt-BR")) : [];
+  const ses = repSessions();
+  const u = C.usageReport(ses), lr = C.learnerReport(ses, DB.evaluations, DB.people).filter((r) => !UI.repStudent || r.personId === UI.repStudent), ar = C.annotationReport(ses);
+  const tr = isAdm() ? teacherReport(ses) : [];
+  const stuRows = UI.repStudent ? ses.flatMap((s) => (s.results || []).filter((r) => r.subjectId === UI.repStudent || r.subjectId === "equipe").map((r) => {
+    const ev = byId("evaluations", r.evaluationId); const sc = ev ? C.scoreEvaluation(ev, r.answers) : null;
+    return { s, ev, sc, team: r.subjectId === "equipe" }; })).sort((a, b) => b.s.startedAt - a.s.startedAt) : [];
+  const ev = visibleEvals().find((x) => x.id === UI.repEval) || visibleEvals()[0];
   let items = "";
   if (ev) {
     const rs = ses.flatMap((s) => (s.results || []).filter((r) => r.evaluationId === ev.id));
@@ -1565,16 +1651,23 @@ R.relatorios = () => {
       const pct = vals.length && m ? Math.round((vals.reduce((a, b) => a + b, 0) / (vals.length * m)) * 100) : null;
       return `<tr><td>${esc(it.text)}${it.critical ? ` <span class="tag bad">crítico</span>` : ""}</td><td>${esc(ITEM_KINDS[it.kind])}</td><td>${vals.length}</td><td style="min-width:150px">${pct === null ? "—" : `<div class="bars"><div class="b" style="grid-template-columns:1fr 50px;margin:0"><div class="t"><i style="width:${pct}%;background:${pct < 60 ? "var(--bad)" : pct < 80 ? "var(--warn)" : "var(--acc)"}"></i></div><span class="v">${pct}%</span></div></div>`}</td></tr>`; }).join("")}</table></div>`;
   }
-  return `<div class="between"><h1 style="margin:0">Relatórios</h1><div class="row"><select data-change="rep-course">${opt("", "Todos os cursos", UI.repCourse)}${DB.courses.map((c) => opt(c.id, c.title, UI.repCourse)).join("")}</select>
+  return `<div class="between"><h1 style="margin:0">Relatórios</h1><div class="row">${isAdm() ? `<select data-change="rep-teacher" aria-label="Docente">${opt("", "Todos os docentes", UI.repTeacher)}${teachers.map((p) => opt(p.id, p.name, UI.repTeacher)).join("")}</select>` : ""}<select data-change="rep-course" aria-label="Turma">${opt("", isAdm() ? "Todas as turmas" : "Todas as minhas turmas", UI.repCourse)}${courses.map((c) => opt(c.id, c.title, UI.repCourse)).join("")}</select>
+    <select data-change="rep-student" aria-label="Estudante">${opt("", "Todos os estudantes", UI.repStudent)}${students.map((p) => opt(p.id, p.name, UI.repStudent)).join("")}</select>
     <button class="btn" data-act="rep-usage">Uso (CSV)</button><button class="btn" data-act="rep-learners">Desempenho (CSV)</button><button class="btn" data-act="rep-results">Resultados detalhados (CSV)</button></div></div>
+  ${isAdm() ? "" : `<p class="muted small">Relatório das suas aulas e simulações. Filtre por turma ou por estudante.</p>`}
   <div class="kpis">${kpi("Sessões", u.sessions)}${kpi("Horas de simulação", fmtH(u.hours))}${kpi("Horas-participante", fmtH(u.personHours))}${kpi("Estudantes avaliados", lr.length)}</div>
   <div class="cols3"><section class="card"><h2>Horas por sala</h2>${bars(u.location, (k) => nameOf("locations", k), fmtH)}</section>
     <section class="card"><h2>Horas por curso</h2>${bars(u.course, (k) => nameOf("courses", k), fmtH)}</section>
     <section class="card"><h2>Horas por mês</h2>${bars(u.month, (k) => k, fmtH)}</section></div>
+  ${isAdm() ? `<section class="card"><h2>Relatório por docente</h2>${tr.length ? `<div class="tbl"><table><tr><th>Docente</th><th>Sessões</th><th>Horas de simulação</th><th>Estudantes</th><th>Média das avaliações (%)</th><th></th></tr>
+    ${tr.map((r) => `<tr><td>${esc(r.name)}</td><td>${r.sessions}</td><td>${fmtH(r.hours)}</td><td>${r.students}</td><td>${r.mean === null ? "—" : `<b>${r.mean}</b>`}</td><td><button class="btn sm" data-act="rep-pick-teacher" data-id="${r.id}">Ver só este docente</button></td></tr>`).join("")}</table></div>` : `<div class="empty">Nenhuma sessão com docente identificado</div>`}
+    <p class="muted small" style="margin-top:6px">A sessão conta para quem a criou; sessões criadas pelo administrador contam para os docentes do curso.</p></section>` : ""}
+  ${UI.repStudent ? `<section class="card"><h2>Histórico de ${esc(nameOf("people", UI.repStudent))}</h2>${stuRows.length ? `<div class="tbl"><table><tr><th>Data</th><th>Sessão</th><th>Turma</th><th>Instrumento</th><th>Resultado (%)</th><th>Item crítico</th></tr>
+    ${stuRows.map((x) => `<tr><td>${fmtDate(x.s.startedAt)}</td><td>${esc(x.s.title)}</td><td>${esc(nameOf("courses", x.s.courseId))}</td><td>${esc(x.ev ? x.ev.title : "—")}${x.team ? ' <span class="tag">equipe</span>' : ""}</td><td><b>${x.sc && x.sc.pct !== null ? x.sc.pct : "—"}</b></td><td>${x.sc && x.sc.criticalMissed.length ? `<span class="tag bad">${x.sc.criticalMissed.length}</span>` : "0"}</td></tr>`).join("")}</table></div>` : `<div class="empty">Sem avaliações registradas para este estudante</div>`}</section>` : ""}
   <section class="card"><h2>Desempenho por estudante</h2>${lr.length ? `<div class="tbl"><table><tr><th>Estudante</th><th>Sessões</th><th>Avaliações</th><th>Média (%)</th><th>Mínimo (%)</th><th>Com item crítico</th></tr>
     ${lr.map((r) => `<tr><td>${esc(r.name)}</td><td>${r.sessions}</td><td>${r.evaluations}</td><td><b>${r.mean}</b></td><td>${r.min}</td><td>${r.critical ? `<span class="tag bad">${r.critical}</span>` : "0"}</td></tr>`).join("")}</table></div>` : `<div class="empty">Sem avaliações pontuadas</div>`}
     <p class="muted small" style="margin-top:6px">Avaliações de equipe são atribuídas a todos os participantes da sessão.</p></section>
-  <div class="cols"><section class="card"><h2>Análise por item</h2>${DB.evaluations.length ? `<select data-change="rep-eval" style="margin-bottom:10px">${DB.evaluations.map((e) => opt(e.id, e.title, ev && ev.id)).join("")}</select>${items}<p class="muted small">Itens abaixo de 60% indicam lacunas de aprendizagem a priorizar no currículo e no debriefing.</p>` : `<div class="empty">Sem avaliações</div>`}</section>
+  <div class="cols"><section class="card"><h2>Análise por item</h2>${visibleEvals().length ? `<select data-change="rep-eval" style="margin-bottom:10px">${visibleEvals().map((e) => opt(e.id, e.title, ev && ev.id)).join("")}</select>${items}<p class="muted small">Itens abaixo de 60% indicam lacunas de aprendizagem a priorizar no currículo e no debriefing.</p>` : `<div class="empty">Sem avaliações</div>`}</section>
     <section class="card"><h2>Anotações por categoria</h2>${bars(ar)}</section></div>`;
 };
 
@@ -1728,9 +1821,10 @@ const ACT = {
   // agenda
   "ag-mon": (b) => { const d = +b.dataset.d, m = new Date(UI.agMonth); UI.agMonth = d ? +new Date(m.getFullYear(), m.getMonth() + d, 1) : Date.now(); render(); },
   "res-open": (b, e) => { e.stopPropagation(); const r = byId("reservations", b.dataset.id); if (r) openReservation(r, +b.dataset.idx); },
-  "res-status": (b) => { const r = byId("reservations", b.dataset.id); if (r) { r.status = b.dataset.s; save(); render(); } },
+  "res-status": (b) => { if (UI.role !== "admin") return toast("Somente o administrador aprova ou recusa reservas."); const r = byId("reservations", b.dataset.id); if (r) { r.status = b.dataset.s; save(); render(); } },
   "res-del": async (b) => {
     const r = byId("reservations", b.dataset.id); if (!r) return;
+    if (!canEditRes(r)) return toast("Você só pode alterar as reservas que criou.");
     if (b.dataset.idx !== undefined && +b.dataset.idx > 0) { r.recur.skip = [...(r.recur.skip || []), +b.dataset.idx]; }
     else if (b.dataset.idx !== undefined) { // 1ª ocorrência da série: a série passa a começar na seguinte
       const nx = C.expandRecurrence(r)[1];
@@ -1741,11 +1835,12 @@ const ACT = {
     save(); closeModal(); render();
   },
   "ics": () => {
-    const occ = occurrencesBetween(Date.now() - 30 * DAY, Date.now() + 366 * DAY).map((o) => ({ uid: o.res.id + "-" + o.index, start: o.start, end: o.end, title: o.res.title, location: nameOf("locations", o.res.locationId), description: [nameOf("courses", o.res.courseId), nameOf("scenarios", o.res.scenarioId), o.res.notes].filter((x) => x && x !== "—").join(" · ") }));
+    const occ = occurrencesBetween(Date.now() - 30 * DAY, Date.now() + 366 * DAY).map((o) => ({ uid: o.res.id + "-" + o.index, start: o.start, end: o.end, title: resTitle(o.res), location: nameOf("locations", o.res.locationId), description: hideRes(o.res) ? "" : [nameOf("courses", o.res.courseId), nameOf("scenarios", o.res.scenarioId), o.res.notes].filter((x) => x && x !== "—").join(" · ") }));
     download("agenda-simulacao.ics", C.toICS(occ), "text/calendar;charset=utf-8");
   },
   "live-from-res": (b) => {
     const r = byId("reservations", b.dataset.id); if (!r) return;
+    if (hideRes(r)) return toast("Esta reserva é de outra pessoa.");
     if (LIVE.recording) return toast("Já existe uma gravação em andamento.");
     const c = byId("courses", r.courseId);
     Object.assign(LIVE.setup, { title: r.title, courseId: r.courseId || "", scenarioId: r.scenarioId || "", locationId: r.locationId || "", pids: c ? [...(c.participantIds || [])] : [], reservationId: r.id });
@@ -1756,20 +1851,22 @@ const ACT = {
   "course-open": (b) => openCourse(byId("courses", b.dataset.id)),
   "course-del": async (b) => { if (!(await ask("Excluir o curso? As sessões permanecem."))) return; DB.courses = DB.courses.filter((c) => c.id !== b.dataset.id); save(); closeModal(); render(); },
   "person-new": () => openPerson({ id: C.uid("p"), role: "estudante" }),
+  "pm-tab": (b) => { const box = b.closest("form") || document; $$("[data-act=pm-tab]", box).forEach((x) => x.classList.toggle("on", x === b)); $$("[data-pm]", box).forEach((x) => { x.hidden = x.dataset.pm !== b.dataset.t; }); },
   "person-open": (b) => openPerson(byId("people", b.dataset.id)),
-  "person-del": async (b) => { if (!(await ask("Excluir esta pessoa?"))) return; const id = b.dataset.id; DB.people = DB.people.filter((p) => p.id !== id); DB.courses.forEach((c) => { c.participantIds = (c.participantIds || []).filter((x) => x !== id); c.facultyIds = (c.facultyIds || []).filter((x) => x !== id); }); save(); closeModal(); render(); },
+  "person-del": async (b) => { if (!isAdm()) return toast("Somente o administrador exclui pessoas."); if (!(await ask("Excluir esta pessoa?"))) return; const id = b.dataset.id; DB.people = DB.people.filter((p) => p.id !== id); DB.courses.forEach((c) => { c.participantIds = (c.participantIds || []).filter((x) => x !== id); c.facultyIds = (c.facultyIds || []).filter((x) => x !== id); }); save(); closeModal(); render(); },
   "people-csv": () => download("participantes.csv", C.toCSV(DB.people.map((p) => ({ nome: p.name, email: p.email, papel: p.role, cursos: DB.courses.filter((c) => [...(c.participantIds || []), ...(c.facultyIds || [])].includes(p.id)).map((c) => c.code || c.title).join(", ") }))), "text/csv;charset=utf-8"),
   // cenários
+  "appr": (b, e) => { e.stopPropagation(); if (!isAdm()) return; const x = byId(b.dataset.col, b.dataset.id); if (!x) return; x.status = b.dataset.s; x.reviewedBy = meLabel(); x.reviewedAt = Date.now(); save(); render(); toast(x.status === "aprovado" ? "Aprovado." : "Recusado."); },
   "sc-new": () => openScenario({ id: C.uid("sc"), annotations: CRM_MARKERS.map(([label, cat]) => ({ id: C.uid("a"), label, cat, color: colorFor(cat) })), evaluationIds: [] }),
   "sc-open": (b) => openScenario(byId("scenarios", b.dataset.id)),
   "sc-import": () => importEngineScenarios(),
-  "sc-copy": (b) => { const s = byId("scenarios", b.dataset.id); const c = JSON.parse(JSON.stringify(s)); c.id = C.uid("sc"); c.title += " (cópia)"; delete c.engineId; DB.scenarios.push(c); save(); closeModal(); render(); },
-  "sc-del": async (b) => { if (!(await ask("Excluir o cenário?"))) return; DB.scenarios = DB.scenarios.filter((s) => s.id !== b.dataset.id); save(); closeModal(); render(); },
+  "sc-copy": (b) => { const s = byId("scenarios", b.dataset.id); const c = JSON.parse(JSON.stringify(s)); c.id = C.uid("sc"); c.title += " (cópia)"; c.area = AR.scenarioArea(s); delete c.engineId; delete c.libKey; delete c.ownerEmail; delete c.ownerId; delete c.ownerRole; delete c.status; stampApproval(c, true); DB.scenarios.push(c); save(); closeModal(); render(); if (!isAdm()) toast("Cópia criada e enviada para aprovação."); },
+  "sc-del": async (b) => { if (!canEditSc(byId("scenarios", b.dataset.id) || {})) return toast("Você só pode excluir os cenários que criou."); if (!(await ask("Excluir o cenário?"))) return; DB.scenarios = DB.scenarios.filter((s) => s.id !== b.dataset.id); save(); closeModal(); render(); },
   // avaliações
   "ev-new": () => openEvaluation({ id: C.uid("ev"), type: "avaliador", items: [] }),
   "ev-open": (b, e) => { if (e.target.closest("[data-act=ev-print]")) return; openEvaluation(byId("evaluations", b.dataset.id)); },
   "ev-print": (b, e) => { e.stopPropagation(); printEvaluation(byId("evaluations", b.dataset.id)); },
-  "ev-del": async (b) => { if (!(await ask("Excluir a avaliação? Resultados já registrados deixarão de ser pontuados."))) return; DB.evaluations = DB.evaluations.filter((x) => x.id !== b.dataset.id); DB.scenarios.forEach((s) => (s.evaluationIds = (s.evaluationIds || []).filter((x) => x !== b.dataset.id))); save(); closeModal(); render(); },
+  "ev-del": async (b) => { if (!canEditEval(byId("evaluations", b.dataset.id) || {})) return toast("Você só pode excluir as avaliações que criou."); if (!(await ask("Excluir a avaliação? Resultados já registrados deixarão de ser pontuados."))) return; DB.evaluations = DB.evaluations.filter((x) => x.id !== b.dataset.id); DB.scenarios.forEach((s) => (s.evaluationIds = (s.evaluationIds || []).filter((x) => x !== b.dataset.id))); save(); closeModal(); render(); },
   "item-add": () => $("#items").insertAdjacentHTML("beforeend", itemRow({})),
   "item-del": (b) => b.closest(".it").remove(),
   // ao vivo
@@ -1823,16 +1920,17 @@ const ACT = {
     teardownPB(); for (const m of s.media || []) { try { await delMedia(m.id); } catch (e) {} } DB.sessions = DB.sessions.filter((x) => x !== s); save(); go("sessoes"); },
   "ses-edit": () => { const s = byId("sessions", UI.sel);
     modal("Editar dados da sessão", `<label class="f"><span>Título</span><input name="title" value="${esc(s.title)}"></label><div class="fg"><label class="f"><span>Curso</span><select name="courseId">${opts("courses", s.courseId)}</select></label>
-      <label class="f"><span>Cenário</span><select name="scenarioId">${opts("scenarios", s.scenarioId)}</select></label><label class="f"><span>Sala</span><select name="locationId">${opts("locations", s.locationId)}</select></label></div>
+      <label class="f"><span>Cenário</span><select name="scenarioId">${optList(usableScenarios(), s.scenarioId)}</select></label><label class="f"><span>Sala</span><select name="locationId">${opts("locations", s.locationId)}</select></label></div>
       <div class="f"><span>Participantes</span><div class="checks">${DB.people.filter((p) => p.role === "estudante" || p.role === "pe").map((p) => `<label><input type="checkbox" name="pids" value="${p.id}" ${(s.participantIds || []).includes(p.id) ? "checked" : ""}> ${esc(p.name)}</label>`).join("")}</div></div>`,
       { onSubmit: (fd) => { Object.assign(s, { title: fd.get("title").trim() || s.title, courseId: fd.get("courseId"), scenarioId: fd.get("scenarioId"), locationId: fd.get("locationId"), participantIds: fd.getAll("pids") }); save(); render(); } }); },
   // relatórios
-  "rep-usage": () => { const ses = DB.sessions.filter((s) => !UI.repCourse || s.courseId === UI.repCourse);
+  "rep-pick-teacher": (b) => { UI.repTeacher = b.dataset.id; render(); },
+  "rep-usage": () => { const ses = repSessions();
     download("uso-simulacao.csv", C.toCSV(ses.map((s) => ({ data: fmtDT(s.startedAt), titulo: s.title, curso: nameOf("courses", s.courseId), cenario: nameOf("scenarios", s.scenarioId), sala: nameOf("locations", s.locationId), duracao_min: (s.duration / 60).toFixed(1), participantes: (s.participantIds || []).length, horas_participante: ((s.duration / 3600) * (s.participantIds || []).length).toFixed(2), anotacoes: (s.annotations || []).filter((a) => a.source !== "simulador").length, avaliacoes: (s.results || []).length }))), "text/csv;charset=utf-8"); },
-  "rep-learners": () => { const ses = DB.sessions.filter((s) => !UI.repCourse || s.courseId === UI.repCourse);
+  "rep-learners": () => { const ses = repSessions();
     download("desempenho-estudantes.csv", C.toCSV(C.learnerReport(ses, DB.evaluations, DB.people).map((r) => ({ estudante: r.name, email: (byId("people", r.personId) || {}).email || "", sessoes: r.sessions, avaliacoes: r.evaluations, media_pct: r.mean, minimo_pct: r.min, com_item_critico: r.critical }))), "text/csv;charset=utf-8"); },
   "rep-results": () => { const rows = [];
-    for (const s of DB.sessions.filter((x) => !UI.repCourse || x.courseId === UI.repCourse)) for (const r of s.results || []) { const ev = byId("evaluations", r.evaluationId); if (!ev) continue; const sc = C.scoreEvaluation(ev, r.answers);
+    for (const s of repSessions()) for (const r of s.results || []) { if (UI.repStudent && r.subjectId !== UI.repStudent && r.subjectId !== "equipe") continue; const ev = byId("evaluations", r.evaluationId); if (!ev) continue; const sc = C.scoreEvaluation(ev, r.answers);
       rows.push({ sessao: s.title, data: fmtDT(s.startedAt), instrumento: ev.title, tipo: ev.type, avaliado: r.subjectId === "equipe" ? "Equipe" : nameOf("people", r.subjectId), email: (byId("people", r.subjectId) || {}).email || "", avaliador: r.evaluator || "", pontos: sc.points, maximo: sc.max, pct: sc.pct ?? "", criticos_nao_cumpridos: sc.criticalMissed.join(" | ") }); }
     download("resultados-avaliacoes.csv", C.toCSV(rows), "text/csv;charset=utf-8"); },
   // configurações
@@ -1874,9 +1972,12 @@ const CHG = {
   "pb-rate": (el) => { if (PB) { PB.rate = +el.value; syncVideos(true); } },
   "pb-layout": (el) => { UI.layout = el.value; savePrefs(); const p = $("#player"); p.className = p.className.replace(/lay-\w+/, "lay-" + UI.layout); },
   "rep-course": (el) => { UI.repCourse = el.value; render(); },
+  "rep-student": (el) => { UI.repStudent = el.value; render(); },
+  "rep-teacher": (el) => { UI.repTeacher = el.value; render(); },
   "rep-eval": (el) => { UI.repEval = el.value; render(); },
   "set": (el) => { DB.settings[el.name] = el.type === "number" ? +el.value || 0 : el.value.trim(); save(); },
-  "roster": (el) => { const f = el.files[0]; if (f) f.text().then(importRoster); el.value = ""; },
+  "pm-role": (el) => { const t = $("#pm-tab-a"); if (t) t.hidden = el.value !== "docente"; },
+  "roster": (el) => { if (!isAdm()) { el.value = ""; return toast("Somente o administrador importa participantes."); } const f = el.files[0]; if (f) f.text().then(importRoster); el.value = ""; },
   "restore": (el) => { const f = el.files[0]; if (!f) return; f.text().then(async (t) => { try { const d = JSON.parse(t); if (!d || !Array.isArray(d.sessions)) throw new Error("arquivo inválido"); if (!(await ask("Substituir os dados atuais pelo backup?"))) return; DB = Object.assign(emptyDB(), d); save(); render(); toast("Backup restaurado."); } catch (e) { toast("Não foi possível restaurar: " + e.message); } }); el.value = ""; },
 };
 

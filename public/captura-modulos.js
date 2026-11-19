@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════════════════════
- * HELSIM – módulos exclusivos de docente e administrador
+ * HELSIM – módulos exclusivos de docente e administrador (almoxarifado: somente administrador)
  *
  *  1. Prontuário eletrônico simulado (prescrição, aprazamento, administração,
  *     histórico e sinais vitais com NEWS2), integrado às sessões ao vivo:
@@ -148,6 +148,7 @@
   // ════════════════════════════ INTERFACE ════════════════════════════════
   root.hcInstallModules = function () {
     const isStaff = () => STAFF.includes(UI.role);
+    const isAdmin = () => UI.role === "admin"; // almoxarifado: somente administrador
     const nowHM = () => isoTime(Date.now());
     const S = (k, d) => (UI[k] === undefined ? (UI[k] = d) : UI[k]);
     const svg = (p) => `<svg viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`;
@@ -156,13 +157,13 @@
     ICO.prontuario = '<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 3v3h6V3"/><path d="M12 10v6M9 13h6"/>';
     ICO.almox = '<path d="M3 21V7l9-4 9 4v14"/><path d="M7 21v-8h10v8"/><path d="M7 17h10"/>';
     ICO.salas = '<rect x="3" y="4" width="8" height="7" rx="1"/><rect x="13" y="4" width="8" height="7" rx="1"/><rect x="3" y="13" width="8" height="7" rx="1"/><rect x="13" y="13" width="8" height="7" rx="1"/>';
-    NAV.splice(NAV.length - 1, 0, ["Laboratório · restrito", [["prontuario", "Prontuário eletrônico", STAFF], ["almox", "Almoxarifado", STAFF], ["salas", "Ocupação das salas", STAFF]]]);
+    NAV.splice(NAV.length - 1, 0, ["Laboratório · restrito", [["prontuario", "Prontuário eletrônico", ["admin"]], ["almox", "Almoxarifado", ["admin"]], ["salas", "Ocupação das salas", ["admin"]]]]);
     Object.assign(VIEW_LABEL, { prontuario: "Prontuário eletrônico", almox: "Almoxarifado (Helse Log)", salas: "Ocupação das salas" });
     root.HC_NAV_BADGE = {
-      almox: () => { const n = (DB.stock || []).filter((i) => i.stock < i.min).length; return n ? `<span class="badge" title="Itens com estoque crítico">${n}</span>` : ""; },
+      almox: () => { if (!isAdmin()) return ""; const n = (DB.stock || []).filter((i) => i.stock < i.min).length; return n ? `<span class="badge" title="Itens com estoque crítico">${n}</span>` : ""; },
     };
     root.hcPainelExtra = () => {
-      if (!isStaff()) return "";
+      if (!isAdmin()) return "";
       const crit = (DB.stock || []).filter((i) => i.stock < i.min);
       return crit.length ? `<div class="card"><span class="tag bad">${crit.length} item(ns) do almoxarifado abaixo do estoque mínimo</span> <button class="btn sm" data-act="go" data-v="almox">Ver almoxarifado</button></div>` : "";
     };
@@ -541,6 +542,7 @@
     };
 
     R.almox = () => {
+      if (!isAdmin()) return `<h1>Almoxarifado</h1><div class="empty">O almoxarifado é restrito ao administrador.</div>`;
       const tab = S("labTab", "mapa");
       const t = (id, l) => `<button class="${tab === id ? "on" : ""}" data-act="lab-tab" data-t="${id}">${l}</button>`;
       return `<div class="between"><h1 style="margin:0">Almoxarifado <span class="muted" style="font-weight:400">· Helse Log</span></h1><div class="row">
@@ -824,7 +826,8 @@
         openReservation({ id: C.uid("r"), title: "", locationId: b.dataset.loc || "", start: d.toISOString(), end: new Date(+d + 2 * 3600000).toISOString(), resourceIds: [], recur: { freq: "nenhuma" } }); },
     };
     const deny = () => toast("Função disponível apenas para docente ou administrador.");
-    for (const [k, fn] of Object.entries(A)) ACT[k] = (b, e) => (isStaff() ? fn(b, e) : deny());
+    const denyAdmin = () => toast("O almoxarifado é restrito ao administrador.");
+    for (const [k, fn] of Object.entries(A)) ACT[k] = (b, e) => (k.startsWith("lab-") ? (isAdmin() ? fn(b, e) : denyAdmin()) : isStaff() ? fn(b, e) : deny());
     const CH = {
       "ehr-pt": (el) => { UI.ehrPt = el.value; UI.ehrItem = ""; render(); },
       "ehr-clock": (el) => { const p = pt(); p.clock = el.value; save(); render(); },
@@ -835,7 +838,7 @@
       "lab-fst": (el) => { UI.labSt = el.value; render(); },
       "salas-date": (el) => { if (el.value) { UI.salasDay = el.value; render(); } },
     };
-    for (const [k, fn] of Object.entries(CH)) CHG[k] = (el) => (isStaff() ? fn(el) : deny());
+    for (const [k, fn] of Object.entries(CH)) CHG[k] = (el) => (k.startsWith("lab-") ? (isAdmin() ? fn(el) : denyAdmin()) : isStaff() ? fn(el) : deny());
 
     // ═══════════════════════ MODO DE SENHAS (servidor) ═══════════════════
     const AU = (root.HC_AUTH = { on: false, mail: "", token: "", user: null });
@@ -848,12 +851,15 @@
       if (!r.ok) { const err = new Error(j.error || `Erro ${r.status}`); err.status = r.status; throw err; }
       return j;
     }
-    const allowed = (role) => !AU.user || RANK[role] <= RANK[AU.user.role];
+    // só o administrador alterna perfis (para conferir a visão do docente/estudante); os demais ficam presos ao próprio
+    const allowed = (role) => !AU.user || (AU.user.role === "admin" ? RANK[role] <= RANK.admin : role === AU.user.role);
     root.hcAuthGuard = () => { if (AU.on && AU.user && !allowed(UI.role)) UI.role = AU.user.role; };
     root.hcAuthLock = () => {
       if (!AU.on || !AU.user) return;
       $$("#role option").forEach((o) => { o.disabled = !allowed(o.value); o.hidden = !allowed(o.value); });
-      $("#role").disabled = AU.user.role === "estudante";
+      $("#role").disabled = AU.user.role !== "admin";
+      { const fixed = AU.user.role !== "admin", rl = $("#role") && $("#role").closest("label"), mw = $("#me-wrap");
+        if (rl) rl.hidden = fixed; if (fixed && mw) mw.style.display = "none"; }
       if (UI.role === AU.user.role) {
         let p = DB.people.find((x) => (x.email || "").toLowerCase() === AU.user.email);
         if (!p) { p = { id: C.uid("p"), name: AU.user.name, email: AU.user.email, role: AU.user.role }; DB.people.push(p); save(); }
@@ -863,6 +869,7 @@
       } else { const me = $("#me"); if (me) me.disabled = false; }
       const ctx = $(".topbar .ctx");
       if (ctx && !$("#tb-logout")) ctx.insertAdjacentHTML("beforeend", `<button type="button" class="tb-chip" id="tb-logout" data-act="auth-logout" title="Sair">Sair</button>`);
+      if (root.hcPaintAvatar) setTimeout(root.hcPaintAvatar, 0);
       const av = $("#tb-avatar"); if (av) { av.textContent = AU.user.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase(); av.title = `${AU.user.name} · ${AU.user.email} · ${ROLES[AU.user.role]}`; }
     };
 
@@ -879,6 +886,7 @@
           <div class="au-links"><a href="#" data-au-go="register">Primeiro acesso: cadastrar</a><a href="#" data-au-go="forgot">Esqueci minha senha</a></div>`,
         register: `<h2>Cadastro</h2>${err}<p class="muted small">Informe seu nome e e-mail institucional. Uma senha temporária será enviada ao e-mail; no primeiro acesso você cadastra a senha definitiva.</p>
           <form data-au="register"><label class="f"><span>Nome completo</span><input name="name" required autocomplete="name"></label><label class="f"><span>E-mail</span><input name="email" type="email" required autocomplete="email" value="${esc(email)}"></label>
+          <div class="f"><span>Sou</span><div class="row" style="gap:14px"><label><input type="radio" name="role" value="estudante" checked> Estudante</label><label><input type="radio" name="role" value="docente"> Docente</label></div><span class="muted small" style="font-weight:400">O perfil de docente é liberado após a aprovação do administrador (até lá o acesso é de estudante).</span></div>
           <button class="btn primary au-go">Enviar senha temporária</button></form>${mail()}<div class="au-links"><a href="#" data-au-go="login">Já tenho a senha</a></div>`,
         forgot: `<h2>Recuperar acesso</h2>${err}<p class="muted small">Enviaremos uma nova senha temporária. A anterior deixa de valer.</p>
           <form data-au="forgot"><label class="f"><span>E-mail</span><input name="email" type="email" required value="${esc(email)}"></label><button class="btn primary au-go">Enviar nova senha</button></form>${mail()}<div class="au-links"><a href="#" data-au-go="login">Voltar</a></div>`,
@@ -976,7 +984,9 @@
           if (r.status === 409) { const j = await r.json(); applyDB(HC_CLIN.merge3(SY.base, DB, j.db)); SY.base = clone(j.db); SY.rev = j.rev; continue; }
           if (r.status === 401) return root.hcAuthExpired && root.hcAuthExpired();
           if (!r.ok) throw new Error(r.status);
-          SY.rev = (await r.json()).rev; SY.base = snap; SY.pendingLocal = false; saveMeta(); setState("ok"); return;
+          const j = await r.json(); SY.base = snap; SY.pendingLocal = false;
+          // o servidor pode ter ajustado o envio (permissões): busca a versão gravada logo em seguida
+          SY.rev = j.adjusted ? -1 : j.rev; saveMeta(); setState("ok"); if (j.adjusted) setTimeout(pull, 300); return;
         }
         throw new Error("conflito persistente");
       } catch (e) { SY.pendingLocal = true; setState("offline"); }
@@ -1037,7 +1047,7 @@
     // Configurações › Usuários e acesso (administrador)
     const origConfig = R.config, origAfter = AFTER.config;
     R.config = () => origConfig() + (AU.on && AU.user && AU.user.role === "admin" && UI.role === "admin"
-      ? `<section class="card"><div class="between"><h2 style="margin:0">Usuários e acesso</h2><button class="btn primary" data-act="au-new">+ Usuário</button></div><div id="au-users" class="muted">Carregando…</div>
+      ? `<section class="card"><div class="between"><h2 style="margin:0">Usuários e acesso</h2><span class="row" style="gap:6px"><button class="btn" data-act="au-testmail">Testar e-mail</button><button class="btn primary" data-act="au-new">+ Usuário</button></span></div><div id="au-users" class="muted">Carregando…</div>
         <p class="muted small" style="margin-top:8px">Novos cadastros entram como estudante; promova docentes aqui. “Nova senha” envia outra senha temporária e obriga a troca no próximo acesso. E-mail: ${AU.mail === "smtp" ? "SMTP configurado" : "modo de teste (data/outbox)"}.</p></section>`
       : `<section class="card"><h2>Modo de senhas</h2><p class="muted">${AU.on ? "Ativo. Você entrou como " + esc(AU.user ? AU.user.name : "") + "." : "Disponível quando o HELSIM roda pelo servidor (<code>npm start</code>): cadastro por e-mail, senha temporária enviada ao e-mail e troca obrigatória no primeiro acesso. Neste arquivo/link a troca de perfil continua livre."}</p></section>`);
     async function loadUsers() {
@@ -1046,8 +1056,8 @@
         const { users } = await api("/users");
         el.className = ""; el.innerHTML = `<div class="tbl"><table><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Situação</th><th>Último acesso</th><th></th></tr>${users.map((u) => `<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td>
           <td><select data-au-role="${u.id}" ${u.id === AU.user.id ? "disabled" : ""}>${Object.keys(RANK).reverse().map((r) => opt(r, ROLES[r], u.role)).join("")}</select></td>
-          <td>${u.mustChange ? '<span class="tag warn">aguardando troca de senha</span>' : '<span class="tag ok">ativo</span>'}</td><td class="small">${u.lastLogin ? esc(fmtDT(u.lastLogin)) : "—"}</td>
-          <td class="row" style="gap:4px"><button class="btn sm" data-act="au-reset" data-id="${u.id}">Nova senha</button>${u.id === AU.user.id ? "" : `<button class="btn sm" data-act="au-del" data-id="${u.id}">Excluir</button>`}</td></tr>`).join("")}</table></div>`;
+          <td>${u.mustChange ? '<span class="tag warn">aguardando troca de senha</span>' : '<span class="tag ok">ativo</span>'}${u.requestedRole === "docente" ? ` <span class="tag warn">pediu perfil docente</span> <button class="btn sm primary" data-act="au-approve" data-id="${u.id}" data-email="${esc(u.email)}" data-name="${esc(u.name)}">Aprovar docente</button> <button class="btn sm" data-act="au-deny" data-id="${u.id}">Recusar</button>` : ""}</td><td class="small">${u.lastLogin ? esc(fmtDT(u.lastLogin)) : "—"}</td>
+          <td class="row" style="gap:4px">${u.role === "docente" ? `<button class="btn sm" data-act="au-areas" data-email="${esc(u.email)}" data-name="${esc(u.name)}">Áreas</button>` : ""}<button class="btn sm" data-act="au-reset" data-id="${u.id}">Nova senha</button>${u.id === AU.user.id ? "" : `<button class="btn sm" data-act="au-del" data-id="${u.id}">Excluir</button>`}</td></tr>`).join("")}</table></div>`;
         $$("[data-au-role]", el).forEach((s) => { s.onchange = async () => { try { await api(`/users/${s.dataset.auRole}/role`, { role: s.value }); toast("Perfil atualizado."); } catch (e) { toast(e.message); loadUsers(); } }; });
       } catch (e) { el.textContent = e.message; }
     }
@@ -1056,8 +1066,63 @@
     ACT["au-reset"] = adminOnly(async (b) => { if (!(await ask("Enviar uma nova senha temporária? A senha atual deixa de valer.", "Enviar"))) return; try { await api(`/users/${b.dataset.id}/reset`, {}); toast("Nova senha temporária enviada."); loadUsers(); } catch (e) { toast(e.message); } });
     ACT["au-del"] = adminOnly(async (b) => { if (!(await ask("Excluir este acesso? Os registros das sessões não são apagados.", "Excluir"))) return; try { await api(`/users/${b.dataset.id}`, null, "DELETE"); loadUsers(); } catch (e) { toast(e.message); } });
     ACT["au-new"] = adminOnly(() => modal("Cadastrar usuário", `<label class="f"><span>Nome</span><input name="name" required></label><label class="f"><span>E-mail</span><input name="email" type="email" required></label>
-      <label class="f"><span>Perfil</span><select name="role">${opt("estudante", ROLES.estudante)}${opt("docente", ROLES.docente)}${opt("admin", ROLES.admin)}</select></label><p class="muted small">A pessoa recebe a senha temporária por e-mail e cadastra a definitiva no primeiro acesso.</p>`,
-      { submit: "Cadastrar e enviar", onSubmit: async (fd) => { try { await api("/users", Object.fromEntries(fd)); toast("Usuário cadastrado; senha temporária enviada."); loadUsers(); } catch (e) { toast(e.message); return false; } } }));
+      <label class="f"><span>Perfil</span><select name="role" data-change="pm-role">${opt("estudante", ROLES.estudante)}${opt("docente", ROLES.docente)}${opt("admin", ROLES.admin)}</select></label>
+      <div data-pm-areas hidden><div class="f"><span>Áreas do conhecimento do docente</span><div class="checks" style="display:grid;gap:6px">${HELSIM_AREAS.AREAS.map((a) => `<label><input type="checkbox" name="areas" value="${esc(a)}"> ${esc(a)}</label>`).join("")}</div></div></div><p class="muted small">A pessoa recebe a senha temporária por e-mail e cadastra a definitiva no primeiro acesso.</p>`,
+      { submit: "Cadastrar e enviar", onSubmit: async (fd) => {
+        const body = { name: fd.get("name"), email: fd.get("email"), role: fd.get("role") };
+        try { await api("/users", body); } catch (e) { toast(e.message); return false; }
+        const email = String(body.email).trim().toLowerCase();
+        let p = DB.people.find((x) => (x.email || "").toLowerCase() === email);
+        if (!p) { p = { id: C.uid("p"), name: String(body.name).trim(), email }; DB.people.push(p); }
+        Object.assign(p, { role: body.role, areas: body.role === "docente" ? fd.getAll("areas") : p.areas || [] }); save();
+        toast("Usuário cadastrado; senha temporária enviada."); loadUsers();
+      } }));
+    // a escolha do perfil mostra a aba de áreas (no cadastro de usuário e no de pessoa)
+    const origPmRole = CHG["pm-role"];
+    CHG["pm-role"] = (el) => { const a = $("[data-pm-areas]"); if (a) a.hidden = el.value !== "docente"; if (origPmRole) origPmRole(el); };
+    ACT["au-testmail"] = adminOnly(async () => { try { const j = await api("/test-mail", {}); toast(j.mail === "smtp" ? "E-mail de teste enviado para a sua caixa de entrada." : "Servidor em modo de teste: o e-mail foi salvo na pasta data/outbox (SMTP não configurado)."); } catch (e) { toast(e.message); } });
+    ACT["au-approve"] = adminOnly(async (b) => {
+      try { await api(`/users/${b.dataset.id}/role`, { role: "docente" }); } catch (e) { return toast(e.message); }
+      toast("Perfil de docente aprovado. Defina as áreas do conhecimento."); loadUsers(); ACT["au-areas"](b);
+    });
+    ACT["au-deny"] = adminOnly(async (b) => { try { await api(`/users/${b.dataset.id}/deny-request`, {}); toast("Pedido recusado; a conta continua como estudante."); loadUsers(); } catch (e) { toast(e.message); } });
+    ACT["au-areas"] = adminOnly((b) => {
+      const email = b.dataset.email; let p = DB.people.find((x) => (x.email || "").toLowerCase() === email);
+      if (!p) { p = { id: C.uid("p"), name: b.dataset.name, email, role: "docente", areas: [] }; DB.people.push(p); }
+      openPerson(p); const t = $("[data-act=pm-tab][data-t=a]"); if (t) t.click();
+    });
+
+    // ═══════════════════════ FOTO DO PERFIL ═══════════════════════
+    const myPhoto = () => (AU.on && AU.user ? AU.user.photo || "" : ((DB.people.find((p) => p.id === UI.me) || {}).photo || ""));
+    root.hcPaintAvatar = () => {
+      const av = $("#tb-avatar"); if (!av) return;
+      const ph = myPhoto();
+      av.style.backgroundImage = ph ? `url("${ph}")` : ""; av.style.backgroundSize = "cover"; av.style.backgroundPosition = "center";
+      av.style.color = ph ? "transparent" : ""; av.setAttribute("role", "button"); av.tabIndex = 0; av.dataset.act = "profile";
+    };
+    function shrink(file) {
+      return new Promise((ok, bad) => {
+        const img = new Image(), url = URL.createObjectURL(file);
+        img.onload = () => { const S = 256, c = document.createElement("canvas"); c.width = c.height = S; const k = Math.max(S / img.width, S / img.height), w = img.width * k, h = img.height * k;
+          c.getContext("2d").drawImage(img, (S - w) / 2, (S - h) / 2, w, h); URL.revokeObjectURL(url); ok(c.toDataURL("image/jpeg", 0.85)); };
+        img.onerror = () => { URL.revokeObjectURL(url); bad(new Error("Não foi possível ler a imagem.")); };
+        img.src = url;
+      });
+    }
+    async function setPhoto(ph) {
+      if (AU.on && AU.user) { const j = await api("/photo", { photo: ph }); AU.user = j.user; }
+      else { const p = DB.people.find((x) => x.id === UI.me); if (!p) throw new Error("Selecione quem você é na barra superior para guardar a foto."); if (ph) p.photo = ph; else delete p.photo; save(); }
+      root.hcPaintAvatar(); const pv = $("#pf-prev"); if (pv) pv.style.backgroundImage = ph ? `url("${ph}")` : "";
+    }
+    ACT.profile = () => {
+      const ph = myPhoto(), name = AU.on && AU.user ? AU.user.name : meLabel();
+      modal("Meu perfil", `<div class="row" style="gap:16px;align-items:center"><div id="pf-prev" style="width:96px;height:96px;border-radius:50%;background:var(--accent-soft) center/cover no-repeat;${ph ? `background-image:url('${ph}')` : ""};flex:none;border:1px solid var(--line)"></div>
+        <div><b>${esc(name)}</b><div class="muted small">${esc(AU.on && AU.user ? AU.user.email + " · " + ROLES[AU.user.role] : ROLES[UI.role])}</div>
+        <div class="row" style="margin-top:10px"><label class="btn primary">Escolher foto<input type="file" accept="image/png,image/jpeg,image/webp" data-change="photo-file" hidden></label><button type="button" class="btn" data-act="photo-del">Remover foto</button></div>
+        <p class="muted small" style="margin-top:6px">A imagem é recortada em quadrado e reduzida para 256 px.</p></div></div>`, { submit: "Fechar" });
+    };
+    CHG["photo-file"] = (el) => { const f = el.files[0]; el.value = ""; if (!f) return; if (f.size > 15e6) return toast("Imagem grande demais."); shrink(f).then(setPhoto).then(() => toast("Foto atualizada.")).catch((e) => toast(e.message)); };
+    ACT["photo-del"] = () => setPhoto("").then(() => toast("Foto removida.")).catch((e) => toast(e.message));
     const origRole = CHG.role;
     CHG.role = (el) => { if (AU.on && AU.user && !allowed(el.value)) { el.value = UI.role; return toast("Perfil não permitido para sua conta."); } origRole(el); };
   };

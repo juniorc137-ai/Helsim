@@ -120,7 +120,7 @@ https não abre câmeras em http (conteúdo misto), então use o servidor local 
 
 ### Módulos do laboratório (somente docente e administrador)
 
-O grupo **Laboratório · restrito** do menu só aparece nos perfis docente e administrador; o perfil
+O grupo **Laboratório · restrito** do menu só aparece nos perfis docente e administrador (o **Almoxarifado** só para o administrador); o perfil
 estudante não vê as telas e as ações são recusadas mesmo se chamadas diretamente.
 
 - **Prontuário eletrônico simulado**: pacientes vinculados a cenários, prescrição numerada (digitação →
@@ -164,6 +164,11 @@ SMTP_PASS='senha-do-app' SMTP_FROM='HELSIM <helsecapture@exemplo.edu.br>' \
 PUBLIC_URL=https://simulacao.exemplo.edu.br npm start
 ```
 
+As variáveis também podem ficar no arquivo `email.env` ao lado do `server.js` (fora do Git; uma por linha,
+`CHAVE=valor`). Para iCloud+ com domínio personalizado: `SMTP_HOST=smtp.mail.me.com`, `SMTP_PORT=587`,
+`SMTP_USER` = e-mail principal do iCloud, `SMTP_PASS` = senha de app (appleid.apple.com) e `SMTP_FROM` com um
+endereço do domínio. O botão **Testar e-mail** em Configurações › Usuários e acesso envia um teste ao administrador.
+
 Sem `SMTP_HOST`, o servidor roda em modo de teste: cada e-mail é salvo em `data/outbox/`. `HC_AUTH=0`
 desliga o modo de senhas. O arquivo único e o link de demonstração não têm servidor e mantêm a troca livre de perfil.
 
@@ -181,7 +186,7 @@ compartilhados por todos os computadores que acessam o mesmo servidor.
   itens diferentes nunca se perdem; no mesmo campo do mesmo item, prevalece a última gravação.
 - **Vídeos**: enviados em blocos ao servidor ao encerrar a gravação (com nova tentativa automática) e baixados
   sob demanda nos outros computadores.
-- **Permissões**: docente e administrador leem e gravam tudo. O estudante recebe só as próprias sessões,
+- **Permissões**: administrador lê e grava tudo; docente também, exceto o almoxarifado, que o servidor não lhe envia e preserva quando ele grava. O estudante recebe só as próprias sessões,
   cursos e reservas (sem prontuário, almoxarifado nem dados de colegas) e só consegue acrescentar as próprias
   avaliações. “Apagar tudo” fica restrito ao administrador e avisa que apaga no servidor.
 - **Cópias de segurança**: `data/db.json` com cópias automáticas em `data/backups/` (no máximo uma a cada
@@ -204,4 +209,23 @@ npm run dist        # macOS: gera dist/mac*/HELSIM.app (sem assinatura, para uso
 npm run dist:dmg    # macOS: instalador .dmg
 npm run dist:win    # Windows: instalador .exe (gerar no Windows)
 ```
+
+### Perfis, áreas do conhecimento e aprovação
+
+- **Administrador**: acessa tudo, cadastra pessoas e usuários e aprova cenários, avaliações e reservas.
+  Em **Configurações › Usuários e acesso** (botão “Áreas”) ou em **Cursos e pessoas**, a aba **Áreas do
+  conhecimento** define as áreas de cada docente. As 13 áreas ficam em `public/helsim-areas.js`.
+- **Docente**: vê só os grupos *Operação* e *Debriefing e avaliação*.
+  - Recebe os cenários do administrador (incluindo os de exemplo) das suas áreas e os que ele mesmo criou.
+  - Vê só as próprias sessões, avaliações e relatórios.
+  - Nas reservas de outras pessoas vê apenas “Reservado” (sala e horário).
+  - Cenários e avaliações que ele cria ou altera ficam **aguardando aprovação** do administrador e só ele
+    e o administrador os veem.
+  - Não troca de perfil.
+- **Estudante**: só as próprias sessões e avaliações.
+- **Foto do perfil**: clique no avatar da barra superior. A imagem é reduzida para 256 px e guardada na
+  conta (`/api/auth/photo`).
+
+As regras valem também no servidor: o banco central entrega a cada docente apenas o recorte dele e, ao
+gravar, preserva o que ele não pode ver nem alterar.
 
