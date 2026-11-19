@@ -164,6 +164,11 @@ SMTP_PASS='senha-do-app' SMTP_FROM='HELSIM <helsecapture@exemplo.edu.br>' \
 PUBLIC_URL=https://simulacao.exemplo.edu.br npm start
 ```
 
+As variáveis também podem ficar no arquivo `email.env` ao lado do `server.js` (fora do Git; uma por linha,
+`CHAVE=valor`). Para iCloud+ com domínio personalizado: `SMTP_HOST=smtp.mail.me.com`, `SMTP_PORT=587`,
+`SMTP_USER` = e-mail principal do iCloud, `SMTP_PASS` = senha de app (appleid.apple.com) e `SMTP_FROM` com um
+endereço do domínio. O botão **Testar e-mail** em Configurações › Usuários e acesso envia um teste ao administrador.
+
 Sem `SMTP_HOST`, o servidor roda em modo de teste: cada e-mail é salvo em `data/outbox/`. `HC_AUTH=0`
 desliga o modo de senhas. O arquivo único e o link de demonstração não têm servidor e mantêm a troca livre de perfil.
 

@@ -150,6 +150,12 @@ function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, app
     persist(); res.json({ user: pub(u) });
   });
   r.post("/logout", (req, res) => { const s = session(req); if (s) sessions.delete(s.key); res.json({ ok: true }); });
+  // administrador: envia um e-mail de teste para a própria conta
+  r.post("/test-mail", need("admin"), async (req, res) => {
+    const u = req.auth.user;
+    try { await transport.send({ to: u.email, subject: `${appName}: teste de e-mail`, text: `Olá, ${u.name}.\n\nO envio de e-mails do ${appName} está funcionando.` }); res.json({ ok: true, mail: transport.kind }); }
+    catch (e) { res.status(502).json({ error: "Falha no envio: " + e.message }); }
+  });
   r.get("/users", need("admin"), (req, res) => res.json({ users: db.users.map(pub) }));
   r.post("/users/:id/role", need("admin"), (req, res) => {
     const u = db.users.find((x) => x.id === req.params.id), role = req.body.role;

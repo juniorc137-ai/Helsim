@@ -1046,7 +1046,7 @@
     // Configurações › Usuários e acesso (administrador)
     const origConfig = R.config, origAfter = AFTER.config;
     R.config = () => origConfig() + (AU.on && AU.user && AU.user.role === "admin" && UI.role === "admin"
-      ? `<section class="card"><div class="between"><h2 style="margin:0">Usuários e acesso</h2><button class="btn primary" data-act="au-new">+ Usuário</button></div><div id="au-users" class="muted">Carregando…</div>
+      ? `<section class="card"><div class="between"><h2 style="margin:0">Usuários e acesso</h2><span class="row" style="gap:6px"><button class="btn" data-act="au-testmail">Testar e-mail</button><button class="btn primary" data-act="au-new">+ Usuário</button></span></div><div id="au-users" class="muted">Carregando…</div>
         <p class="muted small" style="margin-top:8px">Novos cadastros entram como estudante; promova docentes aqui. “Nova senha” envia outra senha temporária e obriga a troca no próximo acesso. E-mail: ${AU.mail === "smtp" ? "SMTP configurado" : "modo de teste (data/outbox)"}.</p></section>`
       : `<section class="card"><h2>Modo de senhas</h2><p class="muted">${AU.on ? "Ativo. Você entrou como " + esc(AU.user ? AU.user.name : "") + "." : "Disponível quando o HELSIM roda pelo servidor (<code>npm start</code>): cadastro por e-mail, senha temporária enviada ao e-mail e troca obrigatória no primeiro acesso. Neste arquivo/link a troca de perfil continua livre."}</p></section>`);
     async function loadUsers() {
@@ -1079,6 +1079,7 @@
     // a escolha do perfil mostra a aba de áreas (no cadastro de usuário e no de pessoa)
     const origPmRole = CHG["pm-role"];
     CHG["pm-role"] = (el) => { const a = $("[data-pm-areas]"); if (a) a.hidden = el.value !== "docente"; if (origPmRole) origPmRole(el); };
+    ACT["au-testmail"] = adminOnly(async () => { try { const j = await api("/test-mail", {}); toast(j.mail === "smtp" ? "E-mail de teste enviado para a sua caixa de entrada." : "Servidor em modo de teste: o e-mail foi salvo na pasta data/outbox (SMTP não configurado)."); } catch (e) { toast(e.message); } });
     ACT["au-areas"] = adminOnly((b) => {
       const email = b.dataset.email; let p = DB.people.find((x) => (x.email || "").toLowerCase() === email);
       if (!p) { p = { id: C.uid("p"), name: b.dataset.name, email, role: "docente", areas: [] }; DB.people.push(p); }

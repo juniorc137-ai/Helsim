@@ -2,6 +2,18 @@ const express = require("express");
 const { WebSocketServer } = require("ws");
 const path = require("path");
 
+// Configuração local (fora do Git): email.env ao lado do server.js, uma variável por linha (CHAVE=valor).
+// Usada para o envio de e-mail (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, PUBLIC_URL).
+(() => {
+  const fs = require("fs"), f = process.env.HC_ENV_FILE || path.join(__dirname, "email.env");
+  if (!fs.existsSync(f)) return;
+  for (const line of fs.readFileSync(f, "utf8").split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/); if (!m || line.trim().startsWith("#")) continue;
+    let v = m[2]; if (/^(["']).*\1$/.test(v)) v = v.slice(1, -1);
+    if (v && process.env[m[1]] === undefined) process.env[m[1]] = v;
+  }
+})();
+
 const app = express();
 app.use(express.static(path.join(__dirname, "public")));
 
