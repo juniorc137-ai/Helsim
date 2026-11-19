@@ -43,6 +43,16 @@ test("fluxo: cadastro → e-mail com senha temporária → troca obrigatória �
     assert.equal(bruno.role, "estudante");
     r = await call(`/users/${bruno.id}/role`, { role: "docente" }, t2); assert.equal(r.j.user.role, "docente");
     const tb = sent.at(-1).text.match(/Senha temporária: (\S+)/)[1];
+    // docente se cadastra sozinho: entra como estudante com pedido; admin é avisado e aprova ou recusa
+    let n0 = sent.length;
+    await call("/register", { name: "Carla", email: "carla@exemplo.edu.br", role: "docente" });
+    assert.ok(sent.slice(n0).some((m) => m.to === "ana@exemplo.edu.br" && /pedido de perfil docente/.test(m.subject)), "admin avisado");
+    let us = (await call("/users", null, t2)).j.users, carla = us.find((u) => u.email.startsWith("carla"));
+    assert.equal(carla.role, "estudante"); assert.equal(carla.requestedRole, "docente");
+    r = await call(`/users/${carla.id}/role`, { role: "docente" }, t2); assert.equal(r.j.user.role, "docente"); assert.equal(r.j.user.requestedRole, "");
+    await call("/register", { name: "Eva", email: "eva@exemplo.edu.br", role: "docente" });
+    const eva = (await call("/users", null, t2)).j.users.find((u) => u.email.startsWith("eva"));
+    r = await call(`/users/${eva.id}/deny-request`, {}, t2); assert.equal(r.j.user.role, "estudante"); assert.equal(r.j.user.requestedRole, "");
     const lb = await call("/login", { email: "bruno@exemplo.edu.br", password: tb });
     r = await call("/users", null, lb.j.token); assert.equal(r.status, 401);
     // bloqueio após 5 erros

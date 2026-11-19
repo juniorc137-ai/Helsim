@@ -65,7 +65,7 @@ function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, app
     const text = `Olá, ${u.name || u.email}.\n\n${reason === "reset" ? "Foi gerada uma nova senha temporária" : "Seu cadastro no " + appName + " foi criado"}.\n\nE-mail: ${u.email}\nSenha temporária: ${pw}\n\nEla vale por 24 horas e só serve para o primeiro acesso: o sistema vai pedir que você cadastre uma senha definitiva (mínimo de 10 caracteres, com letras e números).${link}\n\nSe você não pediu este acesso, ignore esta mensagem.\n\n${appName} · Helse Solutions`;
     await transport.send({ to: u.email, subject: `${appName}: sua senha temporária`, text });
   }
-  const pub = (u) => ({ id: u.id, email: u.email, name: u.name, role: u.role, mustChange: !!u.mustChange, createdAt: u.createdAt, lastLogin: u.lastLogin || null, photo: u.photo || "" });
+  const pub = (u) => ({ id: u.id, email: u.email, name: u.name, role: u.role, requestedRole: u.requestedRole || "", mustChange: !!u.mustChange, createdAt: u.createdAt, lastLogin: u.lastLogin || null, photo: u.photo || "" });
   const find = (email) => db.users.find((u) => u.email === String(email || "").trim().toLowerCase());
   function issue(u, scope) {
     const token = crypto.randomBytes(32).toString("base64url");
@@ -99,8 +99,14 @@ function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, app
     if (!name) return res.status(400).json({ error: "Informe seu nome." });
     if (find(email)) return res.json({ ok: true, message: GENERIC }); // não revela quem já tem cadastro
     const u = { id: crypto.randomUUID(), email, name, role: db.users.length ? "estudante" : "admin", createdAt: Date.now() };
+    // quem se cadastra como docente entra como estudante até o administrador aprovar o perfil
+    const wantsDocente = u.role !== "admin" && req.body.role === "docente";
+    if (wantsDocente) u.requestedRole = "docente";
     const pw = setTemp(u);
     db.users.push(u); persist();
+    if (wantsDocente) for (const a of db.users.filter((x) => x.role === "admin"))
+      transport.send({ to: a.email, subject: `${appName}: pedido de perfil docente`, text: `${name} (${email}) se cadastrou e pediu o perfil de docente.\n\nPara aprovar, entre como administrador em Configurações › Usuários e acesso.${baseUrl ? "\n\n" + baseUrl + "/captura.html" : ""}` })
+        .catch((e) => console.error("[auth] falha ao avisar o administrador:", e.message));
     try { await sendTemp(u, pw, "new"); } catch (e) { console.error("[auth] falha ao enviar e-mail:", e.message); return res.status(502).json({ error: "Cadastro criado, mas o e-mail não pôde ser enviado. Avise o administrador." }); }
     res.json({ ok: true, message: GENERIC, first: u.role === "admin" });
   });
@@ -153,7 +159,7 @@ function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, app
   // administrador: envia um e-mail de teste para a própria conta
   r.post("/test-mail", need("admin"), async (req, res) => {
     const u = req.auth.user;
-    try { await transport.send({ to: u.email, subject: `${appName}: teste de e-mail`, text: `Olá, ${u.name}.\n\nO envio de e-mails do ${appName} está funcionando.` }); res.json({ ok: true, mail: transport.kind }); }
+    try { const info = await transport.send({ to: u.email, subject: `${appName}: teste de e-mail`, text: `Olá, ${u.name}.\n\nO envio de e-mails do ${appName} está funcionando.` }); res.json({ ok: true, mail: transport.kind, response: (info && info.response) || "" }); }
     catch (e) { res.status(502).json({ error: "Falha no envio: " + e.message }); }
   });
   r.get("/users", need("admin"), (req, res) => res.json({ users: db.users.map(pub) }));
@@ -161,7 +167,11 @@ function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, app
     const u = db.users.find((x) => x.id === req.params.id), role = req.body.role;
     if (!u || !ROLES.includes(role)) return res.status(400).json({ error: "Usuário ou perfil inválido." });
     if (u.role === "admin" && role !== "admin" && db.users.filter((x) => x.role === "admin").length === 1) return res.status(400).json({ error: "O sistema precisa de ao menos um administrador." });
-    u.role = role; persist(); res.json({ user: pub(u) });
+    u.role = role; if (role === u.requestedRole || role === "admin") delete u.requestedRole; persist(); res.json({ user: pub(u) });
+  });
+  r.post("/users/:id/deny-request", need("admin"), (req, res) => {
+    const u = db.users.find((x) => x.id === req.params.id); if (!u) return res.status(404).json({ error: "Usuário não encontrado." });
+    delete u.requestedRole; persist(); res.json({ user: pub(u) });
   });
   r.post("/users/:id/reset", need("admin"), async (req, res) => {
     const u = db.users.find((x) => x.id === req.params.id); if (!u) return res.status(404).json({ error: "Usuário não encontrado." });
@@ -190,7 +200,13 @@ function makeTransport(dataDir) {
     const nodemailer = require("nodemailer");
     const t = nodemailer.createTransport({ host: process.env.SMTP_HOST, port: +process.env.SMTP_PORT || 587, secure: process.env.SMTP_SECURE === "1" || +process.env.SMTP_PORT === 465,
       auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined });
-    return { kind: "smtp", send: (m) => t.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, ...m }) };
+    // envelope (MAIL FROM) sempre com a conta autenticada; o cabeçalho From pode ser um apelido dela
+    const envFrom = process.env.SMTP_USER || undefined;
+    return { kind: "smtp", send: async (m) => {
+      const info = await t.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, ...(envFrom ? { envelope: { from: envFrom, to: m.to } } : {}), ...m });
+      console.log(`[auth] e-mail para ${m.to}: ${info.response || "enviado"} (${info.messageId || "-"})`);
+      return info;
+    } };
   }
   const out = path.join(dataDir, "outbox");
   return { kind: "teste", send: async (m) => {

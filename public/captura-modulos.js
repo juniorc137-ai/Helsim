@@ -886,6 +886,7 @@
           <div class="au-links"><a href="#" data-au-go="register">Primeiro acesso: cadastrar</a><a href="#" data-au-go="forgot">Esqueci minha senha</a></div>`,
         register: `<h2>Cadastro</h2>${err}<p class="muted small">Informe seu nome e e-mail institucional. Uma senha temporária será enviada ao e-mail; no primeiro acesso você cadastra a senha definitiva.</p>
           <form data-au="register"><label class="f"><span>Nome completo</span><input name="name" required autocomplete="name"></label><label class="f"><span>E-mail</span><input name="email" type="email" required autocomplete="email" value="${esc(email)}"></label>
+          <div class="f"><span>Sou</span><div class="row" style="gap:14px"><label><input type="radio" name="role" value="estudante" checked> Estudante</label><label><input type="radio" name="role" value="docente"> Docente</label></div><span class="muted small" style="font-weight:400">O perfil de docente é liberado após a aprovação do administrador (até lá o acesso é de estudante).</span></div>
           <button class="btn primary au-go">Enviar senha temporária</button></form>${mail()}<div class="au-links"><a href="#" data-au-go="login">Já tenho a senha</a></div>`,
         forgot: `<h2>Recuperar acesso</h2>${err}<p class="muted small">Enviaremos uma nova senha temporária. A anterior deixa de valer.</p>
           <form data-au="forgot"><label class="f"><span>E-mail</span><input name="email" type="email" required value="${esc(email)}"></label><button class="btn primary au-go">Enviar nova senha</button></form>${mail()}<div class="au-links"><a href="#" data-au-go="login">Voltar</a></div>`,
@@ -1055,7 +1056,7 @@
         const { users } = await api("/users");
         el.className = ""; el.innerHTML = `<div class="tbl"><table><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Situação</th><th>Último acesso</th><th></th></tr>${users.map((u) => `<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td>
           <td><select data-au-role="${u.id}" ${u.id === AU.user.id ? "disabled" : ""}>${Object.keys(RANK).reverse().map((r) => opt(r, ROLES[r], u.role)).join("")}</select></td>
-          <td>${u.mustChange ? '<span class="tag warn">aguardando troca de senha</span>' : '<span class="tag ok">ativo</span>'}</td><td class="small">${u.lastLogin ? esc(fmtDT(u.lastLogin)) : "—"}</td>
+          <td>${u.mustChange ? '<span class="tag warn">aguardando troca de senha</span>' : '<span class="tag ok">ativo</span>'}${u.requestedRole === "docente" ? ` <span class="tag warn">pediu perfil docente</span> <button class="btn sm primary" data-act="au-approve" data-id="${u.id}" data-email="${esc(u.email)}" data-name="${esc(u.name)}">Aprovar docente</button> <button class="btn sm" data-act="au-deny" data-id="${u.id}">Recusar</button>` : ""}</td><td class="small">${u.lastLogin ? esc(fmtDT(u.lastLogin)) : "—"}</td>
           <td class="row" style="gap:4px">${u.role === "docente" ? `<button class="btn sm" data-act="au-areas" data-email="${esc(u.email)}" data-name="${esc(u.name)}">Áreas</button>` : ""}<button class="btn sm" data-act="au-reset" data-id="${u.id}">Nova senha</button>${u.id === AU.user.id ? "" : `<button class="btn sm" data-act="au-del" data-id="${u.id}">Excluir</button>`}</td></tr>`).join("")}</table></div>`;
         $$("[data-au-role]", el).forEach((s) => { s.onchange = async () => { try { await api(`/users/${s.dataset.auRole}/role`, { role: s.value }); toast("Perfil atualizado."); } catch (e) { toast(e.message); loadUsers(); } }; });
       } catch (e) { el.textContent = e.message; }
@@ -1080,6 +1081,11 @@
     const origPmRole = CHG["pm-role"];
     CHG["pm-role"] = (el) => { const a = $("[data-pm-areas]"); if (a) a.hidden = el.value !== "docente"; if (origPmRole) origPmRole(el); };
     ACT["au-testmail"] = adminOnly(async () => { try { const j = await api("/test-mail", {}); toast(j.mail === "smtp" ? "E-mail de teste enviado para a sua caixa de entrada." : "Servidor em modo de teste: o e-mail foi salvo na pasta data/outbox (SMTP não configurado)."); } catch (e) { toast(e.message); } });
+    ACT["au-approve"] = adminOnly(async (b) => {
+      try { await api(`/users/${b.dataset.id}/role`, { role: "docente" }); } catch (e) { return toast(e.message); }
+      toast("Perfil de docente aprovado. Defina as áreas do conhecimento."); loadUsers(); ACT["au-areas"](b);
+    });
+    ACT["au-deny"] = adminOnly(async (b) => { try { await api(`/users/${b.dataset.id}/deny-request`, {}); toast("Pedido recusado; a conta continua como estudante."); loadUsers(); } catch (e) { toast(e.message); } });
     ACT["au-areas"] = adminOnly((b) => {
       const email = b.dataset.email; let p = DB.people.find((x) => (x.email || "").toLowerCase() === email);
       if (!p) { p = { id: C.uid("p"), name: b.dataset.name, email, role: "docente", areas: [] }; DB.people.push(p); }
