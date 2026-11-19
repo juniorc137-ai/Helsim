@@ -258,6 +258,10 @@ pre{font-size:11px;color:#8b949e;white-space:pre-wrap;font-family:monospace}
 .msom{display:inline-flex;align-items:center;gap:5px}.msom .ico{width:13px;height:13px}
 .msil{display:none;align-items:center;gap:5px}.msil .ico{width:14px;height:14px}
 #pshow{display:none;align-items:center;gap:6px}
+/* modo HELSIM: sem sala, sem sair, sem instruções de outro aparelho */
+.embed #s0{display:none!important}
+.embed .rb,.embed #idot,.embed .cbar,.embed .bk,.embed #mrl,.embed #mdot,.embed .ibi[title="Sair da sala"],.embed .tab-info{display:none!important}
+.embed .bed b::after{content:" 01"}
 /* ── MONITOR + CONTROLE: monitor ao fundo, controle flutuante arrastável ── */
 .only-combo{display:none!important}
 body.combo .only-combo{display:inline-flex!important}
@@ -401,7 +405,7 @@ body.combo.phide #pshow{display:inline-flex}
     <button class="tab"     onclick="swTab(this,'vi2')">Vitais</button>
     <button class="tab"     onclick="swTab(this,'ro2')">Roteiro</button>
     <button class="tab"     onclick="swTab(this,'db2')">Debriefing</button>
-    <button class="tab"     onclick="swTab(this,'in2')">Info</button>
+    <button class="tab tab-info" onclick="swTab(this,'in2')">Info</button>
   </div>
   <div class="body">
     <div class="pane on" id="p-ce2"><div class="scg" id="scg"></div></div>
@@ -1007,7 +1011,12 @@ function enter(role){
 // dentro do HELSIM (iframe) o atalho para o HELSIM não faz sentido
 try{if(window.self!==window.top)document.addEventListener("DOMContentLoaded",()=>{const c=document.querySelector("a.lb.cap");if(c)c.style.display="none";});}catch(e){}
 // aberto pelo HELSIM: ?sala=1234 preenche o código; &papel=instrutor já entra como instrutor
-(function(){try{const q=new URLSearchParams(location.search),s=q.get("sala");if(s&&/^\d{4}$/.test(s)){const go=()=>{$("ri").value=s;const pp=q.get("papel");if(pp==="instrutor")enter("instructor");else if(pp==="ambos")enter("both");};if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",go);else setTimeout(go,0);}}catch(e){}})();
+// dentro do HELSIM só o simulador: abre direto em monitor + controle, sem código de sala nem telas de conexão
+const SC_EMBED=(()=>{try{return window.SC_EMBED===1||new URLSearchParams(location.search).get("embed")==="1";}catch(e){return false;}})();
+if(SC_EMBED){document.documentElement.classList.add("embed");
+  const go=()=>{if(ROLE)return;if(!/^\d{4}$/.test($("ri").value))$("ri").value=String(Math.floor(1000+Math.random()*8999));enter("both");};
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",()=>setTimeout(go,0));else setTimeout(go,0);}
+(function(){try{const q=new URLSearchParams(location.search),s=q.get("sala");if(s&&/^\d{4}$/.test(s)){const go=()=>{if(ROLE)return;$("ri").value=s;const pp=q.get("papel");if(pp==="instrutor")enter("instructor");else if(pp==="ambos")enter("both");};if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",go);else setTimeout(go,0);}}catch(e){}})();
 // ── painel flutuante (modo Monitor + controle) ──
 const PKEY="simclin.painel";
 function pGet(){try{return JSON.parse(localStorage.getItem(PKEY)||"{}");}catch(e){return {};}}

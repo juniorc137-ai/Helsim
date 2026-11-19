@@ -382,7 +382,7 @@ tr.dose.atrasada td:first-child{box-shadow:inset 3px 0 var(--bad)}tr.dose.admini
         <span class="stamp" id="tb-stamp"></span>
       </div>
       <section id="main" class="view"><div class="empty">Carregando…</div></section>
-      <section id="sc-dock" class="card" hidden><div class="between"><h2 style="margin:0">SimClin · instrutor e monitor</h2><div class="row"><button type="button" class="btn sm" data-act="sc-dock-win" title="Para usar o monitor em outra tela ou projetor">Abrir monitor em outra janela</button><button type="button" class="btn sm" data-act="sc-dock-close" id="sc-dock-close">Fechar</button></div></div>
+      <section id="sc-dock" class="card" hidden><div class="between"><h2 style="margin:0">SimClin · instrutor e monitor</h2><div class="row"><button type="button" class="btn sm" data-act="sc-dock-close" id="sc-dock-close">Fechar</button></div></div>
         <iframe id="sc-frame" title="SimClin – monitor e instrutor" allow="fullscreen; autoplay"></iframe></section>
     </main>
     <footer class="statusbar" id="statusbar"></footer>
@@ -608,12 +608,13 @@ function syncDock() {
 }
 function loadDock(room) {
   const f = $("#sc-frame"); if (!f) return;
-  const key = simclinServed() ? `index.html${room ? `?sala=${room}&papel=ambos` : ""}` : "inline";
+  if (!room) room = SCD.room = String(Math.floor(1000 + Math.random() * 8999)); // código interno, só para ligar o simulador à gravação
+  const key = simclinServed() ? `index.html?sala=${room}&papel=ambos&embed=1` : "inline";
   if (f.dataset.key === key) return; f.dataset.key = key;
-  if (simclinServed()) f.src = key; else if (window.HC_SIMCLIN_HTML) f.srcdoc = HC_SIMCLIN_HTML; else f.srcdoc = "<p style='font:14px sans-serif;color:#ccc;padding:20px'>O SimClin abre aqui quando o HELSIM roda pelo servidor.</p>";
+  if (simclinServed()) f.src = key; else if (window.HC_SIMCLIN_HTML) f.srcdoc = HC_SIMCLIN_HTML.replace("<head>", "<head><script>window.SC_EMBED=1<\/script>"); else f.srcdoc = "<p style='font:14px sans-serif;color:#ccc;padding:20px'>O SimClin abre aqui quando o HELSIM roda pelo servidor.</p>";
 }
 R.simclin = () => `<div class="between"><h1 style="margin:0">Monitor SimClin</h1></div>
-  <p class="muted small" style="margin:6px 0 0">Escolha <b>Instrutor</b> para controlar o caso ou <b>Monitor</b> para exibir os sinais vitais. Para gravar com o monitor, use em <b>Sessão ao vivo</b> o botão “Gravar com monitor SimClin”: a gravação e o SimClin ficam na mesma sala de 4 dígitos.</p>`;
+  <p class="muted small" style="margin:6px 0 0">Monitor e controle na mesma tela. Para gravar com o monitor, use em <b>Sessão ao vivo</b> o botão “Gravar com monitor SimClin”.</p>`;
 // Barra superior, trilha e barra de status (identidade Helse)
 function chrome() {
   const s = UI.view === "sessao" && byId("sessions", UI.sel);
@@ -1089,10 +1090,9 @@ function liveSetupHtml() {
         <span class="small">Os participantes foram informados e consentiram com a gravação de imagem e voz para fins educacionais, com uso restrito ao debriefing e prazo de retenção definido (LGPD, Lei 13.709/2018, arts. 7º e 11).</span></label>
     </section>
     <section class="card"><h2>2. Ligação com o simulador</h2>
-      <p class="muted small">Entre na mesma sala de 4 dígitos usada pelo instrutor no SimClin. Sinais vitais, mudanças de estado e intervenções registradas no roteiro entram na linha do tempo da gravação.</p>
-      <div class="row"><input id="lv-room" inputmode="numeric" maxlength="4" placeholder="0000" style="width:90px;font:18px var(--mono);text-align:center" value="${esc((LIVE.sim || {}).room || "")}">
-        <button class="btn primary" data-act="sc-rec" title="Abre o SimClin aqui embaixo na mesma sala e liga à gravação">Gravar com monitor SimClin</button>
-        <button class="btn" data-act="sim-connect" ${served ? "" : "disabled"}>Conectar</button><button class="btn ghost" data-act="sim-close">Desligar</button><span id="sim-status" class="tag"></span></div>
+      <p class="muted small">O simulador abre logo abaixo, já ligado à gravação: sinais vitais, mudanças de estado e intervenções registradas no roteiro entram na linha do tempo.</p>
+      <div class="row"><button class="btn primary" data-act="sc-rec" title="Abre o simulador aqui embaixo, ligado à gravação">Gravar com monitor SimClin</button>
+        <button class="btn ghost" data-act="sim-close">Desligar</button><span id="sim-status" class="tag"></span></div>
       ${served ? "" : `<p class="muted small">Disponível quando a página é aberta pelo servidor SimClin (npm start).</p>`}
       <div id="sim-vitals" style="margin-top:10px"></div>
     </section>
@@ -1356,7 +1356,7 @@ async function recStart() {
   LIVE.recorders.forEach((r) => r.start(2000));
   LIVE.recording = true;
   if (LIVE.sim && LIVE.sim.vitals) C.pushSample(ses.samples, 0, LIVE.sim.vitals, 0);
-  if (LIVE.sim && LIVE.sim.status === "conectado") addAnn({ label: `Simulador ligado (sala ${LIVE.sim.room})`, cat: "Sistema", source: "simulador" });
+  if (LIVE.sim && LIVE.sim.status === "conectado") addAnn({ label: "Simulador ligado", cat: "Sistema", source: "simulador" });
   LIVE.timer = setInterval(liveTick, 250);
   kvPut("draft", ses).catch(() => {});
   render();
@@ -1455,7 +1455,7 @@ function vitalsHtml(v) {
 function renderSim() {
   const st = $("#sim-status"), sv = $("#sim-vitals");
   const s = LIVE.sim;
-  if (st) { st.textContent = s ? `${s.status} · sala ${s.room}` : "desligado"; st.className = "tag " + (s && s.status === "conectado" ? "ok" : s ? "warn" : ""); }
+  if (st) { st.textContent = s ? (s.status === "conectado" ? "simulador ligado" : s.status) : "desligado"; st.className = "tag " + (s && s.status === "conectado" ? "ok" : s ? "warn" : ""); }
   if (sv) sv.innerHTML = vitalsHtml(s && s.vitals);
 }
 
@@ -1993,12 +1993,11 @@ const ACT = {
   "src-del": (b) => { const s = LIVE.sources.find((x) => x.id === b.dataset.id); if (s) stopStream(s.stream); LIVE.sources = LIVE.sources.filter((x) => x !== s); render(); },
   "sim-connect": () => simConnect(($("#lv-room") || {}).value || ""),
   "sc-rec": () => {
-    const inp = $("#lv-room"); let room = ((inp && inp.value) || "").trim();
-    if (!/^\d{4}$/.test(room)) { room = String(Math.floor(1000 + Math.random() * 8999)); if (inp) inp.value = room; }
+    let room = SCD.room || String(Math.floor(1000 + Math.random() * 8999));
     SCD.open = true; SCD.room = room; syncDock();
     if (simclinServed()) setTimeout(() => simConnect(room), 900);
     setTimeout(() => $("#sc-dock").scrollIntoView({ behavior: "smooth", block: "start" }), 50);
-    toast(`SimClin aberto na sala ${room}. No outro computador ou tela, abra o Monitor com esse código.`);
+    toast("Simulador aberto e ligado à gravação.");
   },
   "sc-dock-close": () => { SCD.open = false; syncDock(); },
   "sc-dock-win": () => { const w = window.open(simclinServed() ? `index.html${SCD.room ? `?sala=${SCD.room}` : ""}` : "", "_blank"); if (w && !simclinServed() && window.HC_SIMCLIN_HTML) { w.document.write(HC_SIMCLIN_HTML); w.document.close(); } },
