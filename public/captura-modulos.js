@@ -227,7 +227,7 @@
       return `<div class="between"><h1 style="margin:0">Prontuário eletrônico</h1><div class="row">
         <select data-change="ehr-pt" aria-label="Paciente">${DB.patients.map((x) => opt(x.id, `${x.name} · ${x.unit || "sem setor"}`, p.id)).join("")}</select>
         <button class="btn primary" data-act="ehr-new">+ Paciente</button><button class="btn" data-act="ehr-edit">Editar paciente</button><button class="btn" data-act="ehr-del">Excluir</button></div></div>
-      <section class="ptb${p.photo ? " has-photo" : ""}">${p.photo ? `<img class="ptphoto" src="${esc(p.photo)}" alt="Foto do paciente simulado ${esc(p.name)}">` : ""}
+      <section class="ptb${p.photo ? " has-photo" : ""}">${p.photo ? `<img class="ptphoto" src="${esc(p.photo)}" alt="Foto do paciente simulado ${esc(p.name)}" title="Clique para ampliar" data-act="pt-zoom">` : ""}
         <div><span>Paciente</span><b>${esc(p.name)}</b><i>${esc([p.age && p.age + " anos", p.sex, p.weight && p.weight + " kg"].filter(Boolean).join(" · "))}</i></div>
         <div><span>Atendimento / Prontuário</span><b class="mono">${esc(p.encounter)} / ${esc(p.record)}</b><i>${esc(p.diagnosis || "")}</i></div>
         <div><span>Acomodação</span><b>${esc(p.unit || "—")}${p.bed ? " · Leito " + esc(p.bed) : ""}</b><i>${sc ? "Cenário: " + esc(sc.title) : "Sem cenário vinculado"}</i></div>
@@ -801,6 +801,7 @@
     const A = {
       "ehr-tab": (b) => { UI.ehrTab = b.dataset.t; render(); },
       "ehr-new": () => openPatient(newPatient()),
+      "pt-zoom": (b) => { const z = document.createElement("div"); z.className = "ptzoom"; z.innerHTML = `<img src="${b.getAttribute("src")}" alt="${esc(b.alt)}">`; z.onclick = () => z.remove(); document.body.appendChild(z); },
       "pt-photo-del": () => { if (!isAdmin()) return; PT_IMG = ""; const pv = document.getElementById("pt-img-prev"); if (pv) { pv.removeAttribute("src"); pv.hidden = true; } },
       "pt-prompt": () => {
         const f = document.getElementById("mform"), g = (n) => (f && f.querySelector(`[name=${n}]`) ? f.querySelector(`[name=${n}]`).value : "");
