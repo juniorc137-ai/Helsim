@@ -44,32 +44,57 @@ html,body{height:100%;overflow:hidden;background:#030a03}
 .ht{font:9px var(--mono);letter-spacing:1px;color:#003d18;margin-bottom:3px}
 .hb{font-size:11px;color:#003016;line-height:1.6}
 
-/* ── MONITOR ───────────────────────────────────────────── */
-#s1{background:var(--bg);color:var(--ecg);font-family:var(--mono)}
-.mhdr{display:flex;justify-content:space-between;align-items:center;
-      padding:5px 12px;background:var(--bg2);border-bottom:1px solid var(--bdr);
-      flex-wrap:wrap;gap:4px;flex-shrink:0}
-.ml,.mr{display:flex;gap:8px;align-items:center}
-.bk{cursor:pointer;color:#004020;font-size:11px;letter-spacing:1px;padding:2px 4px}
-.rl{color:#00a040;font-size:12px;letter-spacing:2px}
+/* ── MONITOR (multiparamétrico de beira de leito) ──────── */
+#s1{background:#000;color:var(--ecg);font-family:var(--f-sans,system-ui)}
+#s1{--ecg:#2BFF5A;--spo:#2EE6FF;--resp:#FFE24A;--bp:#FF6B5A;--tmp:#E9E9F0}
+.mhdr{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:4px 10px;background:#0b0f14;border-bottom:1px solid #1d2733;flex-shrink:0;min-height:38px}
+.ml,.mr{display:flex;gap:10px;align-items:center;flex-shrink:0}
+.bk{cursor:pointer;color:#7d8a99;font:600 11px var(--f-sans,system-ui);letter-spacing:.06em;padding:3px 6px;border:1px solid #26313d;border-radius:4px}
+.bk:hover{color:#fff}
+.bed{color:#cfd8e3;font:600 13px var(--f-cond,system-ui);letter-spacing:.04em}.bed b{color:#7d8a99;font-weight:600}
+.ptt{color:#fff;font:600 13px var(--f-sans,system-ui);max-width:28vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pcat{font:700 10px var(--f-sans,system-ui);color:#000;background:#9fb3c8;border-radius:3px;padding:2px 5px;letter-spacing:.06em}
 .dot{width:8px;height:8px;border-radius:50%;background:#1a2a1a;transition:background .4s;flex-shrink:0}
-.dot.on{background:var(--ecg)}.dot.er{background:var(--alarm)}.dot.yw{background:#ffb300}
-.rhl{font-size:11px;letter-spacing:1px}
-.alb{color:var(--alarm);font-size:11px;display:none}
-.frb{color:#ffee58;font-size:11px;display:none}
-.clk{color:#008035;font-size:17px}
-
-.waves{flex:1;display:flex;flex-direction:column;overflow:hidden}
-.wr{position:relative;border-bottom:1px solid var(--bdr);overflow:hidden}
+.dot.on{background:#2BFF5A}.dot.er{background:#ff1744}.dot.yw{background:#ffb300}
+.malms{flex:1;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;min-width:0}
+.alm{font:700 13px var(--f-cond,system-ui);letter-spacing:.05em;padding:3px 10px;border-radius:3px;white-space:nowrap}
+.alm.p2{background:#E0161B;color:#fff}.alm.p1{background:#FFD400;color:#000}.alm.p0{background:#00B7D4;color:#000}
+.alm.blk.p2{animation:ablink .5s step-end infinite}.alm.blk.p1{animation:ablink 1s step-end infinite}
+@keyframes ablink{50%{opacity:.25}}
+.msil{color:#FFD400;font:600 12px var(--f-sans,system-ui);display:none}
+.frb{color:#ffee58;font:600 11px var(--f-sans,system-ui);display:none}
+.msom{background:#000;border:1px solid #26313d;border-radius:4px;color:#7d8a99;font:600 10px var(--f-sans,system-ui);padding:3px 7px;cursor:pointer;letter-spacing:.06em}
+.clk{color:#9fb3c8;font:500 12px var(--f-mono,monospace)}.clk b{color:#fff;font-size:15px;font-weight:600}
+.mbody{flex:1;display:flex;min-height:0}
+.waves{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.wr{position:relative;border-bottom:1px solid #121a22;overflow:hidden;min-height:0}
 .wr canvas{width:100%;height:100%;display:block}
-.wl{position:absolute;top:4px;left:8px;font-size:10px;opacity:.55;z-index:1;font-family:var(--mono)}
-.wv{position:absolute;bottom:5px;right:10px;font-weight:bold;z-index:2;line-height:1;font-family:var(--mono)}
-.wv small{opacity:.5;font-size:.38em}
-.mbtm{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--bdr);background:var(--bg2);flex-shrink:0}
-.vb{padding:8px 14px;border-right:1px solid var(--bdr)}
-.vl2{font-size:9px;letter-spacing:2px;color:#003515;font-family:var(--mono)}
-.vv{font-weight:bold;line-height:1.1;font-family:var(--mono)}
-.vu{font-size:9px;color:#005025;font-family:var(--mono)}
+.wl{position:absolute;top:4px;left:8px;font:600 12px var(--f-cond,system-ui);letter-spacing:.05em;z-index:1}
+.params{width:clamp(220px,27vw,360px);display:flex;flex-direction:column;border-left:1px solid #1d2733;flex-shrink:0}
+.pb{position:relative;flex:1;border-bottom:1px solid #1d2733;padding:6px 10px 6px 10px;color:var(--c);min-height:0;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+#pb-hr,#pb-sp{flex:1.35}#pb-bp{flex:1.25}#pb-tp{flex:.75}
+.pt{position:absolute;top:5px;left:10px;display:flex;gap:8px;align-items:baseline;font:700 14px var(--f-cond,system-ui);letter-spacing:.04em}
+.pu{font:500 11px var(--f-sans,system-ui);opacity:.75}
+.plim{position:absolute;top:24px;left:10px;font:500 10px/1.25 var(--f-mono,monospace);opacity:.7}
+.pv{font:600 clamp(40px,6.2vw,84px)/1 var(--f-cond,system-ui);text-align:right;letter-spacing:-.01em;text-shadow:0 0 14px color-mix(in srgb,var(--c) 45%,transparent);font-variant-numeric:tabular-nums}
+.pv-bp{font-size:clamp(30px,4.2vw,58px)}.pv-sm{font-size:clamp(26px,3.4vw,44px)}
+.psub{text-align:right;font:500 12px var(--f-mono,monospace);opacity:.85;margin-top:2px}
+.heart{position:absolute;top:4px;right:10px;font-size:18px;opacity:.18;transition:opacity .08s}
+.heart.on{opacity:1}
+.pbar{position:absolute;left:12px;bottom:10px;width:8px;height:44%;border:1px solid color-mix(in srgb,var(--c) 50%,transparent);display:flex;align-items:flex-end}
+.pbar i{display:block;width:100%;background:var(--c);height:0}
+.pnib{position:absolute;left:10px;bottom:6px;background:#000;border:1px solid color-mix(in srgb,var(--c) 55%,transparent);color:var(--c);border-radius:4px;font:600 10px var(--f-sans,system-ui);padding:3px 7px;cursor:pointer}
+.pnib:disabled{opacity:.6;cursor:default}
+.pb.a2{background:#E0161B;color:#fff}.pb.a1{background:#FFD400;color:#000}
+.pb.a2 .pv,.pb.a1 .pv{text-shadow:none}
+.pb.a2.blk{animation:pblink 1s step-end infinite}
+@keyframes pblink{50%{background:#000;color:var(--c)}}
+@media(max-width:760px){
+  .mbody{flex-direction:column}.params{width:auto;flex-direction:row;flex-wrap:wrap;border-left:0;border-top:1px solid #1d2733;flex:0 0 auto}
+  .pb{flex:1 1 33%!important;min-height:92px;border-right:1px solid #1d2733}.pv{font-size:40px}.pv-bp{font-size:30px}
+  .ptt,.pcat,#mdate{display:none}.mhdr{flex-wrap:wrap}
+  .plim,.pnib,.pbar{display:none}.psub{font-size:10px}
+}
 
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 @keyframes flash{0%,100%{background:var(--bg)}50%{background:#220000}}
@@ -152,7 +177,7 @@ pre{font-size:11px;color:#8b949e;white-space:pre-wrap;font-family:monospace}
 .lg .k-manual{color:#ffa657}.lg .k-comentario{color:#7ee787}.lg .k-sistema{color:#8b949e}
 .cmt{display:flex;gap:6px;margin-top:8px}
 .cmt input{flex:1;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:6px 10px;color:#c9d1d9;font-size:13px}
-@media(max-width:380px){.lg-big{font-size:38px}.clk{font-size:14px}}
+@media(max-width:380px){.lg-big{font-size:38px}}
 /* ── IDENTIDADE HELSIM (entrada e painel do instrutor; o monitor mantém as cores clínicas) ── */
 :root{--h-brand:#0B2A5B;--h-accent:#2F7CC1;--h-rec:#E10600;--h-bg:#EEF2F6;--h-surface:#FFFFFF;--h-surface2:#F6F8FB;--h-line:#D5DEE8;--h-text:#0F1E33;--h-muted:#5B6B80;--h-ok:#15803D;--h-warn:#B45309;--h-bad:#B91C1C;
   --f-sans:'IBM Plex Sans',system-ui,sans-serif;--f-cond:'IBM Plex Sans Condensed','IBM Plex Sans',sans-serif;--f-mono:'IBM Plex Mono',ui-monospace,monospace}
@@ -210,7 +235,7 @@ body.combo #s2 .tab{padding:8px 2px;font-size:12px}
 body.combo.pmin #s2{height:auto!important;resize:none}
 body.combo.pmin #s2 .cbar,body.combo.pmin #s2 .tabs,body.combo.pmin #s2 .body{display:none}
 body.combo.phide #s2{display:none!important}
-#pshow{position:fixed;right:14px;bottom:14px;z-index:21;display:none;background:var(--h-accent);color:#fff;border:0;border-radius:999px;padding:10px 16px;font:600 13px var(--f-sans);cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.35);opacity:.35;transition:opacity .2s}
+#pshow{position:fixed;left:14px;bottom:14px;z-index:21;display:none;background:var(--h-accent);color:#fff;border:0;border-radius:999px;padding:10px 16px;font:600 13px var(--f-sans);cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.35);opacity:.35;transition:opacity .2s}
 #pshow:hover,#pshow:focus-visible{opacity:1}
 @media (hover:none){#pshow{opacity:.8}}
 body.combo.phide #pshow{display:block}
@@ -246,43 +271,65 @@ body.combo.phide #pshow{display:block}
   <div class="mhdr">
     <div class="ml">
       <span class="bk" onclick="goBack()">← SAIR</span>
-      <span class="rl" id="mrl">SALA ----</span>
+      <span class="bed"><b>LEITO</b> <span id="mrl">SALA ----</span></span>
       <span class="dot" id="mdot"></span>
+      <span class="ptt" id="mpt">Paciente simulado</span>
+      <span class="pcat">ADULTO</span>
     </div>
-    <span class="rhl" id="mrh" style="color:var(--ecg)">Sinusal Normal</span>
+    <div class="malms" id="malms"></div>
     <div class="mr">
-      <span class="alb blinking" id="malb">⚠ ALARME</span>
-      <span class="frb" id="mfrb">⏸ PAUSE</span>
-      <button id="btn-som" onclick="ativarSom()" style="background:#030a03;border:1px solid #004020;border-radius:4px;color:#006030;font-size:10px;padding:3px 7px;cursor:pointer;font-family:var(--mono);letter-spacing:1px">🔇 SOM</button>
-      <span class="clk" id="mclk"></span>
+      <span class="msil" id="msil"></span>
+      <span class="frb" id="mfrb">⏸ CONGELADO</span>
+      <button id="btn-som" class="msom" onclick="ativarSom()">🔇 SOM</button>
+      <span class="clk"><span id="mdate"></span> <b id="mclk"></b></span>
     </div>
   </div>
-  <div class="waves" id="waves">
-    <div class="wr" id="ecgrow" style="flex:1.4">
-      <span class="wl" id="ecglbl" style="color:var(--ecg)">ECG  DII</span>
-      <canvas id="ce"></canvas>
-      <div class="wv" id="vhr" style="font-size:36px;color:var(--ecg)">72 <small>bpm</small></div>
+  <div class="mbody">
+    <div class="waves" id="waves">
+      <div class="wr" style="flex:1.35">
+        <span class="wl" style="color:var(--ecg)">II&nbsp;&nbsp;×1&nbsp;&nbsp;25 mm/s&nbsp;&nbsp;<span id="mrh">Sinusal</span></span>
+        <canvas id="ce"></canvas>
+      </div>
+      <div class="wr" style="flex:1">
+        <span class="wl" style="color:var(--spo)">PLETH&nbsp;&nbsp;25 mm/s</span>
+        <canvas id="cs"></canvas>
+      </div>
+      <div class="wr" style="flex:.9">
+        <span class="wl" style="color:var(--resp)">RESP&nbsp;&nbsp;×1&nbsp;&nbsp;6,25 mm/s</span>
+        <canvas id="cr"></canvas>
+      </div>
     </div>
-    <div class="wr" style="flex:1.05">
-      <span class="wl" style="color:var(--spo)">SpO₂  PLETH</span>
-      <canvas id="cs"></canvas>
-      <div class="wv" id="vspo" style="font-size:34px;color:var(--spo)">98<small>%</small></div>
-    </div>
-    <div class="wr" style="flex:0.8">
-      <span class="wl" style="color:var(--resp)">RESP</span>
-      <canvas id="cr"></canvas>
-      <div class="wv" id="vrr" style="font-size:26px;color:var(--resp)">16<small> rpm</small></div>
-    </div>
-  </div>
-  <div class="mbtm">
-    <div class="vb">
-      <div class="vl2">PRESSÃO ARTERIAL</div>
-      <div class="vv" id="vbp" style="font-size:26px;color:var(--bp)">120/80</div>
-      <div class="vu">mmHg</div>
-    </div>
-    <div class="vb">
-      <div class="vl2">TEMPERATURA</div>
-      <div class="vv" id="vtmp" style="font-size:22px;color:var(--tmp)">36.5°C</div>
+    <div class="params">
+      <div class="pb" id="pb-hr" style="--c:var(--ecg)">
+        <div class="pt"><span>FC</span><span class="pu">bpm</span></div>
+        <div class="plim">120<br>50</div>
+        <div class="pv" id="vhr">72</div>
+        <span class="heart" id="mheart">♥</span>
+      </div>
+      <div class="pb" id="pb-sp" style="--c:var(--spo)">
+        <div class="pt"><span>SpO₂</span><span class="pu">%</span></div>
+        <div class="plim">100<br>90</div>
+        <div class="pv" id="vspo">98</div>
+        <div class="pbar"><i id="mperf"></i></div>
+        <div class="psub">FP <b id="vpr">72</b></div>
+      </div>
+      <div class="pb" id="pb-bp" style="--c:var(--bp)">
+        <div class="pt"><span>PNI</span><span class="pu">mmHg</span></div>
+        <div class="plim">160<br>90</div>
+        <div class="pv pv-bp" id="vbp">120/80</div>
+        <div class="psub"><span id="vmap">(93)</span> · <span id="vpni">Manual --:--</span></div>
+        <button class="pnib" id="pnib" onclick="pniStart()">▶ Iniciar PNI</button>
+      </div>
+      <div class="pb" id="pb-rr" style="--c:var(--resp)">
+        <div class="pt"><span>FR</span><span class="pu">rpm</span></div>
+        <div class="plim">30<br>8</div>
+        <div class="pv" id="vrr">16</div>
+      </div>
+      <div class="pb" id="pb-tp" style="--c:var(--tmp)">
+        <div class="pt"><span>TEMP</span><span class="pu">°C</span></div>
+        <div class="plim">38,5<br>35,0</div>
+        <div class="pv pv-sm" id="vtmp">36,5</div>
+      </div>
     </div>
   </div>
 </div>
@@ -510,30 +557,44 @@ class Eng{
 }
 const EE=new Eng("e"),SE=new Eng("p");
 let rph=0;
-function rNext(){if(!ST.rr)return(Math.random()-.5)*.01;rph+=2*Math.PI*ST.rr/60/SR;return Math.sin(rph)*.6;}
+function rNext(){if(!ST.rr||noPulse(ST.rhythm))return(Math.random()-.5)*.01;rph=(rph+ST.rr/60/SR)%1;const t=rph,v=t<.38?(1-Math.cos(Math.PI*t/.38))/2:t<.88?(1+Math.cos(Math.PI*(t-.38)/.5))/2:0;return v*1.1-.55;}
 
 // ════════════════════════════════════════════════════════
 // CANVAS
 // ════════════════════════════════════════════════════════
-const CVS={e:{id:"ce",buf:new Float32Array(BL)},s:{id:"cs",buf:new Float32Array(BL)},r:{id:"cr",buf:new Float32Array(BL)}};
+// cada curva é desenhada em varredura: a "caneta" anda da esquerda para a direita e uma faixa apaga o traçado antigo à frente
+// velocidade: ECG e pletismografia a 25 mm/s; respiração a 6,25 mm/s (≈3,78 px por mm na tela)
+const CVS={e:{id:"ce",mm:25},s:{id:"cs",mm:25},r:{id:"cr",mm:6.25}};
+Object.values(CVS).forEach(c=>{c.buf=new Float32Array(SR*6).fill(NaN);c.w=0;});
 let raf=null,lt=performance.now(),re=0,rs=0,rre=0;
 function initC(c){
   c.el=document.getElementById(c.id);
   const dpr=devicePixelRatio||1;
-  new ResizeObserver(()=>{c.el.width=c.el.offsetWidth*dpr;c.el.height=c.el.offsetHeight*dpr;}).observe(c.el);
+  new ResizeObserver(()=>{c.el.width=c.el.offsetWidth*dpr;c.el.height=c.el.offsetHeight*dpr;
+    const secs=Math.max(3,Math.min(c.mm<10?24:10,c.el.offsetWidth/(c.mm*3.78))),L=Math.round(secs*SR);
+    if(L>0&&L!==c.buf.length){c.buf=new Float32Array(L).fill(NaN);c.w=0;}}).observe(c.el);
 }
-function drawC(c,col){
+function feed(c,n,gen){for(let k=0;k<n;k++){c.buf[c.w]=gen();c.w=(c.w+1)%c.buf.length;}}
+function drawC(c,col,kind){
   const dpr=devicePixelRatio||1,cv=c.el;
   if(!cv||!cv.width)return;
-  const ctx=cv.getContext("2d"),w=cv.width/dpr,h=cv.height/dpr;
+  const ctx=cv.getContext("2d"),w=cv.width/dpr,h=cv.height/dpr,b=c.buf,L=b.length;
   ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.fillStyle="#030a03";ctx.fillRect(0,0,w,h);
-  ctx.strokeStyle="rgba(0,55,0,.4)";ctx.lineWidth=.5;
-  for(let i=0;i<=10;i++){ctx.beginPath();ctx.moveTo(i*w/10,0);ctx.lineTo(i*w/10,h);ctx.stroke();}
-  for(let i=0;i<=4;i++){ctx.beginPath();ctx.moveTo(0,i*h/4);ctx.lineTo(w,i*h/4);ctx.stroke();}
-  const mid=h*.5,sc=h*.38,b=c.buf;
-  ctx.beginPath();ctx.strokeStyle=col;ctx.lineWidth=2;ctx.shadowColor=col;ctx.shadowBlur=10;
-  for(let i=0;i<BL;i++){const x=i/BL*w,y=mid-b[i]*sc;i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
+  ctx.fillStyle="#000";ctx.fillRect(0,0,w,h);
+  // grade pontilhada bem discreta
+  ctx.fillStyle="rgba(255,255,255,.07)";
+  for(let x=w/10;x<w;x+=w/10)for(let y=h/4;y<h;y+=h/4)ctx.fillRect(x,y,1,1);
+  const gap=Math.max(6,Math.round(L*.025));
+  let mid,sc;
+  if(kind==="p"){mid=h*.86;sc=h*.68;}else if(kind==="r"){mid=h*.55;sc=h*.36;}else{mid=h*.6;sc=h*.42;}
+  ctx.beginPath();ctx.strokeStyle=col;ctx.lineWidth=2;ctx.lineJoin="round";ctx.shadowColor=col;ctx.shadowBlur=4;
+  let pen=false;
+  for(let i=0;i<L;i++){
+    const d=(i-c.w+L)%L,v=b[i];
+    if(d<gap||isNaN(v)){pen=false;continue;}
+    const x=i/(L-1)*w,y=mid-v*sc;
+    if(pen)ctx.lineTo(x,y);else{ctx.moveTo(x,y);pen=true;}
+  }
   ctx.stroke();ctx.shadowBlur=0;
 }
 function loop(now){
@@ -543,17 +604,13 @@ function loop(now){
     const n1=Math.min(Math.floor(a+re),80);re=a+re-n1;
     const n2=Math.min(Math.floor(a+rs),80);rs=a+rs-n2;
     const n3=Math.min(Math.floor(a+rre),80);rre=a+rre-n3;
-    if(n1){CVS.e.buf.copyWithin(0,n1);for(let i=BL-n1;i<BL;i++)CVS.e.buf[i]=EE.next();}
-    if(n2){CVS.s.buf.copyWithin(0,n2);for(let i=BL-n2;i<BL;i++)CVS.s.buf[i]=SE.next();}
-    if(n3){CVS.r.buf.copyWithin(0,n3);for(let i=BL-n3;i<BL;i++)CVS.r.buf[i]=rNext();}
+    feed(CVS.e,n1,()=>EE.next());feed(CVS.s,n2,()=>SE.next());feed(CVS.r,n3,rNext);
   }
-  const flat=noPulse(ST.rhythm);
-  const rh=RHYTHMS.find(r=>r.id===ST.rhythm)||RHYTHMS[0];
-  const alHR=ST.alarms&&(flat||ST.hr<45||ST.hr>150);
-  const alSP=ST.alarms&&ST.spo2>0&&ST.spo2<90;
-  drawC(CVS.e,alHR?"#ff1744":rh.color);
-  drawC(CVS.s,alSP?"#ff5252":"#40c4ff");
-  drawC(CVS.r,"#90a4ae");
+  const al=alarmFlags();
+  drawC(CVS.e,"#2BFF5A","e");
+  drawC(CVS.s,"#2EE6FF","p");
+  drawC(CVS.r,"#FFE24A","r");
+  const pf=$("mperf");if(pf){const v=CVS.s.buf[(CVS.s.w-1+CVS.s.buf.length)%CVS.s.buf.length];pf.style.height=(isNaN(v)?0:Math.max(0,Math.min(1,v))*100)+"%";}
   raf=requestAnimationFrame(loop);
 }
 
@@ -625,15 +682,15 @@ function tone(freq,dur,vol){
   }catch(e){}
 }
 // bipe do pulso (oxímetro): "bip" arredondado, ataque e final suaves; o tom cai 1 semitom por ponto de SpO₂ abaixo de 99%
-const PULSE_SOUNDS={monitor:{label:"Monitor (padrão)",base:932,dur:.095,mix:.25,vol:.3},classico:{label:"Clássico agudo",base:1175,dur:.06,mix:.45,vol:.26},suave:{label:"Suave",base:784,dur:.12,mix:.1,vol:.28}};
+const PULSE_SOUNDS={off:{label:"Desligado (só alarmes)",base:932,dur:.095,mix:.25,vol:.3},monitor:{label:"Monitor (padrão)",base:932,dur:.095,mix:.25,vol:.3},classico:{label:"Clássico agudo",base:1175,dur:.06,mix:.45,vol:.26},suave:{label:"Suave",base:784,dur:.12,mix:.1,vol:.28}};
 let PULSE_VOL=(()=>{try{return +(localStorage.getItem("simclin.volume")||1);}catch(e){return 1;}})();
 function setPulseVol(v){PULSE_VOL=Math.max(0,Math.min(1.5,+v));try{localStorage.setItem("simclin.volume",PULSE_VOL);}catch(e){}}
-let PULSE_KIND=(()=>{try{return localStorage.getItem("simclin.pulso")||"monitor";}catch(e){return "monitor";}})();
-function setPulseKind(k){PULSE_KIND=PULSE_SOUNDS[k]?k:"monitor";try{localStorage.setItem("simclin.pulso",PULSE_KIND);}catch(e){}pulseBeep();}
+let PULSE_KIND=(()=>{try{return localStorage.getItem("simclin.bipe")||"off";}catch(e){return "off";}})();
+function setPulseKind(k){PULSE_KIND=PULSE_SOUNDS[k]?k:"off";try{localStorage.setItem("simclin.bipe",PULSE_KIND);}catch(e){}if(k!=="off")pulseBeep();}
 function pulseFreq(){const k=PULSE_SOUNDS[PULSE_KIND]||PULSE_SOUNDS.monitor,sp=Math.max(70,Math.min(99,ST.spo2||0));return k.base*Math.pow(2,(sp-99)/12);}
 function pulseBeep(){
   try{
-    const k=PULSE_SOUNDS[PULSE_KIND]||PULSE_SOUNDS.monitor,ctx=getACtx();if(ctx.state==="suspended")ctx.resume();
+    const k=PULSE_SOUNDS[PULSE_KIND==="off"?"monitor":PULSE_KIND]||PULSE_SOUNDS.monitor,ctx=getACtx();if(ctx.state==="suspended")ctx.resume();
     const t=ctx.currentTime,f=ST.spo2>0?pulseFreq():k.base,g=ctx.createGain(),lp=ctx.createBiquadFilter();
     lp.type="lowpass";lp.frequency.value=3200;lp.connect(ctx.destination);g.connect(lp);
     const v=Math.max(0.0002,k.vol*PULSE_VOL);
@@ -645,18 +702,36 @@ function pulseBeep(){
   }catch(e){}
 }
 let pulseOn=false;
-function onQRS(){if(pulseOn&&!ST.frozen&&!noPulse(ST.rhythm)&&ST.hr>0&&ST.spo2>0)pulseBeep();}
+function onQRS(){const hb=$("mheart");if(hb&&!noPulse(ST.rhythm)&&ST.hr>0){hb.classList.add("on");clearTimeout(hb._t);hb._t=setTimeout(()=>hb.classList.remove("on"),130);}if(PULSE_KIND!=="off"&&pulseOn&&!ST.frozen&&!noPulse(ST.rhythm)&&ST.hr>0&&ST.spo2>0)pulseBeep();}
 // sem monitor desenhando (modo só controle) não há bipe; com monitor, o bipe segue cada QRS
 function startBeepLoop(){pulseOn=true;beepTimer=1;}
 function stopBeepLoop(){pulseOn=false;beepTimer=null;}
 
-// prioridade do alarme: alta = risco imediato de vida; média = exige resposta rápida
+// lista de alarmes ativos: 2 = alta (vermelho, ***), 1 = média (amarelo, **), 0 = baixa (ciano, *, sem som)
+const RH_ALARM={asystole:"ASSISTOLIA",vf:"FIBRILAÇÃO VENTRICULAR",aesp:"AESP – SEM PULSO",vt:"TAQUICARDIA VENTRICULAR"};
+function alarmFlags(){
+  const f={hr:-1,sp:-1,bp:-1,rr:-1,tp:-1,list:[]},add=(k,p,t)=>{f.list.push({p,t});if(k&&p>f[k])f[k]=p;};
+  const flat=noPulse(ST.rhythm);
+  if(RH_ALARM[ST.rhythm])add("hr",2,RH_ALARM[ST.rhythm]);
+  if(!flat){
+    if(ST.hr>150)add("hr",2,"FC ALTA");else if(ST.hr>120)add("hr",1,"FC ALTA");
+    if(ST.hr>0&&ST.hr<40)add("hr",2,"FC BAIXA");else if(ST.hr>0&&ST.hr<50)add("hr",1,"FC BAIXA");
+    if(!ST.spo2)add("sp",1,"SpO₂ SEM SINAL");else if(ST.spo2<85)add("sp",2,"SpO₂ BAIXA");else if(ST.spo2<90)add("sp",1,"SpO₂ BAIXA");
+    if(ST.sbp>0&&ST.sbp<70)add("bp",2,"PNI SIST BAIXA");else if(ST.sbp>0&&ST.sbp<90)add("bp",1,"PNI SIST BAIXA");else if(ST.sbp>160)add("bp",1,"PNI SIST ALTA");
+    if(!ST.rr)add("rr",2,"APNEIA");else if(ST.rr>30)add("rr",1,"FR ALTA");else if(ST.rr<8)add("rr",1,"FR BAIXA");
+  }
+  if(ST.temp&&ST.temp<35)add("tp",0,"TEMP BAIXA");else if(ST.temp>38.5)add("tp",0,"TEMP ALTA");
+  f.list.sort((a,b)=>b.p-a.p);return f;
+}
+// prioridade sonora: só alarmes de média e alta prioridade tocam
 function alarmPriority(){
   if(!ST.alarms||ST.frozen)return 0;
-  const flat=noPulse(ST.rhythm);
-  if(flat||ST.hr<40||ST.hr>150||(ST.spo2>0&&ST.spo2<85)||(ST.sbp>0&&ST.sbp<70))return 2;
-  if(ST.hr<45||ST.hr>120||(ST.spo2>0&&ST.spo2<90)||(ST.sbp>0&&(ST.sbp<80||ST.sbp>180)))return 1;
-  return 0;
+  const l=alarmFlags().list;return l.length?Math.max(0,l[0].p):0;
+}
+// rótulo coerente com a frequência (ritmo sinusal acima de 100 é taquicardia sinusal, abaixo de 60 é bradicardia)
+function rhLabel(rh){
+  if(["sinusal","tachycardia","bradycardia"].includes(rh.id)&&ST.hr>0){if(ST.hr>100)return "Taquicardia Sinusal";if(ST.hr<60)return "Bradicardia Sinusal";return "Sinusal";}
+  return rh.label;
 }
 // melodia geral da norma: alta = 10 pulsos (dó-lá-fá · lá-fá, duas vezes); média = 3 pulsos (dó-lá-fá)
 let alarmOn=0;
@@ -686,22 +761,21 @@ function render(patch){
   if(patch)Object.assign(ST,patch);
   const flat=noPulse(ST.rhythm);
   const rh=RHYTHMS.find(r=>r.id===ST.rhythm)||RHYTHMS[0];
-  const alHR=ST.alarms&&(flat||ST.hr<45||ST.hr>150);
-  const alSP=ST.alarms&&ST.spo2>0&&ST.spo2<90;
-  const alBP=ST.alarms&&ST.sbp>0&&(ST.sbp<80||ST.sbp>180);
   EE.cfg(ST.rhythm,ST.hr,ST.spo2);SE.cfg(ST.rhythm,ST.hr,flat?0:ST.spo2); // sem pulso → pletismografia plana
 
   if(ROLE==="monitor"||ROLE==="both"){
-    $("mrh").textContent=rh.label;$("mrh").style.color=rh.color;
-    $("vhr").innerHTML=`${flat?"---":ST.hr} <small>bpm</small>`;$("vhr").style.color=alHR?"#ff1744":rh.color;
-    $("vspo").innerHTML=`${!ST.spo2?"---":ST.spo2}<small>%</small>`;$("vspo").style.color=alSP?"#ff5252":"#40c4ff";
-    $("vrr").innerHTML=`${!ST.rr?"---":ST.rr}<small> rpm</small>`;
-    $("vbp").textContent=(!ST.sbp&&!ST.dbp)?"---/---":`${ST.sbp}/${ST.dbp}`;
-    $("vbp").style.color=alBP?"#ff5252":"#ff9800";
-    $("vtmp").textContent=ST.temp?`${ST.temp}°C`:"---";
-    const any=alHR||alSP||alBP;
-    $("waves").className=any?"waves alarming":"waves";
-    $("malb").style.display=any?"inline":"none";
+    const al=alarmFlags(),on=ST.alarms&&!ST.frozen;
+    $("mrh").textContent=rhLabel(rh);
+    if(ST.pt)$("mpt").textContent=ST.pt;
+    $("vhr").textContent=flat||!ST.hr?"---":ST.hr;
+    $("vspo").textContent=flat||!ST.spo2?"---":ST.spo2;
+    $("vpr").textContent=flat||!ST.spo2||!ST.hr?"---":ST.hr;
+    $("vrr").textContent=flat||!ST.rr?"---":ST.rr;
+    $("vtmp").textContent=ST.temp?Number(ST.temp).toFixed(1).replace(".",","):"---";
+    if(!pniBusy)pniShow();
+    [["hr","pb-hr"],["sp","pb-sp"],["bp","pb-bp"],["rr","pb-rr"],["tp","pb-tp"]].forEach(([k,id])=>{const p=al[k],e=$(id);e.className="pb"+(p===2?" a2":p===1?" a1":"")+(p===2&&on?" blk":"");});
+    $("malms").innerHTML=al.list.slice(0,4).map(a=>`<span class="alm p${a.p}${on&&a.p>0?" blk":""}">${"*".repeat(a.p+1)} ${a.t}</span>`).join("")+(al.list.length>4?`<span class="alm p0">+${al.list.length-4}</span>`:"");
+    silShow();
     $("mfrb").style.display=ST.frozen?"inline":"none";
     // ── áudio ──
     // o bipe do pulso continua durante os alarmes (como nos monitores reais); congelar silencia tudo
@@ -724,6 +798,35 @@ function render(patch){
     buildRh();
   }
 }
+
+// ── PNI: mostra a última medição; "Iniciar PNI" simula a insuflação do manguito ──
+let pniBusy=false,pniLast="",pniAt=null;
+function hhmm(d){return d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});}
+function pniShow(){
+  const k=ST.sbp+"/"+ST.dbp;if(k!==pniLast){pniLast=k;pniAt=new Date();}
+  const none=!ST.sbp&&!ST.dbp;
+  $("vbp").textContent=none?"---/---":`${ST.sbp}/${ST.dbp}`;
+  $("vmap").textContent=none?"(---)":`(${Math.round((ST.sbp+2*ST.dbp)/3)})`;
+  $("vpni").textContent="Manual "+(pniAt?hhmm(pniAt):"--:--");
+}
+function pniStart(){
+  if(pniBusy)return;pniBusy=true;const b=$("pnib");b.disabled=true;b.textContent="Medindo…";
+  let cuff=0,down=false;const top=Math.max(160,(ST.sbp||120)+30);$("vmap").textContent="";
+  const t=setInterval(()=>{
+    if(!down&&cuff>=top)down=true;cuff=down?cuff-6:cuff+12;
+    $("vbp").textContent=`${Math.max(0,cuff)}`;$("vpni").textContent="Manguito";
+    if(down&&cuff<=Math.max(30,(ST.dbp||60)-15)){clearInterval(t);pniBusy=false;pniLast="";pniShow();b.disabled=false;b.textContent="▶ Iniciar PNI";
+      try{tone(1319,.12,.18);setTimeout(()=>tone(1319,.12,.18),180);}catch(e){}}
+  },110);
+}
+// pausa de alarmes: ícone e contagem regressiva no topo do monitor
+function silShow(){
+  const e=$("msil");if(!e)return;
+  if(ST.alarms){e.style.display="none";return;}
+  const left=ST.silUntil?Math.max(0,Math.round((ST.silUntil-Date.now())/1000)):0;
+  e.textContent=left?`🔕 Alarmes pausados ${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}`:"🔕 Alarmes desligados";e.style.display="inline";
+}
+setInterval(()=>{if(ROLE==="monitor"||ROLE==="both")silShow();},1000);
 
 // ════════════════════════════════════════════════════════
 // WEBSOCKET
@@ -788,7 +891,7 @@ function enter(role){
     [CVS.e,CVS.s,CVS.r].forEach(initC);
     if(raf)cancelAnimationFrame(raf);lt=performance.now();re=rs=rre=0;
     raf=requestAnimationFrame(loop);
-    setInterval(()=>$("mclk").textContent=new Date().toLocaleTimeString("pt-BR"),1000);
+    clockStart();
     unlockAudio();startBeepLoop();
     buildSc();buildRh();buildScSel();render(null);
     connect(room,"instructor",()=>{});
@@ -799,7 +902,7 @@ function enter(role){
     [CVS.e,CVS.s,CVS.r].forEach(initC);
     if(raf)cancelAnimationFrame(raf);lt=performance.now();re=rs=rre=0;
     raf=requestAnimationFrame(loop);
-    setInterval(()=>$("mclk").textContent=new Date().toLocaleTimeString("pt-BR"),1000);
+    clockStart();
     unlockAudio();
     startBeepLoop();
     connect(room,"monitor",null);
@@ -822,7 +925,7 @@ function pClamp(){const p=$("s2"),r=p.getBoundingClientRect();const x=Math.min(M
 function panelRestore(){
   const p=$("s2"),o=pGet();
   if(o.w)p.style.width=Math.min(o.w,innerWidth-16)+"px";if(o.h)p.style.height=Math.min(o.h,innerHeight-16)+"px";
-  p.style.left=(o.x!=null?o.x:Math.max(8,innerWidth-(o.w||420)-16))+"px";p.style.top=(o.y!=null?o.y:56)+"px";
+  p.style.left=(o.x!=null?o.x:16)+"px";p.style.top=(o.y!=null?o.y:56)+"px";
   document.body.classList.toggle("pmin",!!o.min);document.body.classList.toggle("phide",!!o.hide);pClamp();
 }
 function panelMin(){const m=!document.body.classList.contains("pmin");document.body.classList.toggle("pmin",m);pSet({min:m});pClamp();}
@@ -847,6 +950,7 @@ function panelHide(h){document.body.classList.toggle("phide",h);pSet({hide:!!h})
     if(t)document.documentElement.setAttribute("data-theme",t);else document.documentElement.removeAttribute("data-theme");};
   apply();if(!q&&window.parent!==window)setInterval(apply,1500);
 })();
+function clockStart(){const f=()=>{const d=new Date();$("mclk").textContent=d.toLocaleTimeString("pt-BR");$("mdate").textContent=d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric"});};f();clearInterval(window._clk);window._clk=setInterval(f,1000);}
 function goBack(){
   document.body.classList.remove("combo","pmin","phide");
   if(raf){cancelAnimationFrame(raf);raf=null;}
@@ -866,13 +970,13 @@ function onSl(k,v){push({[k]:parseFloat(v)});}
 function onBP(k,v){push({[k]:parseInt(v)||0});}
 function togFreeze(){push({frozen:!ST.frozen});}
 document.addEventListener("DOMContentLoaded",()=>{const ps=$("psel");const pv=$("pvol");if(pv)pv.value=PULSE_VOL;if(ps){ps.innerHTML=Object.entries(PULSE_SOUNDS).map(([k,v])=>`<option value="${k}" ${k===PULSE_KIND?"selected":""}>${v.label}</option>`).join("");}});
-function togAlarms(){clearTimeout(window._silT);$("bsil").textContent="🔕 2 min";push({alarms:!ST.alarms});}
+function togAlarms(){clearTimeout(window._silT);clearInterval(window._silI);$("bsil").textContent="🔕 2 min";push({alarms:!ST.alarms,silUntil:0});}
 // silenciar alarmes por 2 minutos (pausa de áudio, como no equipamento); o bipe do pulso continua
 function silence2(){
-  clearTimeout(window._silT);clearInterval(window._silI);push({alarms:false});let left=120;
+  clearTimeout(window._silT);clearInterval(window._silI);push({alarms:false,silUntil:Date.now()+120000});let left=120;
   const b=$("bsil");b.textContent="🔕 2:00";
   window._silI=setInterval(()=>{left--;b.textContent=`🔕 ${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}`;},1000);
-  window._silT=setTimeout(()=>{clearInterval(window._silI);b.textContent="🔕 2 min";push({alarms:true});},120000);
+  window._silT=setTimeout(()=>{clearInterval(window._silI);b.textContent="🔕 2 min";push({alarms:true,silUntil:0});},120000);
 }
 function trigPCR(){push({rhythm:"asystole",hr:0,spo2:0,rr:0,sbp:0,dbp:0});}
 
@@ -904,6 +1008,7 @@ function buildScSel(){
   SCENARIO_PROGRAMS.forEach(p=>{const o=document.createElement("option");o.value=p.id;o.textContent=p.title;s.appendChild(o);});
   engLoad(s.value);
 }
+function ptLabel(sc){const m=(sc.summary||"").split(",");return m.length>1?(m[0]+", "+m[1]).replace(/\s+a$/," anos").trim():(sc.title||"Paciente simulado");}
 function engLoad(id){
   stopEngTimer();
   const sc=SCENARIO_PROGRAMS.find(p=>p.id===id);if(!sc)return;
@@ -913,7 +1018,7 @@ function engLoad(id){
 function engStart(){
   if(!ENG)return;
   if(!ENG.started)ENG.start();else ENG.resume();
-  push(engVitals(),true);startEngTimer();renderEng();
+  push({...engVitals(),pt:ptLabel(ENG.sc)},true);startEngTimer();renderEng();
 }
 function engPause(){if(ENG){ENG.pause();stopEngTimer();renderEng();}}
 function engReset(){if(ENG)engLoad(ENG.sc.id);}
