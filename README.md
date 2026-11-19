@@ -229,3 +229,11 @@ npm run dist:win    # Windows: instalador .exe (gerar no Windows)
 As regras valem também no servidor: o banco central entrega a cada docente apenas o recorte dele e, ao
 gravar, preserva o que ele não pode ver nem alterar.
 
+
+### Celular como câmera
+
+Na **Sessão ao vivo**, o botão **+ Celular como câmera** mostra um QR code e um código de 6 dígitos. O celular abre
+`https://<ip-do-computador>:3443/camera.html`, permite a câmera e o vídeo entra como uma das 4 fontes da gravação.
+O servidor cria um certificado próprio (`tls.js`, em `data/tls/`) porque o celular só libera a câmera em https; na primeira
+visita o navegador do celular pede para aceitar esse certificado. O servidor só faz o pareamento: o vídeo vai direto do
+celular para a estação pela rede local (WebRTC). Variáveis: `HTTPS_PORT` (padrão 3443) e `HC_HTTPS=0` para desligar.
