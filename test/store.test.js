@@ -76,8 +76,9 @@ test("banco central: revisão, 409, recorte do estudante e vídeos", async () =>
       await call("adm", "PUT", "/db", { db: db3, baseRev: cur.rev });
       let d = (await call("doc", "GET", "/db")).j;
       assert.deepEqual(d.db.scenarios.map((x) => x.id), ["scMH"], "só a área dele e nada de outros docentes");
-      await call("doc", "PUT", "/db", { db: { ...d.db, scenarios: [...d.db.scenarios, { id: "scNovo", title: "Meu", status: "aprovado" }] }, baseRev: d.rev });
-      let sc = store._doc().db.scenarios; assert.equal(sc.find((x) => x.id === "scNovo").status, "pendente"); assert.equal(sc.length, 4, "cenários alheios preservados");
+      await call("doc", "PUT", "/db", { db: { ...d.db, scenarios: [...d.db.scenarios, { id: "scNovo", title: "Meu", status: "aprovado", image: "data:image/jpeg;base64,AAAA" }] }, baseRev: d.rev });
+      let sc = store._doc().db.scenarios; assert.equal(sc.find((x) => x.id === "scNovo").status, "pendente");
+      assert.equal(sc.find((x) => x.id === "scNovo").image, undefined, "docente não envia imagem nova"); assert.equal(sc.length, 4, "cenários alheios preservados");
       cur = store._doc(); await call("adm", "PUT", "/db", { db: { ...cur.db, scenarios: cur.db.scenarios.map((x) => (x.id === "scNovo" ? { ...x, status: "aprovado" } : x)) }, baseRev: cur.rev });
       d = (await call("doc", "GET", "/db")).j;
       await call("doc", "PUT", "/db", { db: d.db, baseRev: d.rev }); assert.equal(store._doc().db.scenarios.find((x) => x.id === "scNovo").status, "aprovado", "sem mudança continua aprovado");

@@ -860,7 +860,7 @@ function importRoster(text) {
 
 // ═════════════════════════════ CENÁRIOS ═══════════════════════════════════
 R.cenarios = () => `<div class="between"><h1 style="margin:0">Cenários</h1><div class="row">
-  ${window.SCENARIO_PROGRAMS && isAdm() ? `<button class="btn" data-act="sc-import">Importar cenários do motor SimClin</button>` : ""}<button class="btn primary" data-act="sc-new">+ Cenário</button></div></div>
+  ${window.SCENARIO_PROGRAMS && isAdm() ? `<button class="btn" data-act="sc-import">Importar cenários do motor SimClin</button>` : ""}${isAdm() ? `<button class="btn" data-act="sc-prompts" title="Baixa um arquivo com um prompt de imagem para cada cenário">Prompts de imagem (Gemini)</button>` : ""}<button class="btn primary" data-act="sc-new">+ Cenário</button></div></div>
   ${UI.role === "docente" ? `<p class="muted small" style="margin:-4px 0 10px">Aparecem aqui os cenários das suas áreas do conhecimento (${myAreas().length ? esc(myAreas().join("; ")) : "nenhuma área definida pelo administrador"}) e os que você criou. Cenários novos ou alterados só ficam disponíveis após aprovação do administrador.</p>` : ""}
   ${visibleScenarios().length ? `<div class="cols">${visibleScenarios().map((s) => `<section class="card click" style="cursor:pointer" data-act="sc-open" data-id="${s.id}">
     ${s.image ? `<img class="scimg" src="${esc(s.image)}" alt="Imagem ilustrativa do cenário ${esc(s.title)}" loading="lazy">` : ""}<div class="between"><h2>${esc(s.title)}</h2>${approveBtns("scenarios", s)}</div>${statusTag(s)}${AR.scenarioArea(s) ? `<span class="tag">${esc(AR.scenarioArea(s))}</span>` : ""}<p class="muted small">${esc(s.simulator || "Sem simulador")} · ${(s.annotations || []).length} anotações pré-definidas · ${(s.evaluationIds || []).length} avaliação(ões)${+s.retentionDays ? ` · retenção ${s.retentionDays} dias` : ""}</p>
@@ -871,6 +871,28 @@ R.cenarios = () => `<div class="between"><h1 style="margin:0">Cenários</h1><div
   ${allRefs().length ? `<section class="card"><h2>Referências da biblioteca (${allRefs().length})</h2><ol class="small" style="padding-left:20px;display:grid;gap:6px">${allRefs().map((r) => `<li>${refHtml(r)}</li>`).join("")}</ol></section>` : ""}`;
 const allRefs = () => [...new Set([...visibleScenarios().flatMap((s) => s.refs || []), ...visibleEvals().flatMap((e) => e.refs || [])])].sort((a, b) => a.localeCompare(b, "pt-BR"));
 
+// prompt para criar a imagem do cenário em uma IA de imagens (Gemini): estilo único + dados do caso
+const IMG_STYLE = "Fotografia realista, horizontal 16:9, em um laboratório de simulação clínica de uma escola de enfermagem no Brasil, iluminação clínica suave, paleta com azul-marinho e azul-claro. Paciente representado por manequim de simulação de alta fidelidade ou por ator (paciente simulado), nunca um paciente real. Equipe diversa (gênero, idade e etnia), com uniformes privativos e crachás sem texto legível. Equipamentos coerentes com o caso. Sem texto, letras, logotipos ou marcas na imagem; sem sangue, ferimentos expostos ou nudez; pessoas retratadas com dignidade.";
+function geminiPrompt(s) {
+  const area = AR.scenarioArea(s), obj = (s.objectives || []).slice(0, 3).join("; ");
+  return `${IMG_STYLE}\n\nCena: ${s.title}.${s.summary ? " " + s.summary : ""}${s.simulator ? `\nRecursos visíveis: ${s.simulator}.` : ""}${area ? `\nÁrea: ${area}.` : ""}${obj ? `\nMostre a equipe no momento-chave do caso, coerente com estes objetivos: ${obj}.` : "\nMostre a equipe no momento-chave do caso."}\nEnquadramento: plano médio, ação em andamento, foco na equipe e no manequim/ator.`;
+}
+queueMicrotask(() => {
+  ACT["sc-prompt"] = () => {
+    const f = $("#mform"), t = f ? f.querySelector("[name=title]").value : "", sm = f ? f.querySelector("[name=summary]").value : "";
+    const cur = DB.scenarios.find((x) => x.title === t) || {};
+    const txt = geminiPrompt({ ...cur, title: t || cur.title || "Cenário", summary: sm, simulator: f ? f.querySelector("[name=simulator]").value : cur.simulator, area: f ? f.querySelector("[name=area]").value : cur.area });
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast("Prompt copiado. Cole no Gemini e depois use “Escolher imagem”."), () => {});
+    const box = $("#sc-prompt-box"); if (box) box.value = txt; else $("#sc-img-prev").insertAdjacentHTML("beforebegin", `<textarea id="sc-prompt-box" readonly style="min-height:150px;font-size:12px;margin-bottom:8px">${esc(txt)}</textarea>`);
+  };
+  ACT["sc-prompts"] = () => {
+    if (!isAdm()) return;
+    const list = DB.scenarios.filter(AR.isApproved);
+    download("prompts-imagens-cenarios.txt", `Prompts para criar no Gemini uma imagem para cada cenário do HELSIM (${list.length}).\nCole um prompt por conversa, baixe a imagem em paisagem e, no HELSIM, abra o cenário › Escolher imagem.\n\n` +
+      list.map((s, i) => `${String(i + 1).padStart(2, "0")}. ${s.title}${s.image ? " (já tem imagem)" : ""}\n${"-".repeat(60)}\n${geminiPrompt(s)}`).join("\n\n\n"));
+    toast(`${list.length} prompts baixados.`);
+  };
+});
 // imagem do cenário: recorte 16:9, 960 px, JPEG (fica no banco junto com o cenário)
 let SC_IMG = "";
 function shrinkScenarioImage(file) {
@@ -896,9 +918,10 @@ function openScenario(s) {
     <label class="f"><span>Retenção dos vídeos (dias; 0 = política global)</span><input type="number" min="0" name="retentionDays" value="${esc(s.retentionDays || 0)}"></label></div>
     <label class="f"><span>Área do conhecimento</span><select name="area">${opt("", "—", AR.scenarioArea(s))}${AR.AREAS.map((a) => opt(a, a, AR.scenarioArea(s))).join("")}</select></label>
     ${!isAdm() ? `<p class="small muted">Ao salvar, o cenário vai para aprovação do administrador e só você e ele o veem.</p>` : ""}
-    <div class="f"><span>Imagem ilustrativa do cenário (opcional)</span><img id="sc-img-prev" class="scimg-prev" alt="" src="${esc(s.image || "")}" ${s.image ? "" : "hidden"}>
+    ${isAdm() ? `<div class="f"><span>Imagem ilustrativa do cenário (opcional, só o administrador)</span><img id="sc-img-prev" class="scimg-prev" alt="" src="${esc(s.image || "")}" ${s.image ? "" : "hidden"}>
       <div class="row" style="margin-top:6px"><label class="btn">Escolher imagem<input type="file" accept="image/png,image/jpeg,image/webp" data-change="sc-img" hidden></label><button type="button" class="btn" data-act="sc-img-del">Remover imagem</button></div>
-      <span class="muted small" style="font-weight:400">A imagem é recortada em 16:9 e reduzida para 960 px de largura.</span></div>
+      <span class="muted small" style="font-weight:400">A imagem é recortada em 16:9 e reduzida para 960 px de largura. Para criá-la no Gemini, use “Prompt para o Gemini”.</span>
+      <button type="button" class="btn sm" data-act="sc-prompt" style="margin-top:6px;align-self:flex-start">Prompt para o Gemini</button></div>` : ""}
     <label class="f"><span>Resumo do caso</span><textarea name="summary">${esc(s.summary || "")}</textarea></label>
     <label class="f"><span>Objetivos de aprendizagem (um por linha)</span><textarea name="objectives">${esc((s.objectives || []).join("\n"))}</textarea></label>
     <label class="f"><span>Anotações pré-definidas — uma por linha: <code>Rótulo | Categoria | #cor</code>. As nove primeiras ganham atalhos 1–9 na gravação.</span><textarea name="ann" style="min-height:140px;font-family:var(--mono);font-size:12px">${esc(annTxt)}</textarea></label>
@@ -908,7 +931,7 @@ function openScenario(s) {
     onSubmit: (fd) => {
       const annotations = fd.get("ann").split("\n").map((l) => l.split("|").map((x) => x.trim())).filter((p) => p[0])
         .map(([label, cat, color]) => ({ id: C.uid("a"), label, cat: cat || "Geral", color: /^#[0-9a-f]{3,8}$/i.test(color || "") ? color : colorFor(cat || label) }));
-      if (SC_IMG) s.image = SC_IMG; else delete s.image;
+      if (isAdm()) { if (SC_IMG) s.image = SC_IMG; else delete s.image; }
       Object.assign(s, { area: fd.get("area") || "", title: fd.get("title").trim() || "Cenário", simulator: fd.get("simulator").trim(), retentionDays: +fd.get("retentionDays") || 0,
         summary: fd.get("summary").trim(), objectives: fd.get("objectives").split("\n").map((x) => x.trim()).filter(Boolean), annotations, evaluationIds: fd.getAll("evaluationIds"), refs: fd.get("refs").split("\n").map((x) => x.trim()).filter(Boolean) });
       stampApproval(s, isNew); if (isNew) DB.scenarios.push(s); save(); render(); if (!isAdm()) toast("Cenário enviado para aprovação do administrador.");
