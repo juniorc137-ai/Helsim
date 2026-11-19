@@ -608,7 +608,7 @@ function syncDock() {
 }
 function loadDock(room) {
   const f = $("#sc-frame"); if (!f) return;
-  const key = simclinServed() ? `index.html${room ? `?sala=${room}&papel=instrutor` : ""}` : "inline";
+  const key = simclinServed() ? `index.html${room ? `?sala=${room}&papel=ambos` : ""}` : "inline";
   if (f.dataset.key === key) return; f.dataset.key = key;
   if (simclinServed()) f.src = key; else if (window.HC_SIMCLIN_HTML) f.srcdoc = HC_SIMCLIN_HTML; else f.srcdoc = "<p style='font:14px sans-serif;color:#ccc;padding:20px'>O SimClin abre aqui quando o HELSIM roda pelo servidor.</p>";
 }

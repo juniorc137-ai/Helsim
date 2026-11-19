@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
 <title>SimClin – Monitor Cardíaco</title>
-<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden;background:#030a03}
@@ -153,6 +153,65 @@ pre{font-size:11px;color:#8b949e;white-space:pre-wrap;font-family:monospace}
 .cmt{display:flex;gap:6px;margin-top:8px}
 .cmt input{flex:1;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:6px 10px;color:#c9d1d9;font-size:13px}
 @media(max-width:380px){.lg-big{font-size:38px}.clk{font-size:14px}}
+/* ── IDENTIDADE HELSIM (entrada e painel do instrutor; o monitor mantém as cores clínicas) ── */
+:root{--h-brand:#0B2A5B;--h-accent:#2F7CC1;--h-rec:#E10600;--h-bg:#EEF2F6;--h-surface:#FFFFFF;--h-surface2:#F6F8FB;--h-line:#D5DEE8;--h-text:#0F1E33;--h-muted:#5B6B80;--h-ok:#15803D;--h-warn:#B45309;--h-bad:#B91C1C;
+  --f-sans:'IBM Plex Sans',system-ui,sans-serif;--f-cond:'IBM Plex Sans Condensed','IBM Plex Sans',sans-serif;--f-mono:'IBM Plex Mono',ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--h-accent:#60B8F5;--h-rec:#FF2A1F;--h-bg:#0A121C;--h-surface:#111C29;--h-surface2:#0E1823;--h-line:#22344A;--h-text:#E3EAF3;--h-muted:#93A4B8;--h-ok:#4ADE80;--h-warn:#FBBF24;--h-bad:#F87171}}
+:root[data-theme="dark"]{--h-accent:#60B8F5;--h-rec:#FF2A1F;--h-bg:#0A121C;--h-surface:#111C29;--h-surface2:#0E1823;--h-line:#22344A;--h-text:#E3EAF3;--h-muted:#93A4B8;--h-ok:#4ADE80;--h-warn:#FBBF24;--h-bad:#F87171}
+/* entrada */
+#s0{background:linear-gradient(160deg,var(--h-brand) 0%,#071a36 100%);font-family:var(--f-sans)}
+.lw{max-width:460px}
+.hs-logo{display:flex;align-items:center;justify-content:center;gap:12px;color:#fff;font:700 30px var(--f-cond);letter-spacing:.01em}
+.hs-logo i{width:52px;height:52px;border-radius:12px;background:#fff center/70% no-repeat url("img/helsim-icone.png");box-shadow:0 4px 18px rgba(0,0,0,.25)}
+.hs-logo .sim{color:#FF4D40}
+.lg-tag{font:500 12px var(--f-sans);letter-spacing:.08em;color:#B9CBE3;margin-top:8px;text-transform:uppercase}
+.card{background:var(--h-surface);border:1px solid var(--h-line);border-radius:14px;padding:22px;margin-top:22px;color:var(--h-text);text-align:left;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.cl{font:600 12px var(--f-sans);letter-spacing:.04em;color:var(--h-muted);margin-bottom:8px;text-transform:uppercase}
+#ri{background:var(--h-surface2);border:1px solid var(--h-line);border-radius:10px;color:var(--h-text);font:600 34px var(--f-mono);caret-color:var(--h-accent)}
+#ri::placeholder{color:var(--h-line)}
+#ri:focus{border-color:var(--h-accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--h-accent) 25%,transparent)}
+.btns{grid-template-columns:1fr 1fr}
+.lb{font:600 14px var(--f-sans);letter-spacing:.01em;border-radius:10px;padding:12px 10px;background:var(--h-surface)}
+.lb.both{grid-column:1/-1;background:var(--h-accent);color:#fff;border:1px solid var(--h-accent);box-shadow:none}
+.lb.m{border:1px solid var(--h-line);color:var(--h-text);box-shadow:none}
+.lb.ins{border:1px solid var(--h-line);color:var(--h-text);box-shadow:none}
+.lb:hover{filter:brightness(1.05)}.lb.m:hover,.lb.ins:hover{border-color:var(--h-accent)}
+.lb.cap{border:1px solid var(--h-line);color:var(--h-muted);box-shadow:none;text-align:center}
+.hint{background:var(--h-surface2);border:1px solid var(--h-line);border-radius:10px}
+.ht{font:600 11px var(--f-sans);color:var(--h-muted);letter-spacing:.04em;text-transform:uppercase}
+.hb{font:13px/1.55 var(--f-sans);color:var(--h-muted)}
+.err{color:var(--h-bad)}
+/* painel do instrutor */
+#s2{background:var(--h-bg);color:var(--h-text);font-family:var(--f-sans)}
+.ihdr,.cbar,.tabs{background:var(--h-surface);border-color:var(--h-line)}
+.ibk{color:var(--h-muted)}
+.rb,.cdbox{background:var(--h-surface2);border-color:var(--h-line);color:var(--h-accent);font-family:var(--f-mono)}
+.ist,.cbar{color:var(--h-muted)}
+.ib{background:var(--h-surface);border-color:var(--h-line);color:var(--h-text);border-radius:8px;font-family:var(--f-sans)}
+.ib:hover{border-color:var(--h-accent)}
+.tab{color:var(--h-muted);font-family:var(--f-sans);font-weight:600}.tab.on{color:var(--h-accent);border-bottom-color:var(--h-accent)}
+.ic,.scb,.rhb{background:var(--h-surface);border:1px solid var(--h-line)!important;color:var(--h-text)}
+.scb:hover,.rhb:hover{border-color:var(--h-accent)!important}
+.vrlb,.bpl,.muted,pre,.kt th,.chip,.evcat{color:var(--h-muted)}
+.bpi,.sel,.cmt input{background:var(--h-surface2);border-color:var(--h-line);color:var(--h-text);border-radius:8px}
+.est{color:var(--h-text)}.kt td,.kt th{border-color:var(--h-line)}.lg div{border-color:var(--h-line)}
+.ib2{color:var(--h-text)}
+.hs-mini{display:inline-flex;align-items:center;gap:6px;font:700 15px var(--f-cond);color:var(--h-text)}
+.hs-mini i{width:22px;height:22px;border-radius:6px;background:var(--h-brand) center/70% no-repeat url("img/helsim-icone.png")}
+.hs-mini .sim{color:var(--h-rec)}
+/* ── MONITOR + CONTROLE: monitor ao fundo, controle flutuante arrastável ── */
+.only-combo{display:none!important}
+body.combo .only-combo{display:inline-flex!important}
+body.combo #s2{inset:auto;width:420px;height:min(76vh,720px);min-width:300px;min-height:56px;border:1px solid var(--h-line);border-radius:14px;
+  box-shadow:0 18px 48px rgba(0,0,0,.45);overflow:hidden;resize:both;z-index:20}
+body.combo #s2 .ihdr{cursor:move;user-select:none;touch-action:none}
+body.combo #s2 .ihdr .ist{display:none}
+body.combo #s2 .tab{padding:8px 2px;font-size:12px}
+body.combo.pmin #s2{height:auto!important;resize:none}
+body.combo.pmin #s2 .cbar,body.combo.pmin #s2 .tabs,body.combo.pmin #s2 .body{display:none}
+body.combo.phide #s2{display:none!important}
+#pshow{position:fixed;right:14px;bottom:14px;z-index:21;display:none;background:var(--h-accent);color:#fff;border:0;border-radius:999px;padding:10px 16px;font:600 13px var(--f-sans);cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+body.combo.phide #pshow{display:block}
 </style>
 </head>
 <body>
@@ -160,21 +219,21 @@ pre{font-size:11px;color:#8b949e;white-space:pre-wrap;font-family:monospace}
 <!-- LANDING -->
 <div id="s0" class="scr">
   <div class="lw">
-    <div class="lg-uni">UNIVALI · INCOR</div>
-    <div class="lg-big">SIM<s>CLIN</s></div>
-    <div class="lg-tag">MONITOR CARDÍACO · SIMULAÇÃO CLÍNICA</div>
+    <div class="hs-logo"><i></i><span>HEL<span class="sim">SIM</span> · SimClin</span></div>
+    <div class="lg-tag">Monitor multiparamétrico · simulação clínica</div>
     <div class="card">
       <div class="cl">CÓDIGO DA SALA</div>
       <input id="ri" type="tel" inputmode="numeric" maxlength="4" placeholder="0000" autocomplete="off"/>
       <div class="err" id="err"></div>
       <div class="btns">
-        <button class="lb m"   onclick="enter('monitor')">📟 MONITOR</button>
-        <button class="lb ins" onclick="enter('instructor')">🎛️ INSTRUTOR</button>
+        <button class="lb both" onclick="enter('both')">Monitor + controle nesta tela</button>
+        <button class="lb m"   onclick="enter('monitor')">Só monitor</button>
+        <button class="lb ins" onclick="enter('instructor')">Só controle (instrutor)</button>
       </div>
-      <a class="lb cap" href="captura.html">🎥 HELSIM · AGENDA · DEBRIEFING</a>
+      <a class="lb cap" href="captura.html">Abrir o HELSIM (agenda, gravação e debriefing)</a>
       <div class="hint">
         <div class="ht">COMO FUNCIONA</div>
-        <div class="hb">Instrutor abre → cria código de sala → Monitor abre em outro dispositivo com o mesmo código → sincronização automática via WebSocket ✓</div>
+        <div class="hb"><b>Monitor + controle</b>: o monitor ocupa a tela e o controle dos sinais vitais flutua por cima; arraste-o pela barra de título, recolha com ▁ ou esconda com a tecla H. Para usar monitor e controle em aparelhos diferentes, digite o mesmo código de sala nos dois.</div>
       </div>
     </div>
   </div>
@@ -226,10 +285,12 @@ pre{font-size:11px;color:#8b949e;white-space:pre-wrap;font-family:monospace}
   </div>
 </div>
 
+<button id="pshow" onclick="panelHide(false)">Mostrar controle (H)</button>
 <!-- INSTRUCTOR -->
 <div id="s2" class="scr">
   <div class="ihdr">
     <div class="il">
+      <span class="hs-mini only-combo"><i></i><span>HEL<span class="sim">SIM</span></span></span>
       <span class="ibk" onclick="goBack()">← Sair</span>
       <span class="rb" id="irl">SALA ----</span>
       <span class="dot" id="idot"></span>
@@ -243,6 +304,8 @@ pre{font-size:11px;color:#8b949e;white-space:pre-wrap;font-family:monospace}
     <div class="iact">
       <button class="ib" id="bfrz" onclick="togFreeze()">⏸ Congelar</button>
       <button class="ib" id="balm" onclick="togAlarms()">🔔 Alarmes</button>
+      <button class="ib only-combo" onclick="panelMin()" title="Recolher ou expandir o controle">▁</button>
+      <button class="ib only-combo" onclick="panelHide(true)" title="Esconder o controle (tecla H)">Esconder</button>
     </div>
   </div>
   <div class="cbar">
@@ -590,7 +653,7 @@ function render(patch){
   const alBP=ST.alarms&&ST.sbp>0&&(ST.sbp<80||ST.sbp>180);
   EE.cfg(ST.rhythm,ST.hr,ST.spo2);SE.cfg(ST.rhythm,ST.hr,flat?0:ST.spo2); // sem pulso → pletismografia plana
 
-  if(ROLE==="monitor"){
+  if(ROLE==="monitor"||ROLE==="both"){
     $("mrh").textContent=rh.label;$("mrh").style.color=rh.color;
     $("vhr").innerHTML=`${flat?"---":ST.hr} <small>bpm</small>`;$("vhr").style.color=alHR?"#ff1744":rh.color;
     $("vspo").innerHTML=`${!ST.spo2?"---":ST.spo2}<small>%</small>`;$("vspo").style.color=alSP?"#ff5252":"#40c4ff";
@@ -607,7 +670,7 @@ function render(patch){
     else if(any){ stopBeepLoop(); startAlarm(); }
     else { stopAlarm(); startBeepLoop(); }
   }
-  if(ROLE==="instructor"){
+  if(ROLE==="instructor"||ROLE==="both"){
     $("ist-rh").textContent=rh.label;$("ist-rh").style.color=rh.color;
     $("ist-hr").textContent=`● ${flat?"---":ST.hr} bpm`;
     $("ist-sp").textContent=`SpO₂ ${!ST.spo2?"---":ST.spo2}%`;
@@ -645,7 +708,7 @@ function connect(room,role,onOpen){
   ws.onmessage=e=>{
     let m;try{m=JSON.parse(e.data);}catch{return;}
     if(m.type==="joined"){
-      if(role==="instructor"){setDot("idot","on");setDot("idot2","on");$("cmsg").textContent="Aguardando monitor…";}
+      if(role==="instructor"){setDot("idot","on");setDot("idot2","on");setDot("mdot","on");$("cmsg").textContent=ROLE==="both"?"Monitor nesta tela · sala aberta para outros aparelhos":"Aguardando monitor…";}
       else{setDot("mdot","yw");}
     }
     if(m.type==="state"&&role==="monitor"){
@@ -672,14 +735,27 @@ function push(patch,fromEngine){
 // UI HELPERS
 // ════════════════════════════════════════════════════════
 function $(id){return document.getElementById(id);}
-function show(id){["s0","s1","s2"].forEach(s=>$(s).style.display="none");$(id).style.display="flex";}
+function show(id){["s0","s1","s2"].forEach(s=>$(s).style.display="none");(Array.isArray(id)?id:[id]).forEach(x=>$(x).style.display="flex");}
 function setDot(id,cls){const d=$(id);if(d)d.className="dot"+(cls?" "+cls:"");}
 
 function enter(role){
   const raw=$("ri").value.trim();
-  const room=raw||(role==="instructor"?String(Math.floor(1000+Math.random()*8999)):"");
+  const room=raw||(role!=="monitor"?String(Math.floor(1000+Math.random()*8999)):"");
   if(!room||!/^\d{4}$/.test(room)){$("err").textContent="Digite um código de 4 dígitos";return;}
   ROOM=room;ROLE=role;
+  document.body.classList.toggle("combo",role==="both");
+  if(role==="both"){
+    $("mrl").textContent="SALA "+room;$("irl").textContent="SALA "+room;$("icode").textContent=room;
+    show(["s1","s2"]);panelRestore();
+    [CVS.e,CVS.s,CVS.r].forEach(initC);
+    if(raf)cancelAnimationFrame(raf);lt=performance.now();re=rs=rre=0;
+    raf=requestAnimationFrame(loop);
+    setInterval(()=>$("mclk").textContent=new Date().toLocaleTimeString("pt-BR"),1000);
+    unlockAudio();startBeepLoop();
+    buildSc();buildRh();buildScSel();render(null);
+    connect(room,"instructor",()=>{});
+    return;
+  }
   if(role==="monitor"){
     $("mrl").textContent="SALA "+room;show("s1");
     [CVS.e,CVS.s,CVS.r].forEach(initC);
@@ -699,8 +775,42 @@ function enter(role){
 // dentro do HELSIM (iframe) o atalho para o HELSIM não faz sentido
 try{if(window.self!==window.top)document.addEventListener("DOMContentLoaded",()=>{const c=document.querySelector("a.lb.cap");if(c)c.style.display="none";});}catch(e){}
 // aberto pelo HELSIM: ?sala=1234 preenche o código; &papel=instrutor já entra como instrutor
-(function(){try{const q=new URLSearchParams(location.search),s=q.get("sala");if(s&&/^\d{4}$/.test(s)){const go=()=>{$("ri").value=s;if(q.get("papel")==="instrutor")enter("instructor");};if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",go);else setTimeout(go,0);}}catch(e){}})();
+(function(){try{const q=new URLSearchParams(location.search),s=q.get("sala");if(s&&/^\d{4}$/.test(s)){const go=()=>{$("ri").value=s;const pp=q.get("papel");if(pp==="instrutor")enter("instructor");else if(pp==="ambos")enter("both");};if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",go);else setTimeout(go,0);}}catch(e){}})();
+// ── painel flutuante (modo Monitor + controle) ──
+const PKEY="simclin.painel";
+function pGet(){try{return JSON.parse(localStorage.getItem(PKEY)||"{}");}catch(e){return {};}}
+function pSet(o){try{localStorage.setItem(PKEY,JSON.stringify({...pGet(),...o}));}catch(e){}}
+function pClamp(){const p=$("s2"),r=p.getBoundingClientRect();const x=Math.min(Math.max(0,r.left),Math.max(0,innerWidth-Math.min(r.width,innerWidth)));const y=Math.min(Math.max(0,r.top),Math.max(0,innerHeight-48));p.style.left=x+"px";p.style.top=y+"px";return {x,y};}
+function panelRestore(){
+  const p=$("s2"),o=pGet();
+  if(o.w)p.style.width=Math.min(o.w,innerWidth-16)+"px";if(o.h)p.style.height=Math.min(o.h,innerHeight-16)+"px";
+  p.style.left=(o.x!=null?o.x:Math.max(8,innerWidth-(o.w||420)-16))+"px";p.style.top=(o.y!=null?o.y:56)+"px";
+  document.body.classList.toggle("pmin",!!o.min);document.body.classList.remove("phide");pClamp();
+}
+function panelMin(){const m=!document.body.classList.contains("pmin");document.body.classList.toggle("pmin",m);pSet({min:m});pClamp();}
+function panelHide(h){document.body.classList.toggle("phide",h);}
+(function(){
+  let d=null;
+  document.addEventListener("pointerdown",e=>{
+    if(!document.body.classList.contains("combo"))return;
+    const h=e.target.closest("#s2 .ihdr");if(!h||e.target.closest("button,.ibk,input,select"))return;
+    const r=$("s2").getBoundingClientRect();d={dx:e.clientX-r.left,dy:e.clientY-r.top};h.setPointerCapture(e.pointerId);e.preventDefault();
+  });
+  document.addEventListener("pointermove",e=>{if(!d)return;const p=$("s2");p.style.left=(e.clientX-d.dx)+"px";p.style.top=(e.clientY-d.dy)+"px";pClamp();});
+  document.addEventListener("pointerup",()=>{if(!d)return;d=null;const r=$("s2").getBoundingClientRect();pSet({x:Math.round(r.left),y:Math.round(r.top)});});
+  addEventListener("resize",()=>{if(document.body.classList.contains("combo"))pClamp();});
+  new ResizeObserver(()=>{if(!document.body.classList.contains("combo")||document.body.classList.contains("pmin"))return;const r=$("s2").getBoundingClientRect();if(r.width&&r.height)pSet({w:Math.round(r.width),h:Math.round(r.height)});}).observe(document.getElementById("s2"));
+  document.addEventListener("keydown",e=>{if(!document.body.classList.contains("combo")||/INPUT|TEXTAREA|SELECT/.test((e.target||{}).tagName||""))return;if(e.key==="h"||e.key==="H"){panelHide(!document.body.classList.contains("phide"));e.preventDefault();}});
+})();
+// tema: segue o HELSIM (iframe) ou ?tema=claro|escuro
+(function(){
+  const q=new URLSearchParams(location.search).get("tema");
+  const apply=()=>{let t=q==="claro"?"light":q==="escuro"?"dark":"";try{if(!t&&window.parent!==window)t=window.parent.document.documentElement.getAttribute("data-theme")||"";}catch(e){}
+    if(t)document.documentElement.setAttribute("data-theme",t);else document.documentElement.removeAttribute("data-theme");};
+  apply();if(!q&&window.parent!==window)setInterval(apply,1500);
+})();
 function goBack(){
+  document.body.classList.remove("combo","pmin","phide");
   if(raf){cancelAnimationFrame(raf);raf=null;}
   stopBeepLoop(); stopAlarm(); stopEngTimer();
   if(ws){try{ws.close();}catch(e){}}ws=null;
