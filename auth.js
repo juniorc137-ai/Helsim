@@ -185,7 +185,8 @@ function createAuth({ dataDir = path.join(__dirname, "data"), mailer = null, app
 
 /** SMTP pelas variáveis SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM (e SMTP_SECURE=1 para a porta 465). */
 function makeTransport(dataDir) {
-  if (process.env.SMTP_HOST) {
+  // envio real só com servidor + usuário + senha (ou SMTP_NOAUTH=1 para relays internos sem autenticação)
+  if (process.env.SMTP_HOST && ((process.env.SMTP_USER && process.env.SMTP_PASS) || process.env.SMTP_NOAUTH === "1")) {
     const nodemailer = require("nodemailer");
     const t = nodemailer.createTransport({ host: process.env.SMTP_HOST, port: +process.env.SMTP_PORT || 587, secure: process.env.SMTP_SECURE === "1" || +process.env.SMTP_PORT === 465,
       auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined });
