@@ -181,6 +181,8 @@ ul.plain li:last-child{border-bottom:0}
 .cal .dc.out{background:var(--surface-2);opacity:.6}.cal .dc.today .dn{background:var(--accent);color:#fff;border-radius:3px;padding:0 6px}
 .chipev{display:block;margin-top:3px;padding:2px 5px;border-radius:3px;background:var(--accent-soft);color:var(--text);border-left:3px solid var(--accent);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chipev.pend{border-left-style:dashed;background:var(--warn-bg)}
+#rtip{position:fixed;z-index:60;max-width:300px;background:var(--panel,#fff);color:var(--text);border:1px solid var(--line);border-left:4px solid var(--c,#2F7CC1);border-radius:10px;box-shadow:0 8px 24px rgba(15,23,42,.18);padding:10px 12px;font-size:13px;pointer-events:none}
+#rtip b{display:block;font-size:14px;margin-bottom:4px}#rtip div{margin-top:2px}#rtip .muted{font-size:12px}
 /* janelas */
 .modal{position:fixed;inset:0;background:rgba(8,18,32,.55);z-index:70;display:flex;align-items:flex-start;justify-content:center;padding:6vh 12px;overflow:auto}
 .modal[hidden]{display:none}
@@ -692,6 +694,27 @@ R.painel = () => {
 };
 
 // ═════════════════════════════ AGENDA ═════════════════════════════════════
+// caixa de informações ao passar o mouse sobre uma reserva do calendário
+function resTipHTML(r, start, end) {
+  const d = new Date(start), when = `${d.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })} · ${fmtHM(start)}–${fmtHM(end)}`;
+  const line = (k, v) => (v ? `<div><span class="muted">${k}:</span> ${esc(v)}</div>` : "");
+  if (hideRes(r) || r.masked) return `<b>Reservado</b><div>${esc(when)}</div>${line("Sala", nameOf("locations", r.locationId))}`;
+  const who = r.createdBy || (DB.people.find((p) => (r.createdByEmail && (p.email || "").toLowerCase() === r.createdByEmail) || p.id === r.createdById) || {}).name;
+  const recs = (r.resourceIds || []).map((id) => nameOf("resources", id)).filter(Boolean).join(", ");
+  const st = { pendente: '<span class="tag warn">aguardando aprovação</span>', aprovada: '<span class="tag ok">aprovada</span>', negada: '<span class="tag bad">negada</span>' }[r.status] || "";
+  return `<b>${esc(resTitle(r))}</b><div>${esc(when)}</div>${line("Sala", nameOf("locations", r.locationId))}${line("Curso", r.courseId && nameOf("courses", r.courseId))}${line("Cenário", r.scenarioId && nameOf("scenarios", r.scenarioId))}${line("Recursos", recs)}${line("Reservado por", who)}${r.recur && r.recur.freq ? `<div class="muted">Reserva recorrente</div>` : ""}${st ? `<div style="margin-top:6px">${st}</div>` : ""}`;
+}
+document.addEventListener("mouseover", (e) => {
+  const c = e.target.closest && e.target.closest(".chipev"); let t = $("#rtip");
+  if (!c) { if (t) t.remove(); return; }
+  const r = byId("reservations", c.dataset.id); if (!r) return;
+  if (!t) { t = document.createElement("div"); t.id = "rtip"; t.setAttribute("role", "tooltip"); document.body.appendChild(t); }
+  t.style.setProperty("--c", r.color || "#2F7CC1"); t.innerHTML = resTipHTML(r, +c.dataset.s, +c.dataset.e);
+  const b = c.getBoundingClientRect(), w = t.offsetWidth, h = t.offsetHeight;
+  t.style.left = Math.max(8, Math.min(innerWidth - w - 8, b.left)) + "px";
+  t.style.top = (b.bottom + h + 8 < innerHeight ? b.bottom + 6 : Math.max(8, b.top - h - 6)) + "px";
+});
+document.addEventListener("scroll", () => { const t = $("#rtip"); if (t) t.remove(); }, true);
 R.agenda = () => {
   const m = new Date(UI.agMonth || Date.now()); m.setDate(1); m.setHours(0, 0, 0, 0); UI.agMonth = +m;
   const off = (m.getDay() + 6) % 7, g0 = new Date(m.getFullYear(), m.getMonth(), 1 - off);
@@ -702,7 +725,7 @@ R.agenda = () => {
     const d = new Date(g0.getFullYear(), g0.getMonth(), g0.getDate() + i), key = isoDate(+d);
     const evs = occ.filter((o) => isoDate(o.start) === key);
     cells.push(`<div class="dc ${d.getMonth() !== m.getMonth() ? "out" : ""} ${key === today ? "today" : ""}" ${canEdit() ? `data-act="res-new" data-date="${key}"` : ""}><span class="dn">${d.getDate()}</span>
-      ${evs.map((o) => `<span class="chipev ${o.res.status === "pendente" ? "pend" : ""}" style="border-left-color:${esc(o.res.color || "#2F7CC1")}" data-act="res-open" data-id="${o.res.id}" data-idx="${o.index}" title="${esc(resTitle(o.res))} · ${esc(nameOf("locations", o.res.locationId))}">${fmtHM(o.start)} ${esc(resTitle(o.res))}</span>`).join("")}</div>`);
+      ${evs.map((o) => `<span class="chipev ${o.res.status === "pendente" ? "pend" : ""}" style="border-left-color:${esc(o.res.color || "#2F7CC1")}" data-act="res-open" data-id="${o.res.id}" data-idx="${o.index}" data-s="${o.start}" data-e="${o.end}">${fmtHM(o.start)} ${esc(resTitle(o.res))}</span>`).join("")}</div>`);
   }
   const pend = DB.reservations.filter((r) => r.status === "pendente");
   return `<div class="between"><h1 style="margin:0">Agenda</h1>
