@@ -851,15 +851,16 @@
       if (!r.ok) { const err = new Error(j.error || `Erro ${r.status}`); err.status = r.status; throw err; }
       return j;
     }
-    // só o administrador alterna perfis (para conferir a visão do docente/estudante); os demais ficam presos ao próprio
-    const allowed = (role) => !AU.user || (AU.user.role === "admin" ? RANK[role] <= RANK.admin : role === AU.user.role);
+    // com login, ninguém alterna perfis: cada conta fica presa ao próprio perfil e ao próprio nome (a troca só existe na demonstração sem login)
+    const canSwitch = () => false;
+    const allowed = (role) => !AU.user || (canSwitch() ? RANK[role] <= RANK.admin : role === AU.user.role);
     root.hcAuthGuard = () => { if (AU.on && AU.user && !allowed(UI.role)) UI.role = AU.user.role; };
     root.hcAuthLock = () => {
       if (!AU.on || !AU.user) return;
       $$("#role option").forEach((o) => { o.disabled = !allowed(o.value); o.hidden = !allowed(o.value); });
-      $("#role").disabled = AU.user.role !== "admin";
-      { const fixed = AU.user.role !== "admin", rl = $("#role") && $("#role").closest("label"), mw = $("#me-wrap");
-        if (rl) rl.hidden = fixed; if (fixed && mw) mw.style.display = "none"; }
+      $("#role").disabled = !canSwitch();
+      { const fixed = !canSwitch(), rl = $("#role") && $("#role").closest("label"), mw = $("#me-wrap");
+        if (rl) { rl.hidden = fixed; rl.style.display = fixed ? "none" : ""; } if (fixed && mw) mw.style.display = "none"; }
       if (UI.role === AU.user.role) {
         let p = DB.people.find((x) => (x.email || "").toLowerCase() === AU.user.email);
         if (!p) { p = { id: C.uid("p"), name: AU.user.name, email: AU.user.email, role: AU.user.role }; DB.people.push(p); save(); }
