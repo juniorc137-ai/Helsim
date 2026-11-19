@@ -389,6 +389,7 @@
       ["cianose", "Cianose", "lábios e contorno da boca arroxeados, pele acinzentada, esforço para respirar, narinas dilatadas", "respiração ofegante e ruidosa, tosse curta, fala entrecortada: \"Não... consigo... respirar\""],
       ["dispneia", "Falta de ar", "respira pela boca, ombros e pescoço tensos, olhar assustado, frases curtas", "respiração rápida e ruidosa com chiado leve; diz: \"Me falta o ar\""],
       ["nausea", "Náusea", "expressão de enjoo, engole em seco, leva levemente a cabeça para o lado, olhos fechando", "ânsia leve, suspiro; diz: \"Estou enjoado\""],
+      ["sonolento", "Sonolento", "pálpebras pesadas, cochila e desperta com dificuldade, responde devagar", "respiração lenta e ruidosa, murmúrio arrastado: \"Hum... o quê?\""],
     ];
     const AV_OBST = [
       AV_GERAL[0],
@@ -398,6 +399,7 @@
       ["visao", "Visão turva", "pisca muito, aperta e esfrega os olhos, olhar desfocado e preocupado", "suspiro ansioso; diz: \"Estou vendo tudo embaçado, uns pontinhos brilhando\""],
       AV_GERAL[2], AV_GERAL[3],
       ["ansiedade", "Ansiedade e choro", "olhos marejados, choro contido, olhar para os lados procurando ajuda", "choro baixo e soluços; diz: \"E o meu bebê? Ele está bem?\""],
+      ["poscrise", "Pós-crise", "sonolenta e confusa, olhar vago, desperta devagar, sem movimentos bruscos", "respiração profunda e ruidosa, murmúrio confuso: \"Onde... eu estou?\""],
     ];
     const avObst = (p) => /gest|parto|obst|ecl[aâ]m|puerp|semanas/i.test(`${p.diagnosis} ${p.unit}`);
     const avDefaults = (p) => (avObst(p) ? AV_OBST : AV_GERAL).map(([key, label, look, sound]) => ({ key, label, look, sound, video: null }));
@@ -481,10 +483,13 @@
       st.video = { type, size: file.size, at: Date.now() };
     }
     function avKeyFor(p, name) {
-      const n = name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+      // compara palavra por palavra (evita "sudorese" cair em "dor"); a primeira palavra do nome que indicar um estado vence
+      const words = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\.[^.]+$/, "").split(/[^a-z0-9]+/).filter(Boolean);
       const st = avEnsure(p);
-      const syn = { repouso: /estavel|repouso|basal|normal/, contracao: /contra|trabalho/, cefaleia: /cefal|cabeca/, visao: /visao|turva/, dispneia: /dispn|falta.?de.?ar|ar\b/, nausea: /nause|enjo/, ansiedade: /ansied|choro/, dor: /dor/ };
-      const hit = st.find((s) => syn[s.key] && syn[s.key].test(n)) || st.find((s) => n.includes(s.key));
+      const syn = { repouso: ["estavel", "repouso", "basal", "normal"], contracao: ["contracao", "contracoes", "trabalho"], cefaleia: ["cefaleia", "cabeca"], visao: ["visao", "turva"],
+        dispneia: ["dispneia", "falta"], nausea: ["nausea", "enjoo", "enjoado"], ansiedade: ["ansiedade", "choro"], sonolento: ["sonolento", "sonolencia"], poscrise: ["poscrise", "pos"], dor: ["dor"] };
+      let hit = null;
+      for (const w of words) { hit = st.find((s) => s.key === w || (syn[s.key] || []).includes(w)); if (hit) break; }
       if (hit) return hit;
       const label = name.replace(/\.[^.]+$/, "").replace(/^[^-]*-\d+-/, "").replace(/[-_]+/g, " ").trim() || "Novo estado";
       const s = { key: "e" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), label: label[0].toUpperCase() + label.slice(1), video: null }; st.push(s); return s;
