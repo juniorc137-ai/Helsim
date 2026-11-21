@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="dark">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
@@ -308,6 +308,15 @@ ul.plain li:last-child{border-bottom:0}
 .ptb.has-photo{grid-template-columns:260px repeat(3,minmax(0,1fr))}.ptb.has-photo>div{border-bottom:1px solid var(--line)}.ptphoto{grid-row:span 2;width:260px;height:100%;min-height:300px;contain:size;object-fit:cover;border-right:1px solid var(--line);display:block;cursor:zoom-in;border-radius:var(--radius) 0 0 var(--radius)}
 .ptzoom{position:fixed;inset:0;z-index:90;background:rgba(5,10,20,.85);display:grid;place-items:center;cursor:zoom-out}.ptzoom img{max-width:min(92vw,560px);max-height:90vh;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
 .ptphoto-prev{width:120px;height:150px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.avwrap{display:grid;grid-template-columns:minmax(260px,420px) 1fr;gap:16px;align-items:start}.avwrap .avadm{grid-column:1/-1}
+.avstage{position:relative;aspect-ratio:3/4;background:#05101f;border-radius:var(--radius);overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.avstage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .6s ease}.avstage video.on{opacity:1}
+.avempty{position:absolute;inset:0;display:grid;place-items:center;color:#8ea3bf;font-size:14px;pointer-events:none}
+.avlabel{position:absolute;left:10px;bottom:10px;padding:3px 9px;border-radius:999px;background:rgba(5,16,31,.7);color:#fff;font-size:12px}.avlabel:empty{display:none}
+.avgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.avbtn{padding:14px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card);color:var(--ink);font:inherit;font-weight:600;cursor:pointer;text-align:left;min-height:54px}
+.avbtn:hover{border-color:var(--accent)}.avbtn.on{background:var(--accent);border-color:var(--accent);color:#fff}.avbtn.novid{opacity:.6;border-style:dashed}
+@media(max-width:900px){.avwrap{grid-template-columns:1fr}.avstage{max-width:420px;margin:0 auto;width:100%}}
 @media(max-width:1100px){.ptb.has-photo{grid-template-columns:220px repeat(2,minmax(0,1fr))}.ptb.has-photo .ptphoto{grid-row:span 3;width:220px;min-height:275px}}
 @media(max-width:560px){.ptb.has-photo{grid-template-columns:1fr}.ptb.has-photo .ptphoto{grid-row:auto;width:100%;height:auto;aspect-ratio:4/5;max-height:60vh;border-right:0;border-radius:var(--radius) var(--radius) 0 0}}
 .ptb span{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em}
@@ -641,7 +650,7 @@ function chrome() {
     <span class="right">HELSIM v1.0</span>`;
 }
 function tick() { const c = $("#tb-clock"); if (c) c.textContent = new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); }
-function applyTheme() { if (UI.theme) document.documentElement.dataset.theme = UI.theme; else delete document.documentElement.dataset.theme; }
+function applyTheme() { document.documentElement.dataset.theme = UI.theme || "dark"; }
 
 // ── Confirmação na própria página (confirm() é bloqueado em alguns visualizadores) ──
 function ask(msg, yes = "Confirmar") {
@@ -1149,7 +1158,7 @@ function liveSetupHtml() {
     </section>
   </div>
   <section class="card"><h2>3. Fontes de vídeo e áudio (até 4 vídeos)</h2>
-    <div class="row" style="margin-bottom:10px"><button class="btn" data-act="src-detect">Detectar câmeras</button><button class="btn" data-act="src-screen">+ Capturar tela (monitor, ultrassom, PEP)</button><button class="btn" data-act="src-link">+ Câmera da sala por link</button><button class="btn" data-act="src-test">+ Fonte de teste</button>
+    <div class="row" style="margin-bottom:10px"><button class="btn" data-act="src-detect">Detectar câmeras</button><button class="btn" data-act="src-screen">+ Capturar tela (monitor, ultrassom, PEP)</button><button class="btn" data-act="src-link">+ Câmera da sala por link</button><button class="btn" data-act="src-phone">+ Celular como câmera</button><button class="btn" data-act="src-test">+ Fonte de teste</button>
       <label class="small muted">Microfone <select data-change="lv-mic">${opt("", "Padrão do sistema", LIVE.micId)}${LIVE.mics.map((m, i) => opt(m.deviceId, m.label || "Microfone " + (i + 1), LIVE.micId)).join("")}${opt("none", "Sem áudio", LIVE.micId)}</select></label></div>
     ${roomCams.length ? `<div class="row" style="margin-bottom:10px"><span class="small muted">Câmeras fixas da sala:</span>${roomCams.map((c) => { const used = LIVE.sources.some((x) => x.url === c.url);
       return `<button class="btn sm rec-o" data-act="src-roomcam" data-id="${c.id}" ${used ? "disabled" : ""}>+ ${esc(c.label)}</button>`; }).join("")}</div>` : ""}
@@ -1331,6 +1340,98 @@ async function addUrlCam(cam) {
     toast(`${cam.label} conectada.`);
   } catch (e) { toast(`Não foi possível abrir ${cam.label}: ${e.message}.`, 10000); }
 }
+// ── Celular como câmera (WebRTC na rede local; o servidor só faz o pareamento) ──
+// O celular abre https://<ip>:3443/camera.html?c=<código>, envia o vídeo direto para esta estação e entra como fonte.
+const PH = { ws: null, codes: {}, wait: null };
+function phoneWs() {
+  return new Promise((ok, no) => {
+    if (PH.ws && PH.ws.readyState === 1) return ok(PH.ws);
+    const url = wsBase(); if (!url) return no(new Error("Abra o HELSIM pelo servidor para usar o celular como câmera."));
+    let ws; try { ws = new WebSocket(url); } catch (e) { return no(e); }
+    PH.ws = ws;
+    ws.onopen = () => ok(ws);
+    ws.onerror = () => no(new Error("Sem ligação com o servidor do HELSIM."));
+    ws.onmessage = (e) => { let m; try { m = JSON.parse(e.data); } catch (x) { return; } phoneMsg(m); };
+    ws.onclose = () => { if (PH.ws === ws) PH.ws = null; for (const [c, en] of Object.entries(PH.codes)) if (!en.src) delete PH.codes[c]; };
+  });
+}
+const phoneSend = (m) => { if (PH.ws && PH.ws.readyState === 1) PH.ws.send(JSON.stringify(m)); };
+const phoneStatus = (t) => { const e = $("#ph-st"); if (e) e.textContent = t; };
+function phoneDrop(en, why) {
+  if (en.pc) { try { en.pc.close(); } catch (e) {} en.pc = null; }
+  const src = en.src; en.src = null; en.ms = null;
+  if (!src) return;
+  if (LIVE.recording) return toast(`${src.label} saiu (${why}). A gravação continua com as outras fontes.`, 9000);
+  LIVE.sources = LIVE.sources.filter((x) => x !== src); src.stream.getTracks().forEach((t) => t.stop());
+  toast(`${src.label} desconectado (${why}).`); if (UI.view === "aovivo") render();
+}
+async function phoneMsg(m) {
+  if (m.type === "cam-ready" && PH.wait) { const w = PH.wait; PH.wait = null; w.ok(m.code); return; }
+  if (m.type === "cam-error") { if (PH.wait) { const w = PH.wait; PH.wait = null; w.no(new Error(m.error)); } else toast(m.error, 8000); return; }
+  const en = PH.codes[m.code]; if (!en) return;
+  if (m.type === "cam-peer") { en.label = m.label || "Celular"; phoneStatus(`${en.label} conectado ao código. Abrindo o vídeo...`); return; }
+  if (m.type === "cam-bye") { phoneDrop(en, "celular encerrou ou perdeu a rede"); phoneStatus("O celular saiu. Ele pode entrar de novo com o mesmo código."); return; }
+  if (m.type !== "cam-signal") return;
+  const d = m.data || {};
+  if (d.sdp && d.sdp.type === "offer") {
+    if (en.pc) phoneDrop(en, "nova conexão");
+    const pc = en.pc = new RTCPeerConnection({ iceServers: [] }), ms = en.ms = new MediaStream();
+    pc.ontrack = (e) => { if (!ms.getTracks().includes(e.track)) ms.addTrack(e.track); };
+    pc.onicecandidate = (e) => { if (e.candidate) phoneSend({ type: "cam-signal", code: m.code, data: { ice: e.candidate } }); };
+    pc.onconnectionstatechange = () => {
+      if (en.pc !== pc) return;
+      if (pc.connectionState === "connected" && !en.src && ms.getVideoTracks().length) {
+        if (LIVE.sources.length >= 4) { toast("Máximo de 4 fontes de vídeo por sessão."); return phoneSend({ type: "cam-end", code: m.code }); }
+        const label = en.label || "Celular";
+        ms._stop = () => { phoneSend({ type: "cam-end", code: m.code }); if (en.pc) { try { en.pc.close(); } catch (e) {} } delete PH.codes[m.code]; };
+        en.src = { label, kind: "celular", stream: ms, phoneCode: m.code };
+        addSource(en.src);
+        if ($("#ph-st")) closeModal();
+        toast(`${label} conectado como câmera.`);
+      }
+      if (pc.connectionState === "failed") { phoneStatus("O vídeo não passou pela rede. Confira se o celular e este computador estão na mesma rede Wi-Fi."); phoneDrop(en, "falha de rede"); }
+    };
+    await pc.setRemoteDescription(d.sdp);
+    const ans = await pc.createAnswer(); await pc.setLocalDescription(ans);
+    phoneSend({ type: "cam-signal", code: m.code, data: { sdp: pc.localDescription } });
+  }
+  if (d.ice && en.pc) { try { await en.pc.addIceCandidate(d.ice); } catch (e) {} }
+}
+function loadQr() {
+  if (window.qrcode) return Promise.resolve();
+  return new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = "qrcode.js"; sc.onload = ok; sc.onerror = () => no(new Error("qrcode.js")); document.head.appendChild(sc); });
+}
+async function openPhoneCam() {
+  if (LIVE.sources.length >= 4) return toast("Máximo de 4 fontes de vídeo por sessão.");
+  if (!window.RTCPeerConnection) return toast("Este navegador não recebe vídeo por WebRTC.");
+  let info, code;
+  try {
+    info = await (await fetch("/api/cam/info")).json();
+    if (!info.https) return toast("O HTTPS do servidor está desligado; o celular precisa dele para abrir a câmera. Reinicie o HELSIM.", 10000);
+    await phoneWs();
+    code = await new Promise((ok, no) => { PH.wait = { ok, no }; phoneSend({ type: "cam-host", token: (() => { try { return localStorage.getItem("hc-auth") || ""; } catch (e) { return ""; } })() }); setTimeout(() => { if (PH.wait) { PH.wait = null; no(new Error("o servidor não respondeu")); } }, 8000); });
+  } catch (e) { return toast("Não foi possível preparar o celular: " + e.message, 9000); }
+  PH.codes[code] = { label: "", pc: null, src: null };
+  const here = /^\d+\.\d+\.\d+\.\d+$/.test(location.hostname) && location.hostname !== "127.0.0.1" ? location.hostname : "";
+  const ips = info.ips.length ? info.ips : ["127.0.0.1"], ip = here && ips.includes(here) ? here : (ips.find((x) => /^(192\.168|10\.|172\.(1[6-9]|2\d|3[01]))/.test(x)) || ips[0]);
+  const link = (h) => `https://${h}:${info.httpsPort}/camera.html?c=${code}`;
+  let qr = "";
+  try { await loadQr(); const q = qrcode(0, "M"); q.addData(link(ip)); q.make(); qr = q.createSvgTag(6, 2); } catch (e) { qr = ""; }
+  modal("Celular como câmera", `<div class="row" style="align-items:flex-start;gap:18px;flex-wrap:wrap">
+      <div style="background:#fff;padding:8px;border-radius:8px;line-height:0">${qr || '<span class="muted small">QR indisponível</span>'}</div>
+      <div style="flex:1;min-width:240px">
+        <div class="small muted">Código</div><div class="mono" style="font-size:30px;letter-spacing:6px;font-weight:700">${code}</div>
+        <div class="small muted" style="margin-top:8px">Endereço para o celular</div><div class="mono small" style="word-break:break-all">${esc(link(ip))}</div>
+        ${ips.length > 1 ? `<div class="small muted" style="margin-top:6px">Se não abrir, tente: ${ips.filter((x) => x !== ip).map((x) => `<span class="mono">${esc(link(x))}</span>`).join(" · ")}</div>` : ""}
+      </div></div>
+    <ol class="small" style="margin:14px 0 8px;padding-left:18px">
+      <li>Ligue o celular na mesma rede Wi-Fi deste computador.</li>
+      <li>Aponte a câmera do celular para o QR code e toque no link que aparecer.</li>
+      <li>Na primeira vez o celular avisa que a conexão não é privada: no iPhone toque em <b>Mostrar detalhes</b> e depois em <b>visitar este site</b>; no Android, em <b>Avançado</b> e <b>Continuar</b>. É o certificado próprio do HELSIM, que só vale nesta rede.</li>
+      <li>Toque em <b>Conectar</b> e permita o uso da câmera. O vídeo entra aqui sozinho.</li>
+    </ol>
+    <div id="ph-st" class="small" style="padding:8px 10px;border-radius:6px;background:var(--bg2,#f1f5f9)">Aguardando o celular...</div>`, { submit: "Fechar", onSubmit: () => {} });
+}
 const camKindOpts = (sel) => opt("auto", "Detectar pelo link", sel || "auto") + Object.entries(C.CAM_KINDS).map(([k, v]) => opt(k, v, sel)).join("");
 const CAM_HELP = `<p class="muted small">Formatos aceitos pelo navegador: <b>WebRTC (WHEP)</b>, <b>HLS (.m3u8)</b>, <b>MJPEG</b>, imagem atualizada (snapshot) e arquivo MP4/WebM.
   Câmeras que só oferecem <b>RTSP</b> precisam de um conversor na rede da sala, como MediaMTX ou go2rtc, que publica o mesmo vídeo em WebRTC ou HLS
@@ -1387,7 +1488,7 @@ async function recStart() {
     participantIds: [...s.pids], reservationId: s.reservationId, startedAt: Date.now(), duration: 0, media: [], annotations: [], samples: [], transcript: [], results: [],
     notes: "", consent: true, createdBy: meLabel(), ...owner(), simRoom: LIVE.sim && LIVE.sim.status === "conectado" ? LIVE.sim.room : "" };
   LIVE.session = ses; LIVE.t0 = performance.now(); LIVE.pending = []; LIVE.recorders = []; LIVE.storageErr = false;
-  const plan = LIVE.sources.map((src, i) => ({ label: src.label, kind: src.kind, tracks: [...src.stream.getVideoTracks(), ...(i === 0 && mic ? mic.getAudioTracks() : [])], hasAudio: i === 0 && !!mic }));
+  const plan = LIVE.sources.map((src, i) => ({ label: src.label, kind: src.kind, tracks: [...src.stream.getVideoTracks(), ...(i === 0 && mic ? mic.getAudioTracks() : src.kind === "celular" ? src.stream.getAudioTracks() : [])], hasAudio: (i === 0 && !!mic) || (src.kind === "celular" && src.stream.getAudioTracks().length > 0) }));
   if (!plan.length && mic) plan.push({ label: "Áudio", kind: "audio", tracks: mic.getAudioTracks(), hasAudio: true, audioOnly: true });
   for (const p of plan) {
     const mime = pickMime(p.audioOnly), media = { id: C.uid("m"), label: p.label, kind: p.kind, mime, offset: 0, size: 0, chunks: 0, hasAudio: p.hasAudio };
@@ -1976,7 +2077,7 @@ const refHtml = (r) => { const doi = (String(r).match(/https:\/\/doi\.org\/\S+/)
 const ACT = {
   "go": (b) => go(b.dataset.v),
   "theme": () => {
-    const dark = UI.theme ? UI.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    const dark = (UI.theme || "dark") === "dark";
     UI.theme = dark ? "light" : "dark"; applyTheme(); savePrefs(); if ($("#tl")) drawTimeline();
   },
   "modal-close": () => closeModal(),
@@ -2040,6 +2141,7 @@ const ACT = {
   "src-roomcam": (b) => { const c = ((byId("locations", LIVE.setup.locationId) || {}).cameras || []).find((x) => x.id === b.dataset.id); if (c) addUrlCam(c); },
   "loc-cams": (b) => openRoomCams(b.dataset.id),
   "cam-del": (b) => { const l = byId("locations", b.dataset.loc); if (!l) return; l.cameras = (l.cameras || []).filter((c) => c.id !== b.dataset.id); save(); render(); openRoomCams(l.id); },
+  "src-phone": () => openPhoneCam(),
   "src-test": () => addSource({ label: "Fonte de teste " + (LIVE.sources.length + 1), kind: "teste", stream: testStream("CÂMERA " + (LIVE.sources.length + 1)) }),
   "src-del": (b) => { const s = LIVE.sources.find((x) => x.id === b.dataset.id); if (s) stopStream(s.stream); LIVE.sources = LIVE.sources.filter((x) => x !== s); render(); },
   "sim-connect": () => simConnect(($("#lv-room") || {}).value || ""),

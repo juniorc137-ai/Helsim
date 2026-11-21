@@ -99,9 +99,10 @@ function createStore({ dataDir, need }) {
     return (incoming || []).map((x) => { const y = { ...x }; delete y.image; if (img.get(x.id)) y.image = img.get(x.id); return y; });
   }
   /** foto do paciente simulado também é só do administrador */
+  // foto e vídeos do avatar só mudam pelo administrador: no envio do docente valem os do servidor
   function withServerPhotos(server, incoming) {
-    const ph = new Map((server || []).map((x) => [x.id, x.photo]));
-    return (incoming || []).map((x) => { const y = { ...x }; delete y.photo; if (ph.get(x.id)) y.photo = ph.get(x.id); return y; });
+    const sv = new Map((server || []).map((x) => [x.id, x]));
+    return (incoming || []).map((x) => { const y = { ...x }, o = sv.get(x.id) || {}; for (const k of ["photo", "avatar"]) { delete y[k]; if (o[k]) y[k] = o[k]; } return y; });
   }
   function docenteWrite(keep, db, u) {
     const out = { ...db, patients: withServerPhotos(keep.patients, db.patients), locations: withServerPhotos(keep.locations, db.locations),
@@ -185,6 +186,31 @@ function createStore({ dataDir, need }) {
     if (!canWriteAll(req.auth.user)) return res.status(403).end();
     { const s = mediaSession(id); if (s && !sessionAllowed(req.auth.user, s.id)) return res.status(403).end(); }
     fs.rmSync(path.join(mediaDir, id), { recursive: true, force: true }); res.json({ ok: true });
+  });
+  // vídeos do avatar do paciente: data/media/avatar/<paciente>/<estado>.bin (+ .json com o tipo)
+  const avDir = path.join(mediaDir, "avatar");
+  const avFile = (pid, key) => path.join(avDir, pid, key);
+  r.get("/avatar/:pid/:key", (req, res) => {
+    const { pid, key } = req.params; if (!safe(pid) || !safe(key)) return res.status(400).end();
+    if (!canWriteAll(req.auth.user)) return res.status(403).end();
+    const f = avFile(pid, key) + ".bin"; if (!fs.existsSync(f)) return res.status(404).end();
+    let type = "video/mp4"; try { type = JSON.parse(fs.readFileSync(avFile(pid, key) + ".json", "utf8")).type || type; } catch (e) {}
+    res.type(type).sendFile(f);
+  });
+  r.put("/avatar/:pid/:key", express.raw({ type: () => true, limit: "60mb" }), (req, res) => {
+    const { pid, key } = req.params; if (!safe(pid) || !safe(key)) return res.status(400).end();
+    if (req.auth.user.role !== "admin") return res.status(403).json({ error: "Apenas o administrador envia os vídeos do avatar." });
+    if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).end();
+    const type = String(req.get("content-type") || "video/mp4"); if (!/^video\/(mp4|webm|quicktime)$/.test(type)) return res.status(415).json({ error: "Use vídeo MP4, WebM ou MOV." });
+    fs.mkdirSync(path.join(avDir, pid), { recursive: true });
+    fs.writeFileSync(avFile(pid, key) + ".bin", req.body); fs.writeFileSync(avFile(pid, key) + ".json", JSON.stringify({ type, size: req.body.length, at: Date.now() }));
+    res.json({ ok: true });
+  });
+  r.delete("/avatar/:pid/:key", (req, res) => {
+    const { pid, key } = req.params; if (!safe(pid) || !safe(key)) return res.status(400).end();
+    if (req.auth.user.role !== "admin") return res.status(403).end();
+    for (const x of [".bin", ".json"]) fs.rmSync(avFile(pid, key) + x, { force: true });
+    res.json({ ok: true });
   });
   return { router: r, _doc: () => doc };
 }

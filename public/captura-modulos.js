@@ -159,8 +159,11 @@
     ICO.salas = '<rect x="3" y="4" width="8" height="7" rx="1"/><rect x="13" y="4" width="8" height="7" rx="1"/><rect x="3" y="13" width="8" height="7" rx="1"/><rect x="13" y="13" width="8" height="7" rx="1"/>';
     NAV.splice(NAV.length - 1, 0, ["Laboratório · restrito", [["prontuario", "Prontuário eletrônico", ["admin"]], ["simclin", "Monitor SimClin", ["admin"]], ["almox", "Almoxarifado", ["admin"]], ["salas", "Ocupação das salas", ["admin"]]]]);
     NAV[0][1].push(["simclin", "Monitor SimClin", ["docente"]]);
+    NAV[0][1].push(["avatar", "Avatar do paciente", ["docente"]]);
+    NAV[NAV.length - 2][1].splice(1, 0, ["avatar", "Avatar do paciente", ["admin"]]);
+    ICO.avatar = '<circle cx="12" cy="9" r="5"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/><path d="M10 9h.01M14 9h.01"/>';
     ICO.simclin = '<rect x="2" y="4" width="20" height="14" rx="2"/><path d="M5 12h3l2-4 3 7 2-3h4"/><path d="M8 21h8"/>';
-    Object.assign(VIEW_LABEL, { simclin: "Monitor SimClin", prontuario: "Prontuário eletrônico", almox: "Almoxarifado (Helse Log)", salas: "Ocupação das salas" });
+    Object.assign(VIEW_LABEL, { simclin: "Monitor SimClin", prontuario: "Prontuário eletrônico", avatar: "Avatar do paciente", almox: "Almoxarifado (Helse Log)", salas: "Ocupação das salas" });
     root.HC_NAV_BADGE = {
       almox: () => { if (!isAdmin()) return ""; const n = (DB.stock || []).filter((i) => i.stock < i.min).length; return n ? `<span class="badge" title="Itens com estoque crítico">${n}</span>` : ""; },
     };
@@ -236,8 +239,8 @@
           <button class="btn sm" data-act="ehr-clock-add" data-m="15" title="Avançar 15 minutos">+15</button><button class="btn sm" data-act="ehr-clock-add" data-m="60" title="Avançar 1 hora">+1h</button><button class="btn sm ghost" data-act="ehr-clock-real" title="Usar a hora real">real</button></div>
           <i>${p.clock ? "Hora simulada" : "Hora real"} · tolerância ${p.tolerance ?? 30} min</i></div>
       </section>
-      <div class="tabs">${t("apraz", "Medicações (aprazamento)")}${t("rx", "Prescrição")}${t("hist", "Histórico de medicações")}${t("sv", "Sinais vitais")}</div>
-      ${({ apraz: ehrApraz, rx: ehrRx, hist: ehrHist, sv: ehrSV })[tab](p)}`;
+      <div class="tabs">${t("apraz", "Medicações (aprazamento)")}${t("rx", "Prescrição")}${t("hist", "Histórico de medicações")}${t("sv", "Sinais vitais")}${t("av", "Avatar do paciente")}</div>
+      ${({ apraz: ehrApraz, rx: ehrRx, hist: ehrHist, sv: ehrSV, av: ehrAv })[tab](p)}`;
     };
 
     function ehrApraz(p) {
@@ -374,6 +377,175 @@
         save(); render(); toast(isNew ? "Paciente criado. Inclua os itens da prescrição." : "Paciente atualizado.");
       } });
     }
+    // ═══════════════════════ AVATAR DO PACIENTE (vídeos por estado) ═══════════════════════
+    // Cada estado tem um vídeo curto do rosto do paciente (com som). O docente troca o estado
+    // por botões; o administrador envia os vídeos. Os vídeos ficam no navegador (IndexedDB) e,
+    // com o servidor, em data/media/avatar/<paciente>/<estado>.
+    const AV_GERAL = [
+      ["repouso", "Estável", "acordado, calmo, respiração tranquila, pisca naturalmente e faz pequenos movimentos de cabeça", "respiração suave, sem fala"],
+      ["dor", "Dor", "expressão de dor intensa: testa franzida, olhos semicerrados, mandíbula tensa, leve inclinação da cabeça", "gemidos de dor curtos e repetidos, respiração entrecortada; diz em português do Brasil: \"Ai... está doendo muito\""],
+      ["sudorese", "Sudorese", "pele brilhante de suor, gotas na testa e nas têmporas, cabelo úmido, expressão de mal-estar e respiração mais rápida", "respiração rápida e cansada, suspiros e gemido leve"],
+      ["palidez", "Palidez", "pele visivelmente pálida, lábios descorados, olhar apático e cansado, pálpebras pesadas", "respiração fraca, suspiro e fala baixa: \"Estou fraco... tonto\""],
+      ["cianose", "Cianose", "lábios e contorno da boca arroxeados, pele acinzentada, esforço para respirar, narinas dilatadas", "respiração ofegante e ruidosa, tosse curta, fala entrecortada: \"Não... consigo... respirar\""],
+      ["dispneia", "Falta de ar", "respira pela boca, ombros e pescoço tensos, olhar assustado, frases curtas", "respiração rápida e ruidosa com chiado leve; diz: \"Me falta o ar\""],
+      ["nausea", "Náusea", "expressão de enjoo, engole em seco, leva levemente a cabeça para o lado, olhos fechando", "ânsia leve, suspiro; diz: \"Estou enjoado\""],
+      ["sonolento", "Sonolento", "pálpebras pesadas, cochila e desperta com dificuldade, responde devagar", "respiração lenta e ruidosa, murmúrio arrastado: \"Hum... o quê?\""],
+    ];
+    const AV_OBST = [
+      AV_GERAL[0],
+      ["contracao", "Contração (trabalho de parto)", "expressão de dor que cresce e diminui em onda, respiração profunda e ritmada, prende a respiração no pico e depois relaxa", "gemidos crescentes durante a contração e respiração soprada; diz em português do Brasil: \"Está vindo outra contração...\""],
+      ["dor", "Dor", AV_GERAL[1][2], "gemidos de dor e respiração entrecortada; diz: \"Ai, está doendo muito\""],
+      ["cefaleia", "Dor de cabeça intensa", "aperta os olhos, franze a testa, leva levemente a cabeça para trás, incomodada com a luz", "gemido baixo e contínuo; diz: \"Minha cabeça vai explodir\""],
+      ["visao", "Visão turva", "pisca muito, aperta e esfrega os olhos, olhar desfocado e preocupado", "suspiro ansioso; diz: \"Estou vendo tudo embaçado, uns pontinhos brilhando\""],
+      AV_GERAL[2], AV_GERAL[3],
+      ["ansiedade", "Ansiedade e choro", "olhos marejados, choro contido, olhar para os lados procurando ajuda", "choro baixo e soluços; diz: \"E o meu bebê? Ele está bem?\""],
+      ["poscrise", "Pós-crise", "sonolenta e confusa, olhar vago, desperta devagar, sem movimentos bruscos", "respiração profunda e ruidosa, murmúrio confuso: \"Onde... eu estou?\""],
+    ];
+    const avObst = (p) => /gest|parto|obst|ecl[aâ]m|puerp|semanas/i.test(`${p.diagnosis} ${p.unit}`);
+    const avDefaults = (p) => (avObst(p) ? AV_OBST : AV_GERAL).map(([key, label, look, sound]) => ({ key, label, look, sound, video: null }));
+    const avStates = (p) => p.avatar && p.avatar.length ? p.avatar : avDefaults(p);
+    const avId = (p, key) => `av_${p.id}_${key}`.replace(/[^A-Za-z0-9_-]/g, "");
+    function avPrompt(p, st) {
+      const who = [p.age && `${p.age} anos`, p.sex && p.sex.toLowerCase()].filter(Boolean).join(", ");
+      return `Anime a foto enviada como imagem de referência, mantendo exatamente o mesmo rosto, idade, cor de pele e cabelo do paciente. Vídeo realista de 8 segundos, formato vertical 3:4, close-up somente do rosto em vista três-quartos (3/4), câmera fixa, fundo de leito de ${p.unit || "UTI"} desfocado, iluminação hospitalar suave.` +
+        ` Paciente simulado e fictício${who ? ` (${who})` : ""}${p.diagnosis ? `, quadro: ${p.diagnosis}` : ""}.` +
+        ` Estado: ${st.label}. Aparência e movimento: ${st.look || "coerentes com o estado, sem exageros"}.` +
+        ` Som do próprio paciente: ${st.sound || "respiração e gemidos coerentes com o estado"}. Sem música, sem narrador, sem texto, legendas, logotipos ou marcas; sem sangue; retratado com dignidade.` +
+        ` Comece e termine numa posição parecida, para o vídeo poder repetir em loop sem corte.`;
+    }
+    // reprodutor persistente: sobrevive às renderizações da tela
+    const AVP = { el: null, v: [], cur: 0, pid: "", key: "", vol: 0.8, muted: false, win: null, urls: new Map() };
+    function avPlayer() {
+      if (AVP.el) return AVP.el;
+      const el = document.createElement("div"); el.className = "avstage";
+      el.innerHTML = `<video playsinline loop preload="auto"></video><video playsinline loop preload="auto"></video><div class="avempty">Escolha um estado</div><div class="avlabel"></div>`;
+      AVP.v = [...el.querySelectorAll("video")]; AVP.el = el; return el;
+    }
+    async function avBlob(p, st) {
+      const k = avId(p, st.key);
+      if (AVP.urls.has(k)) return AVP.urls.get(k);
+      let ch = []; try { ch = await getLocalChunks(k); } catch (e) {}
+      let blob = ch.length ? new Blob(ch, { type: (st.video && st.video.type) || "video/mp4" }) : null;
+      if (!blob && root.hcAvatarRemote) { blob = await root.hcAvatarRemote.get(p.id, st.key); if (blob) putChunk(k, 0, blob).catch(() => {}); }
+      if (!blob) return "";
+      const url = URL.createObjectURL(blob); AVP.urls.set(k, url); return url;
+    }
+    function avApplyVol() {
+      const popped = AVP.win && !AVP.win.closed;
+      AVP.v.forEach((v) => { v.volume = AVP.vol; v.muted = AVP.muted || popped; });
+      if (popped) { const pv = AVP.win.document.querySelector("video"); if (pv) { pv.volume = AVP.vol; pv.muted = AVP.muted; } }
+    }
+    async function avShow(p, key, note = true) {
+      const st = avStates(p).find((s) => s.key === key); if (!st) return;
+      avPlayer(); const url = await avBlob(p, st);
+      AVP.pid = p.id; AVP.key = key;
+      AVP.el.querySelector(".avlabel").textContent = st.label;
+      AVP.el.querySelector(".avempty").textContent = url ? "" : "Sem vídeo para este estado";
+      $$(".avbtn").forEach((b) => b.classList.toggle("on", b.dataset.key === key));
+      if (note) liveNote(p, "Avatar do paciente", st.label);
+      if (!url) { AVP.v.forEach((v) => { v.classList.remove("on"); v.pause(); }); return; }
+      const next = AVP.v[1 - AVP.cur], prev = AVP.v[AVP.cur];
+      next.src = url; next.currentTime = 0; avApplyVol();
+      try { await next.play(); } catch (e) { next.muted = true; next.play().catch(() => {}); toast("Clique em “Som” para ouvir o paciente (o navegador bloqueou o áudio)."); }
+      next.classList.add("on"); prev.classList.remove("on"); setTimeout(() => { if (!prev.classList.contains("on")) prev.pause(); }, 700);
+      AVP.cur = 1 - AVP.cur;
+      if (AVP.win && !AVP.win.closed) { const pv = AVP.win.document.querySelector("video"), lb = AVP.win.document.querySelector("b"); if (pv) { pv.src = url; pv.play().catch(() => {}); } if (lb) lb.textContent = ""; avApplyVol(); }
+    }
+    function ehrAv(p) {
+      const states = avStates(p), adm = isAdmin(), have = states.filter((s) => s.video).length;
+      return `<div class="avwrap"><div id="av-slot"></div>
+        <div class="avctl card"><div class="between"><h3 style="margin:0">Controle do avatar</h3><span class="muted small">${have} de ${states.length} estados com vídeo</span></div>
+          <p class="muted small" style="margin:4px 0 10px">Toque num estado para o paciente mudar. Durante a gravação, cada troca entra na linha do tempo do debriefing.</p>
+          <div class="avgrid">${states.map((s) => `<button class="avbtn${AVP.pid === p.id && AVP.key === s.key ? " on" : ""}${s.video ? "" : " novid"}" data-act="av-state" data-key="${esc(s.key)}" title="${s.video ? "" : "Sem vídeo ainda"}">${esc(s.label)}</button>`).join("")}</div>
+          <div class="row" style="margin-top:12px;gap:10px;align-items:center"><button class="btn sm" data-act="av-mute">${AVP.muted ? "Ligar som" : "Silenciar"}</button>
+            <label class="row small" style="gap:6px;align-items:center">Volume <input type="range" min="0" max="1" step="0.05" value="${AVP.vol}" data-change="av-vol" style="width:120px"></label>
+            <button class="btn sm" data-act="av-pop" title="Abre o rosto do paciente numa janela separada, para projetar na TV da sala">Tela do paciente</button>
+            <button class="btn sm ghost" data-act="av-stop">Parar</button></div>
+        </div>
+        ${adm ? `<div class="card avadm"><div class="between"><h3 style="margin:0">Vídeos do avatar (somente administrador)</h3><span class="row" style="gap:6px">
+            <label class="btn sm">Importar vários<input type="file" accept="video/*" multiple data-change="av-multi" hidden></label>
+            <button class="btn sm" data-act="av-prompts">Baixar prompts</button><button class="btn sm" data-act="av-add">+ Estado</button></span></div>
+          <p class="muted small">Crie os vídeos no Gemini (Veo) enviando a foto do paciente e o prompt de cada estado. Em “Importar vários”, o nome do arquivo indica o estado (por exemplo, antonio-02-dor.mp4).</p>
+          <div class="tbl"><table><tr><th>Estado</th><th>Vídeo</th><th></th></tr>${states.map((s) => `<tr><td><input value="${esc(s.label)}" data-change="av-label" data-key="${esc(s.key)}" aria-label="Nome do estado" style="width:100%"></td>
+            <td class="small">${s.video ? `<span class="tag ok">enviado</span> ${(s.video.size / 1048576).toFixed(1)} MB` : '<span class="tag warn">falta</span>'}</td>
+            <td class="row" style="gap:4px"><button class="btn sm" data-act="av-prompt" data-key="${esc(s.key)}">Copiar prompt</button><label class="btn sm">Vídeo<input type="file" accept="video/*" data-change="av-file" data-key="${esc(s.key)}" hidden></label>${s.video ? `<button class="btn sm ghost" data-act="av-del" data-key="${esc(s.key)}">Remover</button>` : ""}<button class="btn sm ghost" data-act="av-rm" data-key="${esc(s.key)}" title="Excluir o estado">×</button></td></tr>`).join("")}</table></div></div>` : ""}
+      </div>`;
+    }
+    const avEnsure = (p) => { if (!p.avatar || !p.avatar.length) p.avatar = avDefaults(p); return p.avatar; };
+    async function avStore(p, st, file) {
+      if (!/^video\//.test(file.type) && !/\.(mp4|webm|mov)$/i.test(file.name)) return toast("Escolha um arquivo de vídeo (MP4, WebM ou MOV).");
+      if (file.size > 60e6) return toast("Vídeo grande demais (máximo de 60 MB). Exporte em 720p.");
+      const type = file.type || "video/mp4", k = avId(p, st.key);
+      try { await delMedia(k); } catch (e) {}
+      await putChunk(k, 0, file);
+      if (root.hcAvatarRemote) { try { await root.hcAvatarRemote.put(p.id, st.key, file, type); } catch (e) { toast("Vídeo guardado neste computador, mas o envio ao servidor falhou: " + e.message); } }
+      const old = AVP.urls.get(k); if (old) { URL.revokeObjectURL(old); AVP.urls.delete(k); }
+      st.video = { type, size: file.size, at: Date.now() };
+    }
+    function avKeyFor(p, name) {
+      // compara palavra por palavra (evita "sudorese" cair em "dor"); a primeira palavra do nome que indicar um estado vence
+      const words = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\.[^.]+$/, "").split(/[^a-z0-9]+/).filter(Boolean);
+      const st = avEnsure(p);
+      const syn = { repouso: ["estavel", "repouso", "basal", "normal"], contracao: ["contracao", "contracoes", "trabalho"], cefaleia: ["cefaleia", "cabeca"], visao: ["visao", "turva"],
+        dispneia: ["dispneia", "falta"], nausea: ["nausea", "enjoo", "enjoado"], ansiedade: ["ansiedade", "choro"], sonolento: ["sonolento", "sonolencia"], poscrise: ["poscrise", "pos"], dor: ["dor"] };
+      let hit = null;
+      for (const w of words) { hit = st.find((s) => s.key === w || (syn[s.key] || []).includes(w)); if (hit) break; }
+      if (hit) return hit;
+      const label = name.replace(/\.[^.]+$/, "").replace(/^[^-]*-\d+-/, "").replace(/[-_]+/g, " ").trim() || "Novo estado";
+      const s = { key: "e" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), label: label[0].toUpperCase() + label.slice(1), video: null }; st.push(s); return s;
+    }
+    Object.assign(ACT, {
+      "av-state": (b) => { const p = curPt(); if (p) avShow(p, b.dataset.key); },
+      "av-mute": (b) => { AVP.muted = !AVP.muted; avApplyVol(); b.textContent = AVP.muted ? "Ligar som" : "Silenciar"; const v = AVP.v[1 - AVP.cur] && AVP.v.find((x) => x.classList.contains("on")); if (v && v.paused) v.play().catch(() => {}); },
+      "av-stop": () => { AVP.v.forEach((v) => { v.pause(); v.classList.remove("on"); }); AVP.key = ""; $$(".avbtn").forEach((b) => b.classList.remove("on")); if (AVP.el) { AVP.el.querySelector(".avempty").textContent = "Escolha um estado"; AVP.el.querySelector(".avlabel").textContent = ""; } if (AVP.win && !AVP.win.closed) { const pv = AVP.win.document.querySelector("video"); if (pv) pv.pause(); } },
+      "av-pop": () => {
+        const p = curPt(); if (!p) return;
+        if (AVP.win && !AVP.win.closed) { AVP.win.focus(); return; }
+        const w = window.open("", "helsim-avatar", "width=600,height=800"); if (!w) return toast("O navegador bloqueou a janela. Permita janelas pop-up para o HELSIM.");
+        w.document.title = "Paciente · " + p.name;
+        w.document.body.innerHTML = `<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}video{width:100%;height:100%;object-fit:cover}b{position:fixed;inset:0;display:grid;place-items:center;color:#9aa;font:16px system-ui}</style><video playsinline loop autoplay></video><b>Aguardando o docente</b>`;
+        AVP.win = w; avApplyVol();
+        const cur = AVP.v.find((v) => v.classList.contains("on"));
+        if (cur && cur.src) { const pv = w.document.querySelector("video"); pv.src = cur.src; pv.play().catch(() => {}); w.document.querySelector("b").textContent = ""; }
+        const t = setInterval(() => { if (w.closed) { clearInterval(t); AVP.win = null; avApplyVol(); } }, 1000);
+        toast("Arraste a janela para a TV da sala e use tela cheia. O som sai por ela.");
+      },
+      "av-prompt": (b) => { const p = curPt(), st = p && avStates(p).find((s) => s.key === b.dataset.key); if (!st) return; navigator.clipboard.writeText(avPrompt(p, st)).then(() => toast("Prompt copiado. Cole no Gemini junto com a foto do paciente."), () => modal("Prompt do vídeo", `<textarea rows="10" style="width:100%" readonly>${esc(avPrompt(p, st))}</textarea>`, { submit: "Fechar", onSubmit: () => {} })); },
+      "av-prompts": () => {
+        const p = curPt(); if (!p) return;
+        const slug = (p.name || "paciente").split(/\s+/)[0].toLowerCase().normalize("NFD").replace(/[^a-z]/g, "");
+        const txt = `HELSIM · prompts de vídeo do avatar · ${p.name}\n\nNo Gemini, escolha criar vídeo (Veo), envie a foto do paciente e cole um prompt por vez.\nSalve cada vídeo com o nome indicado e use "Importar vários" na aba Avatar.\n\n` +
+          avStates(p).map((s, i) => `── ${slug}-${String(i + 1).padStart(2, "0")}-${s.key}.mp4 · ${s.label}\n${avPrompt(p, s)}\n`).join("\n");
+        const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([txt], { type: "text/plain" })); a.download = `prompts-avatar-${slug}.txt`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      },
+      "av-add": async () => { const p = curPt(); if (!p || !isAdmin()) return; const st = avEnsure(p); st.push({ key: "e" + Date.now().toString(36), label: "Novo estado", look: "", sound: "", video: null }); save(); render(); },
+      "av-rm": async (b) => { const p = curPt(); if (!p || !isAdmin()) return; if (!(await ask("Excluir este estado e o vídeo dele?", "Excluir"))) return; const st = avEnsure(p), s = st.find((x) => x.key === b.dataset.key); if (!s) return;
+        try { await delMedia(avId(p, s.key)); } catch (e) {} if (root.hcAvatarRemote) root.hcAvatarRemote.del(p.id, s.key).catch(() => {}); p.avatar = st.filter((x) => x !== s); save(); render(); },
+      "av-del": async (b) => { const p = curPt(); if (!p || !isAdmin()) return; const s = avEnsure(p).find((x) => x.key === b.dataset.key); if (!s) return;
+        try { await delMedia(avId(p, s.key)); } catch (e) {} if (root.hcAvatarRemote) root.hcAvatarRemote.del(p.id, s.key).catch(() => {}); s.video = null; save(); render(); },
+    });
+    Object.assign(CHG, {
+      "av-vol": (el) => { AVP.vol = +el.value; avApplyVol(); },
+      "av-label": (el) => { const p = curPt(); if (!p || !isAdmin()) return; const s = avEnsure(p).find((x) => x.key === el.dataset.key); if (s) { s.label = el.value.trim() || s.label; save(); } },
+      "av-file": async (el) => { const f = el.files[0], p = curPt(); el.value = ""; if (!f || !p || !isAdmin()) return; const s = avEnsure(p).find((x) => x.key === el.dataset.key); if (!s) return;
+        toast("Guardando o vídeo…"); await avStore(p, s, f); save(); render(); toast("Vídeo do estado “" + s.label + "” guardado."); },
+      "av-multi": async (el) => { const fs = [...el.files], p = curPt(); el.value = ""; if (!fs.length || !p || !isAdmin()) return; toast(`Guardando ${fs.length} vídeo(s)…`);
+        const done = []; for (const f of fs) { const s = avKeyFor(p, f.name); await avStore(p, s, f); if (s.video) done.push(s.label); }
+        save(); render(); toast(`${done.length} vídeo(s) guardado(s): ${done.join(", ")}.`); },
+    });
+    // página própria para o docente (o Prontuário completo é restrito ao administrador)
+    R.avatar = () => {
+      const p = curPt();
+      if (!p) return `<h1>Avatar do paciente</h1><div class="card"><p class="muted">Nenhum paciente simulado cadastrado. O administrador cadastra os pacientes no Prontuário eletrônico.</p></div>`;
+      return `<div class="between"><h1 style="margin:0">Avatar do paciente</h1><select data-change="ehr-pt" aria-label="Paciente">${DB.patients.map((x) => opt(x.id, `${x.name} · ${x.unit || "sem setor"}`, p.id)).join("")}</select></div>
+        <p class="muted" style="margin:4px 0 14px">${esc([p.age && p.age + " anos", p.sex, p.diagnosis].filter(Boolean).join(" · "))}</p>${ehrAv(p)}`;
+    };
+    AFTER.prontuario = () => {
+      const slot = document.getElementById("av-slot"); if (!slot) return;
+      slot.appendChild(avPlayer()); const v = AVP.v.find((x) => x.classList.contains("on")); if (v && v.paused) v.play().catch(() => {});
+      const p = curPt(); if (p && AVP.pid && AVP.pid !== p.id) ACT["av-stop"]();
+    };
+    AFTER.avatar = AFTER.prontuario;
     function itemForm(it, hits) {
       return `<div class="fg"><label class="f"><span>Tipo</span><select name="type">${Object.entries(TYPES).map(([k, v]) => opt(k, `${k} – ${v}`, it.type)).join("")}</select></label>
         <label class="f"><span>Início</span><input type="date" name="start" value="${esc(it.start || isoDate(Date.now()))}"></label></div>
@@ -1039,7 +1211,7 @@
     root.hcSyncDirty = () => { if (SY.on) { SY.pendingLocal = true; schedulePush(); } };
     root.hcSyncBoot = async () => {
       if (!AU.on || !AU.user || !AU.syncAvail) return;
-      SY.on = true;
+      SY.on = true; root.hcAvatarRemote = avRemote;
       let m = null; try { m = await kvGet("sync"); } catch (e) {}
       if (m && m.user === AU.user.email) { SY.rev = m.rev; SY.base = m.base; SY.role = m.role || AU.user.role; } else { SY.userChanged = true; SY.role = AU.user.role; }
       if (SY.userChanged && AU.user.role === "estudante") { DB = emptyDB(); } // outra conta usou este navegador: não expõe dados alheios
@@ -1076,6 +1248,12 @@
       }
       if (n && !quiet) toast(`${n} vídeo(s) enviado(s) ao banco central.`);
     };
+    root.hcAvatarRemote = null;
+    const avRemote = {
+      get: async (pid, key) => { if (!SY.on) return null; const r = await dataFetch("GET", `/avatar/${encodeURIComponent(pid)}/${encodeURIComponent(key)}`); return r.ok ? r.blob() : null; },
+      put: async (pid, key, blob, type) => { if (!SY.on) return; const r = await fetch(`/api/data/avatar/${encodeURIComponent(pid)}/${encodeURIComponent(key)}`, { method: "PUT", headers: { Authorization: "Bearer " + AU.token, "Content-Type": type }, body: blob }); if (!r.ok) { let m = r.status; try { m = (await r.json()).error || m; } catch (e) {} throw new Error(m); } },
+      del: async (pid, key) => { if (SY.on) await dataFetch("DELETE", `/avatar/${encodeURIComponent(pid)}/${encodeURIComponent(key)}`); },
+    };
     root.hcDeleteRemoteMedia = (id) => { if (SY.on && AU.user.role !== "estudante") dataFetch("DELETE", `/media/${encodeURIComponent(id)}`).catch(() => {}); };
     root.hcAuthExpired = () => { SY.on = false; setState(""); toast("Sua sessão expirou. Entre novamente."); logout(); };
     /** Chamado no início: liga o modo de senhas quando a página é servida pelo servidor do HELSIM. */
@@ -1090,7 +1268,7 @@
     // Configurações › Usuários e acesso (administrador)
     const origConfig = R.config, origAfter = AFTER.config;
     R.config = () => origConfig() + (AU.on && AU.user && AU.user.role === "admin" && UI.role === "admin"
-      ? `<section class="card"><div class="between"><h2 style="margin:0">Usuários e acesso</h2><span class="row" style="gap:6px"><button class="btn" data-act="au-testmail">Testar e-mail</button><button class="btn primary" data-act="au-new">+ Usuário</button></span></div><div id="au-users" class="muted">Carregando…</div>
+      ? `<section class="card"><div class="between"><h2 style="margin:0">Usuários e acesso</h2><span class="row" style="gap:6px"><button class="btn" data-act="au-testmail">Testar e-mail</button><button class="btn" data-act="au-tempnew">+ Acesso temporário</button><button class="btn primary" data-act="au-new">+ Usuário</button></span></div><div id="au-users" class="muted">Carregando…</div>
         <p class="muted small" style="margin-top:8px">Novos cadastros entram como estudante; promova docentes aqui. “Nova senha” envia outra senha temporária e obriga a troca no próximo acesso. E-mail: ${AU.mail === "smtp" ? "SMTP configurado" : "modo de teste (data/outbox)"}.</p></section>`
       : `<section class="card"><h2>Modo de senhas</h2><p class="muted">${AU.on ? "Ativo. Você entrou como " + esc(AU.user ? AU.user.name : "") + "." : "Disponível quando o HELSIM roda pelo servidor (<code>npm start</code>): cadastro por e-mail, senha temporária enviada ao e-mail e troca obrigatória no primeiro acesso. Neste arquivo/link a troca de perfil continua livre."}</p></section>`);
     // pedidos de perfil docente ficam nas contas (fora do banco): o administrador consulta ao entrar e a cada minuto
@@ -1110,7 +1288,7 @@
         const { users } = await api("/users"); setPendDoc(users);
         el.className = ""; el.innerHTML = `<div class="tbl"><table><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Situação</th><th>Último acesso</th><th></th></tr>${users.map((u) => `<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td>
           <td><select data-au-role="${u.id}" ${u.id === AU.user.id ? "disabled" : ""}>${Object.keys(RANK).reverse().map((r) => opt(r, ROLES[r], u.role)).join("")}</select></td>
-          <td>${u.mustChange ? '<span class="tag warn">aguardando troca de senha</span>' : '<span class="tag ok">ativo</span>'}${u.requestedRole === "docente" ? ` <span class="tag warn">pediu perfil docente</span> <button class="btn sm primary" data-act="au-approve" data-id="${u.id}" data-email="${esc(u.email)}" data-name="${esc(u.name)}">Aprovar docente</button> <button class="btn sm" data-act="au-deny" data-id="${u.id}">Recusar</button>` : ""}</td><td class="small">${u.lastLogin ? esc(fmtDT(u.lastLogin)) : "—"}</td>
+          <td>${u.accessUntil ? (u.accessUntil > Date.now() ? `<span class="tag warn">temporário até ${esc(fmtDT(u.accessUntil))}</span>` : '<span class="tag bad">acesso expirado</span>') : u.mustChange ? '<span class="tag warn">aguardando troca de senha</span>' : '<span class="tag ok">ativo</span>'}${u.requestedRole === "docente" ? ` <span class="tag warn">pediu perfil docente</span> <button class="btn sm primary" data-act="au-approve" data-id="${u.id}" data-email="${esc(u.email)}" data-name="${esc(u.name)}">Aprovar docente</button> <button class="btn sm" data-act="au-deny" data-id="${u.id}">Recusar</button>` : ""}</td><td class="small">${u.lastLogin ? esc(fmtDT(u.lastLogin)) : "—"}</td>
           <td class="row" style="gap:4px">${u.role === "docente" ? `<button class="btn sm" data-act="au-areas" data-email="${esc(u.email)}" data-name="${esc(u.name)}">Áreas</button>` : ""}<button class="btn sm" data-act="au-reset" data-id="${u.id}">Nova senha</button>${u.id === AU.user.id ? "" : `<button class="btn sm" data-act="au-del" data-id="${u.id}">Excluir</button>`}</td></tr>`).join("")}</table></div>`;
         $$("[data-au-role]", el).forEach((s) => { s.onchange = async () => { try { await api(`/users/${s.dataset.auRole}/role`, { role: s.value }); toast("Perfil atualizado."); } catch (e) { toast(e.message); loadUsers(); } }; });
       } catch (e) { el.textContent = e.message; }
@@ -1131,6 +1309,18 @@
         Object.assign(p, { role: body.role, areas: body.role === "docente" ? fd.getAll("areas") : p.areas || [] }); save();
         toast("Usuário cadastrado; senha temporária enviada."); loadUsers();
       } }));
+    // acesso temporário: senha única mostrada uma vez ao administrador, sem troca obrigatória
+    ACT["au-tempnew"] = adminOnly(() => modal("Acesso temporário", `<label class="f"><span>Nome</span><input name="name" required></label><label class="f"><span>E-mail</span><input name="email" type="email" required></label>
+      <div class="row" style="gap:10px"><label class="f" style="flex:1"><span>Perfil</span><select name="role">${opt("estudante", ROLES.estudante)}${opt("docente", ROLES.docente)}${opt("admin", ROLES.admin)}</select></label><label class="f" style="width:140px"><span>Validade (horas)</span><input name="hours" type="number" min="1" max="168" value="48" required></label></div>
+      <p class="muted small">Gera uma senha única, sem troca no primeiro acesso. Ela aparece uma só vez para você repassar; depois do prazo o acesso para de funcionar sozinho.</p>`,
+      { submit: "Gerar acesso", onSubmit: async (fd) => {
+        let j; try { j = await api("/users/temporary", { name: fd.get("name"), email: fd.get("email"), role: fd.get("role"), hours: Number(fd.get("hours")) }); } catch (e) { toast(e.message); return false; }
+        loadUsers();
+        setTimeout(() => modal("Senha do acesso temporário", `<p>E-mail: <b>${esc(j.user.email)}</b><br>Válido até: <b>${esc(fmtDT(j.user.accessUntil))}</b></p>
+          <label class="f"><span>Senha (aparece só agora)</span><input readonly value="${esc(j.password)}" style="font-family:var(--mono,monospace);font-size:18px" onclick="this.select()"></label>
+          <button type="button" class="btn" data-act="au-tempcopy" data-pw="${esc(j.password)}">Copiar senha</button>`, { submit: "Fechar", onSubmit: () => {} }), 0);
+      } }));
+    ACT["au-tempcopy"] = (b) => { navigator.clipboard.writeText(b.dataset.pw).then(() => toast("Senha copiada."), () => toast("Selecione a senha e copie.")); };
     // a escolha do perfil mostra a aba de áreas (no cadastro de usuário e no de pessoa)
     const origPmRole = CHG["pm-role"];
     CHG["pm-role"] = (el) => { const a = $("[data-pm-areas]"); if (a) a.hidden = el.value !== "docente"; if (origPmRole) origPmRole(el); };

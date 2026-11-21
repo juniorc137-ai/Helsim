@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b2545">
+<title>HELSIM · Câmera do celular</title>
+<link rel="icon" href="img/helsim-favicon.png">
+<style>
+  :root { --navy:#0b2545; --blue:#1d4ed8; --red:#dc2626; --ok:#16a34a; --mut:#94a3b8; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:#020617; color:#e2e8f0; font:15px/1.4 -apple-system,"IBM Plex Sans",system-ui,sans-serif; }
+  header { background:var(--navy); padding:calc(env(safe-area-inset-top) + 10px) 16px 10px; display:flex; align-items:center; gap:10px; }
+  header img { width:28px; height:28px; border-radius:6px; }
+  header b { font-size:16px; letter-spacing:.3px; }
+  header span { margin-left:auto; font-size:12px; color:var(--mut); }
+  main { padding:16px; max-width:560px; margin:0 auto; }
+  .stage { position:relative; background:#000; border-radius:12px; overflow:hidden; aspect-ratio:16/9; margin-bottom:14px; }
+  video { width:100%; height:100%; object-fit:contain; display:block; }
+  .live { position:absolute; top:10px; left:10px; background:var(--red); color:#fff; font-size:12px; font-weight:700; padding:3px 8px; border-radius:4px; display:none; }
+  .live.on { display:block; }
+  .status { padding:10px 12px; border-radius:8px; background:#0f172a; border:1px solid #1e293b; margin-bottom:14px; }
+  .status.ok { border-color:var(--ok); } .status.err { border-color:var(--red); }
+  label { display:block; font-size:13px; color:var(--mut); margin-bottom:6px; }
+  input { width:100%; font-size:28px; letter-spacing:8px; text-align:center; padding:10px; border-radius:8px; border:1px solid #334155; background:#0f172a; color:#fff; margin-bottom:12px; }
+  button { width:100%; font:600 16px inherit; padding:14px; border-radius:10px; border:0; margin-bottom:10px; background:var(--blue); color:#fff; }
+  button.sec { background:#1e293b; color:#e2e8f0; }
+  button.stop { background:var(--red); }
+  button:disabled { opacity:.5; }
+  .hint { font-size:12px; color:var(--mut); }
+</style>
+</head>
+<body>
+<header><img src="img/helsim-favicon.png" alt=""><b>HELSIM</b><span>Câmera do celular</span></header>
+<main>
+  <div class="stage"><video id="v" playsinline muted autoplay></video><div class="live" id="live">AO VIVO</div></div>
+  <div class="status" id="st">Digite o código de 6 números que aparece no HELSIM e toque em Conectar.</div>
+  <div id="form">
+    <label for="code">Código</label>
+    <input id="code" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="000000">
+    <label for="name">Nome desta câmera</label>
+    <input id="name" maxlength="40" placeholder="Celular" style="font-size:16px;letter-spacing:0;text-align:left">
+    <label style="display:flex;gap:8px;align-items:center;font-size:14px;color:#e2e8f0;margin-bottom:14px"><input id="mic" type="checkbox" style="width:auto;margin:0"> Enviar também o som do microfone do celular</label>
+    <button id="go">Conectar</button>
+  </div>
+  <div id="ctl" hidden>
+    <button class="sec" id="flip">Trocar câmera (frontal ou traseira)</button>
+    <button class="stop" id="stop">Encerrar</button>
+  </div>
+  <p class="hint">Deixe o celular na tomada, com a tela ligada e esta página aberta. O vídeo vai direto para o computador da sessão pela rede local e não fica guardado no celular.</p>
+</main>
+<script>
+(() => {
+  const $ = (s) => document.getElementById(s);
+  const q = new URLSearchParams(location.search);
+  $("code").value = (q.get("c") || "").replace(/\D/g, "").slice(0, 6);
+  try { $("name").value = localStorage.getItem("hc-cam-name") || ""; } catch (e) {}
+  let ws = null, pc = null, stream = null, code = "", facing = "environment", withMic = false, wake = null, ended = false;
+
+  const say = (t, cls) => { const e = $("st"); e.textContent = t; e.className = "status " + (cls || ""); };
+  const send = (m) => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(m)); };
+
+  async function getCam() {
+    const v = { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } };
+    return navigator.mediaDevices.getUserMedia({ video: v, audio: withMic });
+  }
+  async function keepAwake() { try { if ("wakeLock" in navigator) wake = await navigator.wakeLock.request("screen"); } catch (e) {} }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && stream && !wake) keepAwake(); });
+
+  async function start() {
+    code = $("code").value.replace(/\D/g, "");
+    if (code.length !== 6) return say("O código tem 6 números.", "err");
+    if (!window.isSecureContext || !navigator.mediaDevices) return say("Abra esta página pelo endereço https mostrado no HELSIM. Sem https o celular não libera a câmera.", "err");
+    try { localStorage.setItem("hc-cam-name", $("name").value.trim()); } catch (e) {}
+    $("go").disabled = true; ended = false; withMic = $("mic").checked;
+    try { stream = await getCam(); }
+    catch (e) { $("go").disabled = false; return say("A câmera não foi liberada. Permita o acesso à câmera para este site e tente de novo. (" + e.name + ")", "err"); }
+    $("v").srcObject = stream; keepAwake();
+    say("Conectando ao HELSIM...");
+    ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host);
+    ws.onopen = () => send({ type: "cam-join", code, label: $("name").value.trim() || "Celular" });
+    ws.onmessage = async (e) => {
+      let m; try { m = JSON.parse(e.data); } catch (x) { return; }
+      if (m.type === "cam-error") { say(m.error, "err"); stop(true); }
+      if (m.type === "cam-joined") { say("Código aceito. Abrindo o vídeo..."); offer(); }
+      if (m.type === "cam-bye") { say("O HELSIM encerrou esta câmera.", ""); stop(true); }
+      if (m.type === "cam-signal" && pc) {
+        const d = m.data || {};
+        if (d.sdp) await pc.setRemoteDescription(d.sdp);
+        if (d.ice) { try { await pc.addIceCandidate(d.ice); } catch (x) {} }
+      }
+    };
+    ws.onclose = () => { if (!ended) { say("A ligação com o HELSIM caiu. Toque em Conectar para tentar de novo.", "err"); stop(true); } };
+  }
+
+  async function offer() {
+    if (pc) pc.close();
+    pc = new RTCPeerConnection({ iceServers: [] }); // rede local: não precisa de servidor externo
+    stream.getTracks().forEach((t) => pc.addTrack(t, stream));
+    pc.onicecandidate = (e) => { if (e.candidate) send({ type: "cam-signal", code, data: { ice: e.candidate } }); };
+    pc.onconnectionstatechange = () => {
+      const s = pc && pc.connectionState;
+      if (s === "connected") { say("Transmitindo para o HELSIM.", "ok"); $("live").classList.add("on"); $("form").hidden = true; $("ctl").hidden = false; }
+      if (s === "failed") say("O vídeo não chegou ao computador. Confira se os dois estão na mesma rede Wi-Fi.", "err");
+      if (s === "disconnected") say("Sinal instável. Tentando manter o vídeo...", "");
+    };
+    const o = await pc.createOffer();
+    await pc.setLocalDescription(o);
+    send({ type: "cam-signal", code, data: { sdp: pc.localDescription } });
+  }
+
+  async function swapTracks() {
+    const old = stream; stream = await getCam(); $("v").srcObject = stream;
+    if (pc) {
+      for (const s of pc.getSenders()) {
+        const nt = stream.getTracks().find((t) => s.track && t.kind === s.track.kind);
+        if (nt) await s.replaceTrack(nt);
+      }
+    }
+    old.getTracks().forEach((t) => t.stop());
+  }
+
+  function stop(keepMsg) {
+    ended = true;
+    if (pc) { pc.close(); pc = null; }
+    if (ws) { try { ws.close(); } catch (e) {} ws = null; }
+    if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; }
+    if (wake) { wake.release().catch(() => {}); wake = null; }
+    $("v").srcObject = null; $("live").classList.remove("on");
+    $("form").hidden = false; $("ctl").hidden = true; $("go").disabled = false;
+    if (!keepMsg) say("Câmera encerrada.");
+  }
+
+  $("go").onclick = start;
+  $("stop").onclick = () => stop(false);
+  $("flip").onclick = async () => { facing = facing === "environment" ? "user" : "environment"; try { await swapTracks(); } catch (e) { say("Não foi possível trocar de câmera.", "err"); } };
+  if ($("code").value.length === 6) say("Código preenchido pelo QR. Toque em Conectar e permita a câmera.");
+})();
+</script>
+</body>
+</html>
