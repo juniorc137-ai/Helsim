@@ -1056,7 +1056,7 @@ function panelHide(h){document.body.classList.toggle("phide",h);pSet({hide:!!h})
 (function(){
   const q=new URLSearchParams(location.search).get("tema");
   const apply=()=>{let t=q==="claro"?"light":q==="escuro"?"dark":"";try{if(!t&&window.parent!==window)t=window.parent.document.documentElement.getAttribute("data-theme")||"";}catch(e){}
-    if(t)document.documentElement.setAttribute("data-theme",t);else document.documentElement.removeAttribute("data-theme");};
+    document.documentElement.setAttribute("data-theme",t||"dark");};
   apply();if(!q&&window.parent!==window)setInterval(apply,1500);
 })();
 function clockStart(){const f=()=>{const d=new Date();$("mclk").textContent=d.toLocaleTimeString("pt-BR");$("mdate").textContent=d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric"});};f();clearInterval(window._clk);window._clk=setInterval(f,1000);}

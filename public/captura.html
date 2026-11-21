@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="dark">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
@@ -650,7 +650,7 @@ function chrome() {
     <span class="right">HELSIM v1.0</span>`;
 }
 function tick() { const c = $("#tb-clock"); if (c) c.textContent = new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); }
-function applyTheme() { if (UI.theme) document.documentElement.dataset.theme = UI.theme; else delete document.documentElement.dataset.theme; }
+function applyTheme() { document.documentElement.dataset.theme = UI.theme || "dark"; }
 
 // ── Confirmação na própria página (confirm() é bloqueado em alguns visualizadores) ──
 function ask(msg, yes = "Confirmar") {
@@ -2077,7 +2077,7 @@ const refHtml = (r) => { const doi = (String(r).match(/https:\/\/doi\.org\/\S+/)
 const ACT = {
   "go": (b) => go(b.dataset.v),
   "theme": () => {
-    const dark = UI.theme ? UI.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    const dark = (UI.theme || "dark") === "dark";
     UI.theme = dark ? "light" : "dark"; applyTheme(); savePrefs(); if ($("#tl")) drawTimeline();
   },
   "modal-close": () => closeModal(),
